@@ -1,7 +1,7 @@
 """Prediction API contracts."""
 
 from datetime import date, datetime
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -10,7 +10,7 @@ from backend.core.risk_mapping import RiskLevel
 
 
 class PredictionCreateBody(BaseModel):
-    """Optional fields for ``POST /predict`` (age derived from ``birth_date`` only)."""
+    """Campos opcionales del formulario multipart de ``POST /predict`` (además de la imagen)."""
 
     birth_date: Optional[date] = None
     notes: Optional[str] = Field(default=None, max_length=4000)
@@ -44,6 +44,7 @@ class PredictionHistoryItem(BaseModel):
                 "notes": None,
                 "image_storage_path": "uuid/abc.jpg",
                 "created_at": "2026-04-01T12:00:00Z",
+                "inference_mode": "backend",
             }
         },
     )
@@ -68,6 +69,10 @@ class PredictionHistoryItem(BaseModel):
         description="Ruta del objeto en el bucket de Storage (prefijo = user id).",
     )
     created_at: datetime
+    inference_mode: Literal["backend"] = Field(
+        default="backend",
+        description="Dónde se ejecutó la inferencia (siempre backend en esta API).",
+    )
 
 
 class PredictionImageSignedUrlOut(BaseModel):
@@ -77,7 +82,7 @@ class PredictionImageSignedUrlOut(BaseModel):
 
 
 class PredictionResponse(BaseModel):
-    """``POST /predict`` success body (stored row + mock model output)."""
+    """Cuerpo de éxito de ``POST /predict`` (fila persistida + score del modelo)."""
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -90,8 +95,9 @@ class PredictionResponse(BaseModel):
                 "age_months": 111,
                 "age_display": "9 años 3 meses",
                 "notes": None,
-                "image_storage_path": None,
+                "image_storage_path": "uuid/abc.jpg",
                 "created_at": "2026-04-01T12:00:00Z",
+                "inference_mode": "backend",
             }
         },
     )
@@ -116,3 +122,7 @@ class PredictionResponse(BaseModel):
         description="Ruta del objeto en Storage.",
     )
     created_at: datetime
+    inference_mode: Literal["backend"] = Field(
+        default="backend",
+        description="Dónde se ejecutó la inferencia (siempre backend en esta API).",
+    )

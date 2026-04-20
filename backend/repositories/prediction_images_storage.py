@@ -3,25 +3,20 @@
 from __future__ import annotations
 
 import uuid
-from typing import Final
 
 from storage3.exceptions import StorageApiError
 from storage3.utils import StorageException
 
 from backend.core.config import settings
+from backend.core.prediction_image_limits import (
+    ALLOWED_IMAGE_CONTENT_TYPES,
+    IMAGE_EXT_BY_CONTENT_TYPE,
+    prediction_image_max_bytes,
+)
 from backend.integrations.supabase_client import create_supabase_user_client
 from backend.services.exceptions import PredictionServiceError
 
-_ALLOWED_CT: Final[frozenset[str]] = frozenset(
-    {"image/jpeg", "image/png", "image/webp"},
-)
-_EXT: Final[dict[str, str]] = {
-    "image/jpeg": "jpg",
-    "image/png": "png",
-    "image/webp": "webp",
-}
-_MAX_BYTES: Final[int] = 5 * 1024 * 1024
-_SIGNED_URL_TTL_S: Final[int] = 3600
+_SIGNED_URL_TTL_S: int = 3600
 
 
 class PredictionImagesStorage:
@@ -34,20 +29,22 @@ class PredictionImagesStorage:
         content_type: str,
     ) -> str:
         """Upload to ``{user_id}/{uuid}.ext``; returns storage object path only."""
-        if len(file_bytes) > _MAX_BYTES:
+        max_b = prediction_image_max_bytes()
+        if len(file_bytes) > max_b:
+            mb = max_b / (1024 * 1024)
             raise PredictionServiceError(
-                "La imagen supera el tamaño máximo permitido (5 MB).",
-                400,
+                f"La imagen supera el tamaño máximo permitido ({mb:.0f} MB).",
+                413,
                 code="image_too_large",
             )
         ct = content_type.split(";")[0].strip().lower()
-        if ct not in _ALLOWED_CT:
+        if ct not in ALLOWED_IMAGE_CONTENT_TYPES:
             raise PredictionServiceError(
-                "Tipo de imagen no permitido (use JPEG, PNG o WebP).",
-                400,
-                code="image_invalid_type",
+                "El tipo de imagen no está permitido. Use JPEG, PNG o WebP.",
+                415,
+                code="unsupported_media_type",
             )
-        ext = _EXT[ct]
+        ext = IMAGE_EXT_BY_CONTENT_TYPE[ct]
         object_path = f"{user_id}/{uuid.uuid4().hex}.{ext}"
         bucket = settings.predictions_storage_bucket.strip() or "prediction-images"
         client = create_supabase_user_client(access_token)

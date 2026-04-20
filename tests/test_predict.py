@@ -1,6 +1,7 @@
 from datetime import UTC, date, datetime
 from unittest.mock import MagicMock
 
+import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 from postgrest import APIError
@@ -8,12 +9,55 @@ from postgrest import APIError
 import backend.core.patient_age as patient_age_module
 from backend.api import deps as api_deps
 from backend.core import config as config_module
+from backend.inference.image_predictor import StaticImagePredictor
 from backend.main import app
 from backend.repositories import predictions_repository as predictions_repo_module
 from backend.schemas.auth import UserOut
 from backend.services.prediction_service import PredictionService
 
 client = TestClient(app)
+
+_SKIN_PNG_CACHE: bytes | None = None
+
+
+def _skip_nail(_rgb: np.ndarray) -> None:
+    return
+
+
+def skin_patch_png() -> bytes:
+    global _SKIN_PNG_CACHE
+    if _SKIN_PNG_CACHE is None:
+        import tensorflow as tf
+
+        pix = tf.constant([220, 180, 140], dtype=tf.uint8)
+        t = tf.broadcast_to(pix, [32, 32, 3])
+        _SKIN_PNG_CACHE = bytes(tf.image.encode_png(t).numpy())
+    return _SKIN_PNG_CACHE
+
+
+def black_png() -> bytes:
+    import tensorflow as tf
+
+    t = tf.zeros([48, 48, 3], dtype=tf.uint8)
+    return bytes(tf.image.encode_png(t).numpy())
+
+
+class _FakeImgStore:
+    def upload_user_image(
+        self,
+        _access_token: str,
+        *,
+        user_id: str,
+        file_bytes: bytes,
+        content_type: str,
+    ) -> str:
+        _ = file_bytes, content_type
+        return f"{user_id}/test.png"
+
+
+class _ExplodingRepo:
+    def insert_for_user(self, *_a, **_k) -> dict:
+        raise AssertionError("persist should not be reached")
 
 
 def test_predict_without_token() -> None:
@@ -57,6 +101,7 @@ def test_predict_success_with_overrides() -> None:
         ) -> dict:
             assert user_id == user.id
             assert risk == "low"
+            assert image_storage_path == f"{user.id}/test.png"
             return {
                 "id": "22222222-2222-2222-2222-222222222222",
                 "risk": risk,
@@ -70,7 +115,12 @@ def test_predict_success_with_overrides() -> None:
             }
 
     def fake_prediction_service() -> PredictionService:
-        return PredictionService(repo=FakeRepo())
+        return PredictionService(
+            repo=FakeRepo(),
+            images=_FakeImgStore(),
+            image_predictor=StaticImagePredictor(0.42),
+            nail_checker=_skip_nail,
+        )
 
     app.dependency_overrides[api_deps.get_predict_context] = fake_context
     app.dependency_overrides[api_deps.get_prediction_service] = fake_prediction_service
@@ -78,6 +128,7 @@ def test_predict_success_with_overrides() -> None:
         response = client.post(
             "/predict",
             headers={"Authorization": "Bearer aaa.bbb.ccc"},
+            files={"image": ("m.png", skin_patch_png(), "image/png")},
         )
         assert response.status_code == 200
         data = response.json()
@@ -89,6 +140,168 @@ def test_predict_success_with_overrides() -> None:
         assert data["birth_date"] is None
         assert data["age_months"] is None
         assert data["age_display"] is None
+        assert data["inference_mode"] == "backend"
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_predict_missing_image_returns_400() -> None:
+    user = UserOut(
+        id="11111111-1111-1111-1111-111111111111",
+        email="p@example.com",
+        created_at=None,
+    )
+
+    def fake_context() -> tuple[UserOut, str]:
+        return (user, "aaa.bbb.ccc")
+
+    app.dependency_overrides[api_deps.get_predict_context] = fake_context
+    try:
+        response = client.post(
+            "/predict",
+            headers={"Authorization": "Bearer aaa.bbb.ccc"},
+            data={"notes": "x"},
+        )
+        assert response.status_code == 400
+        body = response.json()
+        assert body["detail"] == "image is required for prediction"
+        assert body["code"] == "image_required"
+
+        response_empty = client.post(
+            "/predict",
+            headers={"Authorization": "Bearer aaa.bbb.ccc"},
+            files={"image": ("empty.png", b"", "image/png")},
+        )
+        assert response_empty.status_code == 400
+        assert response_empty.json()["code"] == "image_required"
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_predict_rejects_invalid_image_decode() -> None:
+    user = UserOut(
+        id="11111111-1111-1111-1111-111111111111",
+        email="p@example.com",
+        created_at=None,
+    )
+
+    def fake_context() -> tuple[UserOut, str]:
+        return (user, "aaa.bbb.ccc")
+
+    def fake_prediction_service() -> PredictionService:
+        return PredictionService(
+            repo=_ExplodingRepo(),
+            images=_FakeImgStore(),
+            image_predictor=StaticImagePredictor(0.5),
+            nail_checker=_skip_nail,
+        )
+
+    app.dependency_overrides[api_deps.get_predict_context] = fake_context
+    app.dependency_overrides[api_deps.get_prediction_service] = fake_prediction_service
+    try:
+        response = client.post(
+            "/predict",
+            headers={"Authorization": "Bearer aaa.bbb.ccc"},
+            files={"image": ("x.png", b"not-a-valid-image", "image/png")},
+        )
+        assert response.status_code == 400
+        assert response.json()["code"] == "image_not_decodable"
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_predict_rejects_invalid_content_type() -> None:
+    user = UserOut(
+        id="11111111-1111-1111-1111-111111111111",
+        email="p@example.com",
+        created_at=None,
+    )
+
+    def fake_context() -> tuple[UserOut, str]:
+        return (user, "aaa.bbb.ccc")
+
+    def fake_prediction_service() -> PredictionService:
+        return PredictionService(
+            repo=_ExplodingRepo(),
+            images=_FakeImgStore(),
+            image_predictor=StaticImagePredictor(0.5),
+            nail_checker=_skip_nail,
+        )
+
+    app.dependency_overrides[api_deps.get_predict_context] = fake_context
+    app.dependency_overrides[api_deps.get_prediction_service] = fake_prediction_service
+    try:
+        response = client.post(
+            "/predict",
+            headers={"Authorization": "Bearer aaa.bbb.ccc"},
+            files={"image": ("x.bin", skin_patch_png(), "application/octet-stream")},
+        )
+        assert response.status_code == 415
+        assert response.json()["code"] == "unsupported_media_type"
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_predict_rejects_image_too_large(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(config_module.settings, "prediction_image_max_bytes", 50)
+    user = UserOut(
+        id="11111111-1111-1111-1111-111111111111",
+        email="p@example.com",
+        created_at=None,
+    )
+
+    def fake_context() -> tuple[UserOut, str]:
+        return (user, "aaa.bbb.ccc")
+
+    def fake_prediction_service() -> PredictionService:
+        return PredictionService(
+            repo=_ExplodingRepo(),
+            images=_FakeImgStore(),
+            image_predictor=StaticImagePredictor(0.5),
+            nail_checker=_skip_nail,
+        )
+
+    app.dependency_overrides[api_deps.get_predict_context] = fake_context
+    app.dependency_overrides[api_deps.get_prediction_service] = fake_prediction_service
+    try:
+        response = client.post(
+            "/predict",
+            headers={"Authorization": "Bearer aaa.bbb.ccc"},
+            files={"image": ("m.png", skin_patch_png(), "image/png")},
+        )
+        assert response.status_code == 413
+        assert response.json()["code"] == "image_too_large"
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_predict_rejects_when_no_fingernail_detected() -> None:
+    user = UserOut(
+        id="11111111-1111-1111-1111-111111111111",
+        email="p@example.com",
+        created_at=None,
+    )
+
+    def fake_context() -> tuple[UserOut, str]:
+        return (user, "aaa.bbb.ccc")
+
+    def fake_prediction_service() -> PredictionService:
+        return PredictionService(
+            repo=_ExplodingRepo(),
+            images=_FakeImgStore(),
+            image_predictor=StaticImagePredictor(0.99),
+        )
+
+    app.dependency_overrides[api_deps.get_predict_context] = fake_context
+    app.dependency_overrides[api_deps.get_prediction_service] = fake_prediction_service
+    try:
+        response = client.post(
+            "/predict",
+            headers={"Authorization": "Bearer aaa.bbb.ccc"},
+            files={"image": ("dark.png", black_png(), "image/png")},
+        )
+        assert response.status_code == 400
+        assert response.json()["code"] == "no_fingernail_detected"
     finally:
         app.dependency_overrides.clear()
 
@@ -133,7 +346,12 @@ def test_predict_risk_high_when_score_meets_threshold(monkeypatch: pytest.Monkey
             }
 
     def fake_prediction_service() -> PredictionService:
-        return PredictionService(repo=FakeRepo())
+        return PredictionService(
+            repo=FakeRepo(),
+            images=_FakeImgStore(),
+            image_predictor=StaticImagePredictor(0.42),
+            nail_checker=_skip_nail,
+        )
 
     app.dependency_overrides[api_deps.get_predict_context] = fake_context
     app.dependency_overrides[api_deps.get_prediction_service] = fake_prediction_service
@@ -141,6 +359,7 @@ def test_predict_risk_high_when_score_meets_threshold(monkeypatch: pytest.Monkey
         response = client.post(
             "/predict",
             headers={"Authorization": "Bearer aaa.bbb.ccc"},
+            files={"image": ("m.png", skin_patch_png(), "image/png")},
         )
         assert response.status_code == 200
         assert response.json()["risk"] == "high"
@@ -194,7 +413,12 @@ def test_predict_with_birth_date_sets_age_display(monkeypatch: pytest.MonkeyPatc
             }
 
     def fake_prediction_service() -> PredictionService:
-        return PredictionService(repo=FakeRepo())
+        return PredictionService(
+            repo=FakeRepo(),
+            images=_FakeImgStore(),
+            image_predictor=StaticImagePredictor(0.42),
+            nail_checker=_skip_nail,
+        )
 
     app.dependency_overrides[api_deps.get_predict_context] = fake_context
     app.dependency_overrides[api_deps.get_prediction_service] = fake_prediction_service
@@ -202,13 +426,15 @@ def test_predict_with_birth_date_sets_age_display(monkeypatch: pytest.MonkeyPatc
         response = client.post(
             "/predict",
             headers={"Authorization": "Bearer aaa.bbb.ccc"},
-            json={"birth_date": "2016-01-15"},
+            files={"image": ("m.png", skin_patch_png(), "image/png")},
+            data={"birth_date": "2016-01-15"},
         )
         assert response.status_code == 200
         data = response.json()
         assert data["birth_date"] == "2016-01-15"
         assert data["age_months"] == 111
         assert data["age_display"] == "9 años 3 meses"
+        assert data["inference_mode"] == "backend"
     finally:
         app.dependency_overrides.clear()
 
@@ -233,7 +459,8 @@ def test_predict_implausible_birth_date_422(monkeypatch: pytest.MonkeyPatch) -> 
         response = client.post(
             "/predict",
             headers={"Authorization": "Bearer aaa.bbb.ccc"},
-            json={"birth_date": "1800-01-01"},
+            files={"image": ("m.png", skin_patch_png(), "image/png")},
+            data={"birth_date": "1800-01-01"},
         )
         assert response.status_code == 422
     finally:
@@ -255,7 +482,8 @@ def test_predict_future_birth_date_422() -> None:
         response = client.post(
             "/predict",
             headers={"Authorization": "Bearer aaa.bbb.ccc"},
-            json={"birth_date": "2099-01-01"},
+            files={"image": ("m.png", skin_patch_png(), "image/png")},
+            data={"birth_date": "2099-01-01"},
         )
         assert response.status_code == 422
     finally:
@@ -280,11 +508,20 @@ def test_predict_postgrest_api_error_returns_502(monkeypatch: pytest.MonkeyPatch
         lambda _token: mock_client,
     )
 
+    def fake_prediction_service() -> PredictionService:
+        return PredictionService(
+            images=_FakeImgStore(),
+            image_predictor=StaticImagePredictor(0.42),
+            nail_checker=_skip_nail,
+        )
+
     app.dependency_overrides[api_deps.get_predict_context] = fake_context
+    app.dependency_overrides[api_deps.get_prediction_service] = fake_prediction_service
     try:
         response = client.post(
             "/predict",
             headers={"Authorization": "Bearer aaa.bbb.ccc"},
+            files={"image": ("m.png", skin_patch_png(), "image/png")},
         )
         assert response.status_code == 502
         assert response.json()["code"] == "42501"
@@ -353,6 +590,7 @@ def test_predictions_get_success_with_overrides() -> None:
         assert data[0]["score"] == 0.1
         assert data[0]["age_months"] == 24
         assert data[0]["age_display"] == "2 años"
+        assert data[0]["inference_mode"] == "backend"
     finally:
         app.dependency_overrides.clear()
 
@@ -438,15 +676,20 @@ def test_predict_with_image_multipart() -> None:
             }
 
     def fake_svc() -> PredictionService:
-        return PredictionService(repo=FakeRepoImg(), images=FakeImgStore())
+        return PredictionService(
+            repo=FakeRepoImg(),
+            images=FakeImgStore(),
+            image_predictor=StaticImagePredictor(0.42),
+            nail_checker=_skip_nail,
+        )
 
     app.dependency_overrides[api_deps.get_predict_context] = fake_context
     app.dependency_overrides[api_deps.get_prediction_service] = fake_svc
     try:
         response = client.post(
-            "/predict/with-image",
+            "/predict",
             headers={"Authorization": "Bearer aaa.bbb.ccc"},
-            files={"image": ("m.png", b"\x89PNG\r\n\x1a\n", "image/png")},
+            files={"image": ("m.png", skin_patch_png(), "image/png")},
         )
         assert response.status_code == 200
         data = response.json()

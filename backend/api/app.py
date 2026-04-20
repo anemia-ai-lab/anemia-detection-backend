@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.requests import Request
 from fastapi.responses import JSONResponse
@@ -6,11 +8,21 @@ from backend.api.routes.auth import router as auth_router
 from backend.api.routes.model import router as model_router
 from backend.api.routes.predict import router as predict_router
 from backend.core.config import settings
+from backend.inference.runtime import init_inference_model, shutdown_inference_model
 from backend.services.exceptions import ClientHttpError
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    init_inference_model()
+    yield
+    shutdown_inference_model()
+
 
 app = FastAPI(
     title=settings.app_name,
     debug=settings.debug,
+    lifespan=lifespan,
     openapi_tags=[
         {"name": "health", "description": "Comprobación de disponibilidad."},
         {
@@ -22,7 +34,7 @@ app = FastAPI(
         },
         {
             "name": "predictions",
-            "description": "Predicción mock y lectura del historial en Supabase.",
+            "description": "Predicción (Keras con imagen si hay modelo) e historial en Supabase.",
         },
         {
             "name": "model",
