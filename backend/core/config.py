@@ -7,6 +7,12 @@ from backend.schemas.model_evaluation import ModelEvalMetrics
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
+
+def repo_root() -> Path:
+    """Raíz del repositorio (para rutas relativas a artefactos ML, etc.)."""
+    return _REPO_ROOT
+
+
 MODEL_VERSION = "v1.0"
 RISK_THRESHOLD = 0.5
 
@@ -43,6 +49,39 @@ class Settings(BaseSettings):
         le=1.0,
         validation_alias="RISK_THRESHOLD",
         description="Umbral de probabilidad: score >= umbral → high, si no → low.",
+    )
+
+    prediction_image_max_bytes: int = Field(
+        default=5 * 1024 * 1024,
+        ge=1024,
+        le=50 * 1024 * 1024,
+        validation_alias="PREDICTION_IMAGE_MAX_BYTES",
+        description="Tamaño máximo del fichero de imagen para POST /predict (bytes).",
+    )
+
+    prediction_image_max_edge_px: int = Field(
+        default=1024,
+        ge=256,
+        le=4096,
+        validation_alias="PREDICTION_IMAGE_MAX_EDGE_PX",
+        description="Lado máximo en píxeles tras decodificar (antes de uña y CNN).",
+    )
+
+    nail_presence_min_skin_ratio: float = Field(
+        default=0.012,
+        ge=0.0,
+        le=0.5,
+        validation_alias="NAIL_PRESENCE_MIN_SKIN_RATIO",
+        description="Ratio mínimo de píxeles tipo piel (heurística previa a la CNN).",
+    )
+
+    inference_model_path: str = Field(
+        default="ml/artifacts/models/baseline_mobilenetv2.keras",
+        validation_alias="INFERENCE_MODEL_PATH",
+        description=(
+            "Ruta al .keras entrenado (absoluta o relativa al repo). "
+            "Vacío: no carga modelo; POST /predict devuelve 503 salvo predictor inyectado (tests)."
+        ),
     )
 
     model_eval: ModelEvalMetrics = Field(

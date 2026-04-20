@@ -1,6 +1,14 @@
+from collections.abc import Callable
+
+import numpy as np
+
 from backend.core import patient_age
 from backend.core.config import settings
 from backend.core.risk_mapping import risk_from_probability
+from backend.inference.image_predictor import ImagePredictor
+from backend.inference.nail_presence import require_fingernail_presence
+from backend.inference.prediction_image_input import prepare_prediction_image
+from backend.inference.runtime import get_builtin_image_predictor
 from backend.repositories.prediction_images_storage import PredictionImagesStorage
 from backend.repositories.predictions_repository import PredictionsRepository
 from backend.schemas.auth import UserOut
@@ -12,32 +20,38 @@ from backend.schemas.prediction import (
 )
 from backend.services.exceptions import PredictionServiceError
 
+_INFERENCE_MODE = "backend"
+
 
 class PredictionService:
-    """Mock inference + persistence (no ML here yet)."""
+    """Inferencia Keras con imagen obligatoria + validación previa + persistencia."""
 
     def __init__(
         self,
         repo: PredictionsRepository | None = None,
         images: PredictionImagesStorage | None = None,
+        image_predictor: ImagePredictor | None = None,
+        nail_checker: Callable[[np.ndarray], None] | None = None,
     ) -> None:
         self._repo = repo or PredictionsRepository()
         self._images = images or PredictionImagesStorage()
+        self._image_predictor = image_predictor
+        self._nail_checker = nail_checker or require_fingernail_presence
+
+    def _effective_image_predictor(self) -> ImagePredictor:
+        if self._image_predictor is not None:
+            return self._image_predictor
+        builtin = get_builtin_image_predictor()
+        if builtin is None:
+            raise PredictionServiceError(
+                "No hay modelo de inferencia cargado. Configure INFERENCE_MODEL_PATH "
+                "con un .keras válido (p. ej. ml/artifacts/models/baseline_mobilenetv2.keras).",
+                503,
+                code="inference_model_unavailable",
+            )
+        return builtin
 
     def run_predict(
-        self,
-        user: UserOut,
-        access_token: str,
-        body: PredictionCreateBody,
-    ) -> PredictionResponse:
-        return self._run_predict_core(
-            user,
-            access_token,
-            body,
-            image_storage_path=None,
-        )
-
-    def run_predict_with_image(
         self,
         user: UserOut,
         access_token: str,
@@ -45,18 +59,25 @@ class PredictionService:
         file_bytes: bytes,
         content_type: str | None,
     ) -> PredictionResponse:
-        mime = content_type or "application/octet-stream"
+        normalized_ct, processed_bytes, rgb = prepare_prediction_image(
+            content_type,
+            file_bytes,
+        )
+        self._nail_checker(rgb)
+        predictor = self._effective_image_predictor()
+        score = predictor.predict_score(processed_bytes)
         path = self._images.upload_user_image(
             access_token,
             user_id=user.id,
-            file_bytes=file_bytes,
-            content_type=mime,
+            file_bytes=processed_bytes,
+            content_type=normalized_ct,
         )
         return self._run_predict_core(
             user,
             access_token,
             body,
             image_storage_path=path,
+            score=score,
         )
 
     def _run_predict_core(
@@ -65,9 +86,9 @@ class PredictionService:
         access_token: str,
         body: PredictionCreateBody,
         *,
-        image_storage_path: str | None,
+        image_storage_path: str,
+        score: float,
     ) -> PredictionResponse:
-        score = 0.42
         risk = risk_from_probability(score, settings.risk_threshold)
         model_version = settings.model_version
         ref = patient_age.utc_today()
@@ -89,7 +110,13 @@ class PredictionService:
         )
         display = patient_age.age_display_from_months(row.get("age_months"))
         try:
-            return PredictionResponse.model_validate({**row, "age_display": display})
+            return PredictionResponse.model_validate(
+                {
+                    **row,
+                    "age_display": display,
+                    "inference_mode": _INFERENCE_MODE,
+                },
+            )
         except ValueError as e:
             raise PredictionServiceError(
                 "Unexpected prediction row shape",
@@ -104,7 +131,13 @@ class PredictionService:
             display = patient_age.age_display_from_months(r.get("age_months"))
             try:
                 out.append(
-                    PredictionHistoryItem.model_validate({**r, "age_display": display}),
+                    PredictionHistoryItem.model_validate(
+                        {
+                            **r,
+                            "age_display": display,
+                            "inference_mode": _INFERENCE_MODE,
+                        },
+                    ),
                 )
             except ValueError as e:
                 raise PredictionServiceError(
