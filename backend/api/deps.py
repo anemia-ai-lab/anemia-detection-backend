@@ -11,6 +11,7 @@ from backend.core.auth_token import (
 from backend.schemas.auth import UserOut
 from backend.services.auth_service import AuthService
 from backend.services.exceptions import AuthServiceError
+from backend.services.model_evaluation_service import ModelEvaluationService
 from backend.services.prediction_service import PredictionService
 from backend.services.profile_service import ProfileService
 
@@ -44,6 +45,16 @@ def get_prediction_service() -> PredictionService:
 
 
 PredictionServiceDep = Annotated[PredictionService, Depends(get_prediction_service)]
+
+
+def get_model_evaluation_service() -> ModelEvaluationService:
+    return ModelEvaluationService()
+
+
+ModelEvaluationServiceDep = Annotated[
+    ModelEvaluationService,
+    Depends(get_model_evaluation_service),
+]
 
 
 def get_profile_service() -> ProfileService:
