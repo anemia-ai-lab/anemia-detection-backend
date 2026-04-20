@@ -3,7 +3,7 @@ from pathlib import Path
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-_REPO_ROOT = Path(__file__).resolve().parent.parent
+_REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
 class Settings(BaseSettings):
@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     supabase_url: str = ""
     supabase_key: str = ""
     supabase_service_role_key: str = ""
+    predictions_storage_bucket: str = Field(
+        default="prediction-images",
+        validation_alias="PREDICTIONS_STORAGE_BUCKET",
+    )
 
 
 settings = Settings()
