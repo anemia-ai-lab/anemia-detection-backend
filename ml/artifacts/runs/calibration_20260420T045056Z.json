@@ -1,0 +1,144 @@
+{
+  "run_id": "calibration_20260420T045056Z",
+  "timestamp_utc": "2026-04-20T04:50:56.897574+00:00",
+  "software_versions": {
+    "tensorflow": "2.21.0",
+    "keras": "3.14.0"
+  },
+  "model_path": "/Users/teus/Documents/Github/anemia-detection-backend/ml/artifacts/models/baseline_mobilenetv2.keras",
+  "train_dir": "/Users/teus/Documents/Github/anemia-detection-backend/ml/data/train",
+  "test_dir": "/Users/teus/Documents/Github/anemia-detection-backend/ml/data/test",
+  "source_experiment": {
+    "experiment_json_path": "/Users/teus/Documents/Github/anemia-detection-backend/ml/artifacts/runs/experiment_20260420T043804Z.json",
+    "source_run_id": "20260420T043804Z",
+    "model_version_training": "baseline-mobilenetv2-v1"
+  },
+  "calibration": {
+    "method": "temperature_scaling",
+    "thesis_summary": "Calibraci\u00f3n post-hoc: solo se estima un escalar T sobre los logits impl\u00edcitos de las probabilidades ya predichas; el backbone MobileNetV2 y el cabezal permanecen id\u00e9nticos al modelo entrenado.",
+    "temperature_T": 0.7510018331928743,
+    "validation_split": 0.2,
+    "seed_used_for_val_split": 42,
+    "n_validation_samples": 120,
+    "validation_class_counts": {
+      "0": 100,
+      "1": 20
+    },
+    "mean_nll_validation_before_T": 0.3693013277821197,
+    "mean_nll_validation_after_T": 0.35761376773910974,
+    "fit_diagnostics": {
+      "temperature_grid_t_min": 0.05,
+      "temperature_grid_t_max": 50.0,
+      "grid_points": 160,
+      "refine_points": 96
+    },
+    "ece_bins": 15
+  },
+  "test_uncalibrated": {
+    "loss": 0.3870152235031128,
+    "auc": 0.7950918078422546,
+    "auc_note": "AUC de Keras (ROC); independiente del umbral de decisi\u00f3n.",
+    "clinical_interpretation": {
+      "why_threshold_0_5_not_default": "Con datos cl\u00ednicos **desbalanceados** (pocos positivos frente a negativos), fijar 0.5 sobre la salida sigmoide suele **no** coincidir con un punto razonable de la curva ROC: puede inflar la exactitud global mientras **deja sin detectar** demasiados positivos reales. El coste de un falso negativo (pasar anemia por alto) y el de un falso positivo no son sim\u00e9tricos, por lo que el corte 0.5 no debe tomarse como decisi\u00f3n operativa por defecto.",
+      "why_prioritize_recall": "En un contexto de **cribado** orientado a detectar anemia, se prioriza la **sensibilidad (recall)** sobre la mera precisi\u00f3n global: captar la mayor\u00eda de casos positivos reduce riesgo cl\u00ednico; los falsos positivos suelen poder aclararse con hemograma u otras pruebas. El \u00edndice de Youden en ROC equilibra TPR y FPR y ofrece un umbral de trabajo m\u00e1s informativo que 0.5 bajo desbalance.",
+      "operational_threshold_use": "El **umbral operacional** (por defecto el de m\u00e1ximo \u00edndice de Youden en el conjunto de evaluaci\u00f3n) es el que se documenta como referencia para **interpretaci\u00f3n cl\u00ednica y predicciones** en este informe; el umbral 0.5 se mantiene solo como **referencia te\u00f3rica** habitual en modelos binarios."
+    },
+    "thresholds_used": {
+      "theoretical_default_threshold": 0.5,
+      "theoretical_role": "Referencia est\u00e1ndar (probabilidad \u2265 0.5); solo para comparaci\u00f3n bibliogr\u00e1fica, no como umbral operacional en este estudio.",
+      "operational_threshold": 0.23125973343849182,
+      "operational_threshold_source": "roc_youden_max_j",
+      "youden_j_at_operational_threshold": 0.5456187895212286,
+      "operational_for_predictions_note": "El **umbral operacional** (por defecto el de m\u00e1ximo \u00edndice de Youden en el conjunto de evaluaci\u00f3n) es el que se documenta como referencia para **interpretaci\u00f3n cl\u00ednica y predicciones** en este informe; el umbral 0.5 se mantiene solo como **referencia te\u00f3rica** habitual en modelos binarios.",
+      "fixed_decision_threshold": 0.5,
+      "roc_youden_optimal_threshold": 0.23125973343849182,
+      "youden_j_max": 0.5456187895212286
+    },
+    "at_operational_threshold": {
+      "threshold": 0.23125973343849182,
+      "precision": 0.45454545454545453,
+      "recall": 0.7407407407407407,
+      "accuracy": 0.7933333333333333,
+      "youden_j": 0.5456187895212286,
+      "source": "roc_youden_max_j",
+      "is_primary_reporting_metrics": true
+    },
+    "at_threshold_0_5": {
+      "threshold": 0.5,
+      "accuracy": 0.8466666666666667,
+      "precision": 0.7,
+      "recall": 0.25925925925925924,
+      "role": "reference_only_theoretical_sigmoid_midpoint"
+    },
+    "at_youden_optimal": {
+      "optimal_threshold": 0.23125973343849182,
+      "youden_j": 0.5456187895212286,
+      "accuracy": 0.7933333333333333,
+      "precision": 0.45454545454545453,
+      "recall": 0.7407407407407407
+    },
+    "brier_score": 0.11795670811682508,
+    "expected_calibration_error": 0.07802673531075319,
+    "ece_bins": 15
+  },
+  "test_calibrated": {
+    "loss": 0.3882916357185598,
+    "auc": 0.794037938117981,
+    "auc_note": "AUC de Keras (ROC); independiente del umbral de decisi\u00f3n.",
+    "clinical_interpretation": {
+      "why_threshold_0_5_not_default": "Con datos cl\u00ednicos **desbalanceados** (pocos positivos frente a negativos), fijar 0.5 sobre la salida sigmoide suele **no** coincidir con un punto razonable de la curva ROC: puede inflar la exactitud global mientras **deja sin detectar** demasiados positivos reales. El coste de un falso negativo (pasar anemia por alto) y el de un falso positivo no son sim\u00e9tricos, por lo que el corte 0.5 no debe tomarse como decisi\u00f3n operativa por defecto.",
+      "why_prioritize_recall": "En un contexto de **cribado** orientado a detectar anemia, se prioriza la **sensibilidad (recall)** sobre la mera precisi\u00f3n global: captar la mayor\u00eda de casos positivos reduce riesgo cl\u00ednico; los falsos positivos suelen poder aclararse con hemograma u otras pruebas. El \u00edndice de Youden en ROC equilibra TPR y FPR y ofrece un umbral de trabajo m\u00e1s informativo que 0.5 bajo desbalance.",
+      "operational_threshold_use": "El **umbral operacional** (por defecto el de m\u00e1ximo \u00edndice de Youden en el conjunto de evaluaci\u00f3n) es el que se documenta como referencia para **interpretaci\u00f3n cl\u00ednica y predicciones** en este informe; el umbral 0.5 se mantiene solo como **referencia te\u00f3rica** habitual en modelos binarios."
+    },
+    "thresholds_used": {
+      "theoretical_default_threshold": 0.5,
+      "theoretical_role": "Referencia est\u00e1ndar (probabilidad \u2265 0.5); solo para comparaci\u00f3n bibliogr\u00e1fica, no como umbral operacional en este estudio.",
+      "operational_threshold": 0.1680544387290045,
+      "operational_threshold_source": "roc_youden_max_j",
+      "youden_j_at_operational_threshold": 0.5456187895212286,
+      "operational_for_predictions_note": "El **umbral operacional** (por defecto el de m\u00e1ximo \u00edndice de Youden en el conjunto de evaluaci\u00f3n) es el que se documenta como referencia para **interpretaci\u00f3n cl\u00ednica y predicciones** en este informe; el umbral 0.5 se mantiene solo como **referencia te\u00f3rica** habitual en modelos binarios.",
+      "fixed_decision_threshold": 0.5,
+      "roc_youden_optimal_threshold": 0.1680544387290045,
+      "youden_j_max": 0.5456187895212286
+    },
+    "at_operational_threshold": {
+      "threshold": 0.1680544387290045,
+      "precision": 0.45454545454545453,
+      "recall": 0.7407407407407407,
+      "accuracy": 0.7933333333333333,
+      "youden_j": 0.5456187895212286,
+      "source": "roc_youden_max_j",
+      "is_primary_reporting_metrics": true
+    },
+    "at_threshold_0_5": {
+      "threshold": 0.5,
+      "accuracy": 0.8466666666666667,
+      "precision": 0.7,
+      "recall": 0.25925925925925924,
+      "role": "reference_only_theoretical_sigmoid_midpoint"
+    },
+    "at_youden_optimal": {
+      "optimal_threshold": 0.1680544387290045,
+      "youden_j": 0.5456187895212286,
+      "accuracy": 0.7933333333333333,
+      "precision": 0.45454545454545453,
+      "recall": 0.7407407407407407
+    },
+    "brier_score": 0.11766287029947034,
+    "expected_calibration_error": 0.060344067420365466,
+    "ece_bins": 15
+  },
+  "comparison": {
+    "operational_threshold_youden_test": {
+      "uncalibrated": 0.23125973343849182,
+      "calibrated": 0.1680544387290045,
+      "delta_calibrated_minus_uncalibrated": -0.06320529470948733
+    },
+    "delta_calibrated_minus_uncalibrated": {
+      "loss_bce_mean": 0.0012764122154469981,
+      "brier_score": -0.00029383781735474457,
+      "expected_calibration_error": -0.01768266789038772
+    },
+    "ranking_note": "La curva ROC (y por tanto AUC y el Youden J m\u00e1ximo) es la misma para scores mon\u00f3tonamente transformados; el **valor de \u03c4** en el eje de probabilidad cambia al aplicar ``T``, pero las decisiones en el \u00f3ptimo de Youden coinciden con las del score raw."
+  }
+}

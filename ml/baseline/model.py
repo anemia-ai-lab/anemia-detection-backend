@@ -9,6 +9,32 @@ from tensorflow.keras.applications import MobileNetV2
 
 from baseline.config import IMG_SIZE
 
+BACKBONE_LAYER_NAME = "mobilenet_backbone"
+
+
+def backbone_partial_unfreeze_counts(
+    num_backbone_layers: int,
+    freeze_up_to_layer: int,
+) -> tuple[int, int, int | None]:
+    """
+    Alineado con ``set_backbone_trainable``: índices ``i < cutoff`` congelados;
+    ``i >= cutoff`` entrenables. ``freeze_up_to_layer == 0`` descongela todo el backbone.
+
+    Returns:
+        (frozen_count, unfrozen_count, cutoff_index o None si todo el backbone es entrenable).
+    """
+    n = num_backbone_layers
+    if freeze_up_to_layer == 0:
+        return 0, n, None
+    if freeze_up_to_layer < 0:
+        cutoff = n + freeze_up_to_layer
+    else:
+        cutoff = freeze_up_to_layer
+    co = max(0, cutoff)
+    unfrozen = max(0, n - co)
+    frozen = n - unfrozen
+    return frozen, unfrozen, co
+
 
 def build_model(
     *,
@@ -22,7 +48,7 @@ def build_model(
         input_shape=(*img_size, 3),
         include_top=False,
         weights="imagenet",
-        name="mobilenet_backbone",
+        name=BACKBONE_LAYER_NAME,
     )
     base.trainable = backbone_trainable
     x = base(inputs, training=False)
@@ -34,16 +60,18 @@ def build_model(
 
 def set_backbone_trainable(model: keras.Model, freeze_up_to_layer: int) -> None:
     """Congela capas del backbone hasta el índice dado; el resto queda entrenable."""
-    base = model.get_layer("mobilenet_backbone")
+    base = model.get_layer(BACKBONE_LAYER_NAME)
     base.trainable = True
     if freeze_up_to_layer == 0:
         return
+    n = len(base.layers)
     if freeze_up_to_layer < 0:
-        cutoff = len(base.layers) + freeze_up_to_layer
+        cutoff = n + freeze_up_to_layer
     else:
         cutoff = freeze_up_to_layer
+    co = max(0, cutoff)
     for i, layer in enumerate(base.layers):
-        layer.trainable = i >= max(0, cutoff)
+        layer.trainable = i >= co
 
 
 def compile_for_binary(model: keras.Model, learning_rate: float) -> None:

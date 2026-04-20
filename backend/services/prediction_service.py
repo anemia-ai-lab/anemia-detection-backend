@@ -8,6 +8,10 @@ from backend.core.risk_mapping import risk_from_probability
 from backend.inference.image_predictor import ImagePredictor
 from backend.inference.nail_presence import require_fingernail_presence
 from backend.inference.prediction_image_input import prepare_prediction_image
+from backend.inference.probability_calibration import (
+    apply_temperature_calibration,
+    binary_prediction_from_threshold,
+)
 from backend.inference.runtime import get_builtin_image_predictor
 from backend.repositories.prediction_images_storage import PredictionImagesStorage
 from backend.repositories.predictions_repository import PredictionsRepository
@@ -65,7 +69,7 @@ class PredictionService:
         )
         self._nail_checker(rgb)
         predictor = self._effective_image_predictor()
-        score = predictor.predict_score(processed_bytes)
+        raw_probability = float(predictor.predict_score(processed_bytes))
         path = self._images.upload_user_image(
             access_token,
             user_id=user.id,
@@ -77,7 +81,7 @@ class PredictionService:
             access_token,
             body,
             image_storage_path=path,
-            score=score,
+            raw_probability=raw_probability,
         )
 
     def _run_predict_core(
@@ -87,9 +91,13 @@ class PredictionService:
         body: PredictionCreateBody,
         *,
         image_storage_path: str,
-        score: float,
+        raw_probability: float,
     ) -> PredictionResponse:
-        risk = risk_from_probability(score, settings.risk_threshold)
+        temperature = float(settings.inference_calibration_temperature)
+        threshold_used = float(settings.inference_calibration_operational_threshold)
+        calibrated_probability = apply_temperature_calibration(raw_probability, temperature)
+        risk = risk_from_probability(calibrated_probability, threshold_used)
+        prediction = binary_prediction_from_threshold(calibrated_probability, threshold_used)
         model_version = settings.model_version
         ref = patient_age.utc_today()
         birth = body.birth_date
@@ -101,7 +109,7 @@ class PredictionService:
             access_token,
             user_id=user.id,
             risk=risk,
-            score=score,
+            score=calibrated_probability,
             model_version=model_version,
             age_months=age_months,
             birth_date=birth_iso,
@@ -115,6 +123,10 @@ class PredictionService:
                     **row,
                     "age_display": display,
                     "inference_mode": _INFERENCE_MODE,
+                    "raw_probability": raw_probability,
+                    "calibrated_probability": calibrated_probability,
+                    "threshold_used": threshold_used,
+                    "prediction": prediction,
                 },
             )
         except ValueError as e:

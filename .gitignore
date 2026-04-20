@@ -226,9 +226,34 @@ Thumbs.db
 .supabase/
 
 # ML: artefactos generados (se versionan solo los .gitkeep)
+# =========================
+# DATASETS (NO VERSIONAR)
+# =========================
+ml/data_raw/
+ml/data/
+
+# =========================
+# MODELOS (NO VERSIONAR)
+# =========================
 ml/artifacts/models/*
 !ml/artifacts/models/.gitkeep
+
+# =========================
+# MÉTRICAS (NO VERSIONAR)
+# =========================
 ml/artifacts/metrics/*
 !ml/artifacts/metrics/.gitkeep
+
+# =========================
+# RUNS (SOLO LOS IMPORTANTES)
+# =========================
 ml/artifacts/runs/*
 !ml/artifacts/runs/.gitkeep
+
+# Experimentos finales (tesis)
+!ml/artifacts/runs/experiment_20260420T043804Z.md
+!ml/artifacts/runs/experiment_20260420T043804Z.json
+
+# Calibración final
+!ml/artifacts/runs/calibration_20260420T045056Z.md
+!ml/artifacts/runs/calibration_20260420T045056Z.json

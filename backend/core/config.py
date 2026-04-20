@@ -16,6 +16,10 @@ def repo_root() -> Path:
 MODEL_VERSION = "v1.0"
 RISK_THRESHOLD = 0.5
 
+# Calibración alineada con el experimento de tesis (*temperature scaling* en validación).
+INFERENCE_CALIBRATION_TEMPERATURE_DEFAULT = 0.7510018331928743
+INFERENCE_CALIBRATION_OPERATIONAL_THRESHOLD_DEFAULT = 0.1680544387290045
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -48,7 +52,28 @@ class Settings(BaseSettings):
         ge=0.0,
         le=1.0,
         validation_alias="RISK_THRESHOLD",
-        description="Umbral de probabilidad: score >= umbral → high, si no → low.",
+        description=(
+            "Umbral histórico (probabilidad sin calibrar). La decisión en ``POST /predict`` usa "
+            "``inference_calibration_operational_threshold`` sobre la probabilidad **calibrada**."
+        ),
+    )
+
+    inference_calibration_temperature: float = Field(
+        default=INFERENCE_CALIBRATION_TEMPERATURE_DEFAULT,
+        gt=0.0,
+        validation_alias="INFERENCE_CALIBRATION_TEMPERATURE",
+        description="Parámetro T de *temperature scaling* aplicado solo en inferencia (logit/T).",
+    )
+
+    inference_calibration_operational_threshold: float = Field(
+        default=INFERENCE_CALIBRATION_OPERATIONAL_THRESHOLD_DEFAULT,
+        ge=0.0,
+        le=1.0,
+        validation_alias="INFERENCE_CALIBRATION_OPERATIONAL_THRESHOLD",
+        description=(
+            "Umbral operacional (ROC-Youden en test con probabilidades calibradas) para "
+            "``prediction`` y mapeo de riesgo."
+        ),
     )
 
     prediction_image_max_bytes: int = Field(

@@ -1,0 +1,374 @@
+{
+  "run_id": "20260420T043804Z",
+  "timestamp_utc": "2026-04-20T04:38:04.805211+00:00",
+  "model_version": "baseline-mobilenetv2-v1",
+  "random_seed": 42,
+  "software_versions": {
+    "tensorflow": "2.21.0",
+    "keras": "3.14.0"
+  },
+  "dataset_preparation": {
+    "description": "Im\u00e1genes recortadas a 224\u00d7224 a partir del dataset Nature, usando las regiones definidas en la columna NAIL_BOUNDING_BOXES del CSV de metadatos (script `ml/scripts/prepare_nature_dataset.py`). Cada PNG corresponde a un crop de u\u00f1a.",
+    "total_patients": 250,
+    "patient_count_source": "metadata.csv (PATIENT_ID \u00fanicos)",
+    "total_crops_all_splits": 750,
+    "crops_train_folder": 600,
+    "crops_test_folder": 150,
+    "train_val_split_strategy": "Partici\u00f3n estratificada aleatoria sobre las im\u00e1genes de `train/` (validation_split=0.2, semilla=42); las mismas carpetas de clase que usa Keras, orden alfab\u00e9tico de subcarpetas.",
+    "train_test_split_strategy": "Train vs test a nivel de **paciente** en la preparaci\u00f3n del dataset: `prepare_nature_dataset.py` asigna todos los crops de un PATIENT_ID solo a train o solo a test (80/20 por defecto). Las carpetas `data/train` y `data/test` reflejan ese reparto; la validaci\u00f3n durante `fit` es un subconjunto interno de `data/train`."
+  },
+  "class_distribution": {
+    "class_name_0": "negative",
+    "class_name_1": "positive",
+    "negative_total": 621,
+    "positive_total": 129,
+    "per_folder_train": {
+      "negative": 498,
+      "positive": 102
+    },
+    "per_folder_test": {
+      "negative": 123,
+      "positive": 27
+    },
+    "split_class_counts": {
+      "train_fit": {
+        "0": 398,
+        "1": 398
+      },
+      "validation_fit": {
+        "0": 100,
+        "1": 20
+      },
+      "test_folder": {
+        "0": 123,
+        "1": 27
+      },
+      "train_fit_before_oversampling": {
+        "0": 398,
+        "1": 82
+      }
+    }
+  },
+  "class_imbalance": {
+    "computed_class_weights": {
+      "0": 0.6030150753768844,
+      "1": 2.926829268292683
+    },
+    "train_subset_counts": {
+      "0": 398,
+      "1": 82
+    },
+    "class_weight_used": false,
+    "class_weight_enabled_in_fit": false,
+    "class_weight_disabled_by_cli": true,
+    "oversampling_used": true,
+    "oversampling_requested": true,
+    "baseline_sampling_note": "Oversampling de positivos en train del `fit` (~1:1); **`class_weight` desactivado** en `fit` (`--no-class-weight`).",
+    "explanation": "Se calcularon pesos balanceados n/(K\u00b7n_c) con K=2 a partir de los conteos del subconjunto train tras el split (**solo referencia**). **No** se pasaron a `model.fit` (`--no-class-weight`); el entrenamiento us\u00f3 pesos de muestra uniformes impl\u00edcitos en Keras."
+  },
+  "training_configuration": {
+    "model_name": "MobileNetV2 (ImageNet) + GAP + Dropout + Dense(1, sigmoid)",
+    "input_size": [
+      224,
+      224
+    ],
+    "head_epochs": 5,
+    "fine_tune_epochs": 3,
+    "head_learning_rate": 0.001,
+    "fine_tune_learning_rate": 1e-05,
+    "fine_tune_freeze_up_to_layer": -30,
+    "backbone_fine_tuning": {
+      "enabled": true,
+      "phase_1_head": {
+        "epochs": 5,
+        "learning_rate": 0.001,
+        "backbone_weights_trainable": false,
+        "backbone_sublayers_total": 154
+      },
+      "phase_2_partial_backbone": {
+        "epochs": 3,
+        "learning_rate": 1e-05,
+        "freeze_up_to_layer": -30,
+        "backbone_sublayers_total": 154,
+        "backbone_layers_frozen": 124,
+        "backbone_layers_unfrozen": 30,
+        "first_trainable_layer_index": 124
+      }
+    },
+    "augmentation_summary": "RandomRotation (\u00b1\u226415\u00b0, factor=0.0417 respecto a 2\u03c0), RandomZoom (-0.05, 0.05), RandomBrightness (max_delta=0.08), RandomContrast (factor=0.08); solo en train, sin augment en val/test.",
+    "seed": 42,
+    "validation_split": 0.2,
+    "demo": false,
+    "oversample_positive": true,
+    "no_class_weight": true,
+    "baseline_experiment_json": "/Users/teus/Documents/Github/anemia-detection-backend/ml/artifacts/runs/experiment_20260420T042800Z.json",
+    "callbacks_configuration": [
+      {
+        "class": "ModelCheckpoint",
+        "filepath": "/Users/teus/Documents/Github/anemia-detection-backend/ml/artifacts/models/baseline_mobilenetv2_best.keras",
+        "monitor": "val_auc",
+        "mode": "max",
+        "save_best_only": true,
+        "verbose": 1
+      },
+      {
+        "class": "EarlyStopping",
+        "monitor": "val_auc",
+        "patience": 5,
+        "restore_best_weights": true,
+        "mode": "max",
+        "verbose": 1
+      },
+      {
+        "class": "ReduceLROnPlateau",
+        "monitor": "val_auc",
+        "factor": 0.3,
+        "patience": 3,
+        "mode": "max",
+        "verbose": 1
+      }
+    ]
+  },
+  "oversampling": {
+    "applied": true,
+    "strategy": "Oversampling aleatorio con reemplazo de la clase positiva (label=1) hasta aproximadamente 1:1 con negativos; solo en el subconjunto train del split interno.",
+    "before_train_by_class": {
+      "0": 398,
+      "1": 82
+    },
+    "after_train_by_class": {
+      "0": 398,
+      "1": 398
+    },
+    "duplicates_added": 316,
+    "positive_label": 1,
+    "oversampling_requested": true
+  },
+  "baseline_comparison": {
+    "baseline_experiment_path": "/Users/teus/Documents/Github/anemia-detection-backend/ml/artifacts/runs/experiment_20260420T042800Z.json",
+    "baseline_run_id": "20260420T042800Z",
+    "metrics_baseline": {
+      "auc": 0.7865101099014282,
+      "loss": 0.4498313367366791,
+      "recall_at_operational": 0.7037037037037037,
+      "precision_at_operational": 0.4222222222222222,
+      "accuracy_at_operational": 0.7733333333333333,
+      "recall_at_0.5": 0.37037037037037035,
+      "precision_at_0.5": 0.5,
+      "accuracy_at_0.5": 0.82
+    },
+    "metrics_current": {
+      "auc": 0.7950918078422546,
+      "loss": 0.3870152235031128,
+      "recall_at_operational": 0.7407407407407407,
+      "precision_at_operational": 0.45454545454545453,
+      "accuracy_at_operational": 0.7933333333333333,
+      "recall_at_0.5": 0.25925925925925924,
+      "precision_at_0.5": 0.7,
+      "accuracy_at_0.5": 0.8466666666666667
+    },
+    "delta_current_minus_baseline": {
+      "auc": 0.008581697940826416,
+      "loss": -0.06281611323356628,
+      "recall_at_operational": 0.03703703703703698,
+      "precision_at_operational": 0.03232323232323231,
+      "accuracy_at_operational": 0.020000000000000018,
+      "recall_at_0.5": -0.1111111111111111,
+      "precision_at_0.5": 0.19999999999999996,
+      "accuracy_at_0.5": 0.026666666666666727
+    },
+    "baseline_training_snapshot": {
+      "head_epochs": 5,
+      "fine_tune_epochs": 0,
+      "backbone_fine_tuning_enabled": false,
+      "oversample_positive_cli": true,
+      "oversampling_used": true,
+      "no_class_weight": true,
+      "class_weight_enabled_in_fit": false
+    }
+  },
+  "results": {
+    "evaluation_dataset": "Carpeta test independiente: /Users/teus/Documents/Github/anemia-detection-backend/ml/data/test",
+    "model_path": "/Users/teus/Documents/Github/anemia-detection-backend/ml/artifacts/models/baseline_mobilenetv2.keras",
+    "loss": 0.3870152235031128,
+    "auc": 0.7950918078422546,
+    "auc_note": "AUC de Keras (ROC); independiente del umbral de decisi\u00f3n.",
+    "clinical_interpretation": {
+      "why_threshold_0_5_not_default": "Con datos cl\u00ednicos **desbalanceados** (pocos positivos frente a negativos), fijar 0.5 sobre la salida sigmoide suele **no** coincidir con un punto razonable de la curva ROC: puede inflar la exactitud global mientras **deja sin detectar** demasiados positivos reales. El coste de un falso negativo (pasar anemia por alto) y el de un falso positivo no son sim\u00e9tricos, por lo que el corte 0.5 no debe tomarse como decisi\u00f3n operativa por defecto.",
+      "why_prioritize_recall": "En un contexto de **cribado** orientado a detectar anemia, se prioriza la **sensibilidad (recall)** sobre la mera precisi\u00f3n global: captar la mayor\u00eda de casos positivos reduce riesgo cl\u00ednico; los falsos positivos suelen poder aclararse con hemograma u otras pruebas. El \u00edndice de Youden en ROC equilibra TPR y FPR y ofrece un umbral de trabajo m\u00e1s informativo que 0.5 bajo desbalance.",
+      "operational_threshold_use": "El **umbral operacional** (por defecto el de m\u00e1ximo \u00edndice de Youden en el conjunto de evaluaci\u00f3n) es el que se documenta como referencia para **interpretaci\u00f3n cl\u00ednica y predicciones** en este informe; el umbral 0.5 se mantiene solo como **referencia te\u00f3rica** habitual en modelos binarios."
+    },
+    "thresholds_used": {
+      "theoretical_default_threshold": 0.5,
+      "theoretical_role": "Referencia est\u00e1ndar (probabilidad \u2265 0.5); solo para comparaci\u00f3n bibliogr\u00e1fica, no como umbral operacional en este estudio.",
+      "operational_threshold": 0.23125973343849182,
+      "operational_threshold_source": "roc_youden_max_j",
+      "youden_j_at_operational_threshold": 0.5456187895212286,
+      "operational_for_predictions_note": "El **umbral operacional** (por defecto el de m\u00e1ximo \u00edndice de Youden en el conjunto de evaluaci\u00f3n) es el que se documenta como referencia para **interpretaci\u00f3n cl\u00ednica y predicciones** en este informe; el umbral 0.5 se mantiene solo como **referencia te\u00f3rica** habitual en modelos binarios.",
+      "fixed_decision_threshold": 0.5,
+      "roc_youden_optimal_threshold": 0.23125973343849182,
+      "youden_j_max": 0.5456187895212286
+    },
+    "at_operational_threshold": {
+      "threshold": 0.23125973343849182,
+      "precision": 0.45454545454545453,
+      "recall": 0.7407407407407407,
+      "accuracy": 0.7933333333333333,
+      "youden_j": 0.5456187895212286,
+      "source": "roc_youden_max_j",
+      "is_primary_reporting_metrics": true
+    },
+    "at_threshold_0_5": {
+      "threshold": 0.5,
+      "accuracy": 0.8466666666666667,
+      "precision": 0.7,
+      "recall": 0.25925925925925924,
+      "role": "reference_only_theoretical_sigmoid_midpoint"
+    },
+    "at_youden_optimal": {
+      "optimal_threshold": 0.23125973343849182,
+      "youden_j": 0.5456187895212286,
+      "accuracy": 0.7933333333333333,
+      "precision": 0.45454545454545453,
+      "recall": 0.7407407407407407
+    }
+  },
+  "keras_histories": {
+    "head": {
+      "accuracy": [
+        0.5339195728302002,
+        0.6105527877807617,
+        0.6557788848876953,
+        0.7060301303863525,
+        0.7010050415992737
+      ],
+      "auc": [
+        0.5458353161811829,
+        0.6641908884048462,
+        0.7039878964424133,
+        0.7728403210639954,
+        0.7768396139144897
+      ],
+      "loss": [
+        0.7184165120124817,
+        0.6486886739730835,
+        0.626478374004364,
+        0.5755526423454285,
+        0.5705728530883789
+      ],
+      "precision": [
+        0.5338345766067505,
+        0.6139896512031555,
+        0.6606217622756958,
+        0.699999988079071,
+        0.6941747665405273
+      ],
+      "recall": [
+        0.5351758599281311,
+        0.5954774022102356,
+        0.6407034993171692,
+        0.7211055159568787,
+        0.7185929417610168
+      ],
+      "val_accuracy": [
+        0.7333333492279053,
+        0.75,
+        0.7416666746139526,
+        0.75,
+        0.824999988079071
+      ],
+      "val_auc": [
+        0.6587499976158142,
+        0.7547500133514404,
+        0.7904999852180481,
+        0.8009999990463257,
+        0.8255000114440918
+      ],
+      "val_loss": [
+        0.5457314848899841,
+        0.5624715089797974,
+        0.5186553597450256,
+        0.4975377023220062,
+        0.4342932403087616
+      ],
+      "val_precision": [
+        0.1666666716337204,
+        0.34375,
+        0.3103448152542114,
+        0.3214285671710968,
+        0.4545454680919647
+      ],
+      "val_recall": [
+        0.15000000596046448,
+        0.550000011920929,
+        0.44999998807907104,
+        0.44999998807907104,
+        0.25
+      ],
+      "learning_rate": [
+        0.0010000000474974513,
+        0.0010000000474974513,
+        0.0010000000474974513,
+        0.0010000000474974513,
+        0.0010000000474974513
+      ]
+    },
+    "fine_tune": {
+      "accuracy": [
+        0.5640703439712524,
+        0.6545225977897644,
+        0.713567852973938
+      ],
+      "auc": [
+        0.7153701782226562,
+        0.795421838760376,
+        0.8411277532577515
+      ],
+      "loss": [
+        0.7686737775802612,
+        0.6229493618011475,
+        0.5351073145866394
+      ],
+      "precision": [
+        0.7931034564971924,
+        0.8360655903816223,
+        0.8244274854660034
+      ],
+      "recall": [
+        0.17336682975292206,
+        0.3844221234321594,
+        0.5427135825157166
+      ],
+      "val_accuracy": [
+        0.8416666388511658,
+        0.824999988079071,
+        0.824999988079071
+      ],
+      "val_auc": [
+        0.8202499747276306,
+        0.8219999670982361,
+        0.828249990940094
+      ],
+      "val_loss": [
+        0.42020994424819946,
+        0.39139264822006226,
+        0.36930134892463684
+      ],
+      "val_precision": [
+        0.5454545617103577,
+        0.4285714328289032,
+        0.3333333432674408
+      ],
+      "val_recall": [
+        0.30000001192092896,
+        0.15000000596046448,
+        0.05000000074505806
+      ],
+      "learning_rate": [
+        9.999999747378752e-06,
+        9.999999747378752e-06,
+        9.999999747378752e-06
+      ]
+    }
+  }
+}

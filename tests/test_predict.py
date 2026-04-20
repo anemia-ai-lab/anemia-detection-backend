@@ -1,4 +1,5 @@
 from datetime import UTC, date, datetime
+from io import BytesIO
 from unittest.mock import MagicMock
 
 import numpy as np
@@ -9,6 +10,7 @@ from postgrest import APIError
 import backend.core.patient_age as patient_age_module
 from backend.api import deps as api_deps
 from backend.core import config as config_module
+import backend.inference.prediction_image_input as prediction_image_input_module
 from backend.inference.image_predictor import StaticImagePredictor
 from backend.main import app
 from backend.repositories import predictions_repository as predictions_repo_module
@@ -20,6 +22,58 @@ client = TestClient(app)
 _SKIN_PNG_CACHE: bytes | None = None
 
 
+@pytest.fixture(autouse=True)
+def _replace_tensorflow_image_ops_with_pillow(monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    ``prepare_prediction_image`` importa TensorFlow; en el venv de tests no hace falta TF
+    si sustituimos decode/resize/encode por Pillow (misma semántica para estas pruebas).
+    """
+    from PIL import Image
+
+    from backend.services.exceptions import PredictionServiceError
+
+    def decode_rgb_uint8(raw: bytes) -> np.ndarray:
+        try:
+            im = Image.open(BytesIO(raw)).convert("RGB")
+            return np.asarray(im, dtype=np.uint8)
+        except Exception as exc:
+            raise PredictionServiceError(
+                "El archivo no es una imagen válida o está dañado.",
+                400,
+                code="image_not_decodable",
+            ) from exc
+
+    def resize_rgb_max_edge(rgb: np.ndarray, max_edge: int) -> np.ndarray:
+        h, w = int(rgb.shape[0]), int(rgb.shape[1])
+        m = max(h, w)
+        if m <= max_edge:
+            return rgb
+        scale = max_edge / m
+        nh = max(1, int(round(h * scale)))
+        nw = max(1, int(round(w * scale)))
+        im = Image.fromarray(rgb).resize((nw, nh), Image.Resampling.BILINEAR)
+        return np.asarray(im, dtype=np.uint8)
+
+    def rgb_to_png_bytes(rgb: np.ndarray) -> bytes:
+        buf = BytesIO()
+        Image.fromarray(rgb).save(buf, format="PNG")
+        return buf.getvalue()
+
+    monkeypatch.setattr(prediction_image_input_module, "decode_rgb_uint8", decode_rgb_uint8)
+    monkeypatch.setattr(prediction_image_input_module, "resize_rgb_max_edge", resize_rgb_max_edge)
+    monkeypatch.setattr(prediction_image_input_module, "rgb_to_png_bytes", rgb_to_png_bytes)
+
+
+def _patch_identity_calibration(monkeypatch: pytest.MonkeyPatch) -> None:
+    """En tests, ``T=1`` y umbral 0.5 equivalen a usar el score raw sin cambiar el umbral de riesgo."""
+    monkeypatch.setattr(config_module.settings, "inference_calibration_temperature", 1.0)
+    monkeypatch.setattr(
+        config_module.settings,
+        "inference_calibration_operational_threshold",
+        0.5,
+    )
+
+
 def _skip_nail(_rgb: np.ndarray) -> None:
     return
 
@@ -27,19 +81,20 @@ def _skip_nail(_rgb: np.ndarray) -> None:
 def skin_patch_png() -> bytes:
     global _SKIN_PNG_CACHE
     if _SKIN_PNG_CACHE is None:
-        import tensorflow as tf
+        from PIL import Image
 
-        pix = tf.constant([220, 180, 140], dtype=tf.uint8)
-        t = tf.broadcast_to(pix, [32, 32, 3])
-        _SKIN_PNG_CACHE = bytes(tf.image.encode_png(t).numpy())
+        buf = BytesIO()
+        Image.new("RGB", (32, 32), (220, 180, 140)).save(buf, format="PNG")
+        _SKIN_PNG_CACHE = buf.getvalue()
     return _SKIN_PNG_CACHE
 
 
 def black_png() -> bytes:
-    import tensorflow as tf
+    from PIL import Image
 
-    t = tf.zeros([48, 48, 3], dtype=tf.uint8)
-    return bytes(tf.image.encode_png(t).numpy())
+    buf = BytesIO()
+    Image.new("RGB", (48, 48), (0, 0, 0)).save(buf, format="PNG")
+    return buf.getvalue()
 
 
 class _FakeImgStore:
@@ -75,7 +130,8 @@ def test_predict_with_malformed_token() -> None:
     assert response.json()["code"] == "malformed_token"
 
 
-def test_predict_success_with_overrides() -> None:
+def test_predict_success_with_overrides(monkeypatch: pytest.MonkeyPatch) -> None:
+    _patch_identity_calibration(monkeypatch)
     user = UserOut(
         id="11111111-1111-1111-1111-111111111111",
         email="p@example.com",
@@ -134,7 +190,11 @@ def test_predict_success_with_overrides() -> None:
         data = response.json()
         assert data["id"] == "22222222-2222-2222-2222-222222222222"
         assert data["risk"] == "low"
-        assert data["score"] == 0.42
+        assert data["score"] == pytest.approx(0.42)
+        assert data["raw_probability"] == pytest.approx(0.42)
+        assert data["calibrated_probability"] == pytest.approx(0.42)
+        assert data["threshold_used"] == 0.5
+        assert data["prediction"] == 0
         assert data["model_version"] == "v1.0"
         assert data["created_at"].startswith("2026-05-01T10:00:00")
         assert data["birth_date"] is None
@@ -307,8 +367,13 @@ def test_predict_rejects_when_no_fingernail_detected() -> None:
 
 
 def test_predict_risk_high_when_score_meets_threshold(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Mock score 0.42 → high si el umbral es <= 0.42."""
-    monkeypatch.setattr(config_module.settings, "risk_threshold", 0.41)
+    """Mock score 0.42 → high si el umbral calibrado es <= 0.42 (con T=1, score raw = calibrado)."""
+    monkeypatch.setattr(config_module.settings, "inference_calibration_temperature", 1.0)
+    monkeypatch.setattr(
+        config_module.settings,
+        "inference_calibration_operational_threshold",
+        0.41,
+    )
     user = UserOut(
         id="11111111-1111-1111-1111-111111111111",
         email="p@example.com",
@@ -369,6 +434,7 @@ def test_predict_risk_high_when_score_meets_threshold(monkeypatch: pytest.Monkey
 
 def test_predict_with_birth_date_sets_age_display(monkeypatch: pytest.MonkeyPatch) -> None:
     """Service computes age_months y age_display desde birth_date (ref = UTC hoy)."""
+    _patch_identity_calibration(monkeypatch)
     user = UserOut(
         id="11111111-1111-1111-1111-111111111111",
         email="p@example.com",
@@ -491,14 +557,14 @@ def test_predict_future_birth_date_422() -> None:
 
 
 def test_predict_postgrest_api_error_returns_502(monkeypatch: pytest.MonkeyPatch) -> None:
+    _patch_identity_calibration(monkeypatch)
     user = UserOut(id="11111111-1111-1111-1111-111111111111", email="e@e.co", created_at=None)
 
     def fake_context() -> tuple[UserOut, str]:
         return (user, "aaa.bbb.ccc")
 
     mock_client = MagicMock()
-    insert_sel = mock_client.from_.return_value.insert.return_value.select
-    insert_sel.return_value.execute.side_effect = APIError(
+    mock_client.from_.return_value.insert.return_value.execute.side_effect = APIError(
         {"message": "RLS blocked", "code": "42501"},
     )
 
@@ -625,7 +691,8 @@ def test_predictions_get_postgrest_error(monkeypatch: pytest.MonkeyPatch) -> Non
         app.dependency_overrides.clear()
 
 
-def test_predict_with_image_multipart() -> None:
+def test_predict_with_image_multipart(monkeypatch: pytest.MonkeyPatch) -> None:
+    _patch_identity_calibration(monkeypatch)
     user = UserOut(
         id="11111111-1111-1111-1111-111111111111",
         email="p@example.com",
@@ -694,6 +761,10 @@ def test_predict_with_image_multipart() -> None:
         assert response.status_code == 200
         data = response.json()
         assert data["image_storage_path"] == f"{user.id}/test.png"
+        assert data["raw_probability"] == pytest.approx(0.42)
+        assert data["calibrated_probability"] == pytest.approx(0.42)
+        assert data["threshold_used"] == 0.5
+        assert data["prediction"] == 0
         assert "image_signed_url" not in data
     finally:
         app.dependency_overrides.clear()

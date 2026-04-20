@@ -82,14 +82,18 @@ class PredictionImageSignedUrlOut(BaseModel):
 
 
 class PredictionResponse(BaseModel):
-    """Cuerpo de éxito de ``POST /predict`` (fila persistida + score del modelo)."""
+    """Cuerpo de éxito de ``POST /predict`` (fila persistida + probabilidades y decisión calibrada)."""
 
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
                 "id": "00000000-0000-0000-0000-000000000000",
                 "risk": "low",
-                "score": 0.42,
+                "score": 0.12,
+                "raw_probability": 0.18,
+                "calibrated_probability": 0.12,
+                "threshold_used": 0.168,
+                "prediction": 0,
                 "model_version": "v1.0",
                 "birth_date": "2016-01-15",
                 "age_months": 111,
@@ -107,7 +111,28 @@ class PredictionResponse(BaseModel):
     score: float = Field(
         ge=0.0,
         le=1.0,
-        description="Probabilidad estimada de la clase positiva (v1, [0, 1]).",
+        description=(
+            "Probabilidad **calibrada** de clase positiva persistida en BD (misma escala que "
+            "``calibrated_probability``; alineada con ``threshold_used`` de la tesis)."
+        ),
+    )
+    raw_probability: float = Field(
+        ge=0.0,
+        le=1.0,
+        description="Salida sigmoide del modelo CNN sin post-proceso (antes de *temperature scaling*).",
+    )
+    calibrated_probability: float = Field(
+        ge=0.0,
+        le=1.0,
+        description="Probabilidad tras ``sigmoid(logit(raw) / T)`` en inferencia (T desde configuración).",
+    )
+    threshold_used: float = Field(
+        ge=0.0,
+        le=1.0,
+        description="Umbral operacional aplicado sobre ``calibrated_probability`` (ROC-Youden en evaluación).",
+    )
+    prediction: Literal[0, 1] = Field(
+        description="Decisión binaria: 1 si ``calibrated_probability >= threshold_used``, si no 0.",
     )
     model_version: str
     birth_date: Optional[date] = None
