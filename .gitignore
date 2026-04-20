@@ -224,3 +224,11 @@ Thumbs.db
 
 # Supabase CLI (enlace local; puede contener referencias sensibles al proyecto)
 .supabase/
+
+# ML: artefactos generados (se versionan solo los .gitkeep)
+ml/artifacts/models/*
+!ml/artifacts/models/.gitkeep
+ml/artifacts/metrics/*
+!ml/artifacts/metrics/.gitkeep
+ml/artifacts/runs/*
+!ml/artifacts/runs/.gitkeep

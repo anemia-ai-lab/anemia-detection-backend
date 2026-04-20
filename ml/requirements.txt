@@ -1,0 +1,5 @@
+# Dependencias solo para entrenamiento/evaluación ML (no mezclar con backend FastAPI).
+# TensorFlow: comprobar wheels para tu SO/CPU; suele haber soporte estable en 3.10–3.12.
+# En Python 3.13 suelen publicarse solo versiones recientes (p. ej. 2.20+).
+tensorflow>=2.15.0,<2.22.0
+numpy>=1.26.0,<3.0.0
