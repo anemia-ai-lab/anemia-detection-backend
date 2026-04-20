@@ -137,6 +137,8 @@ celerybeat.pid
 # Environments
 .env
 .envrc
+.env.local
+.env.*.local
 .venv
 env/
 venv/
@@ -208,3 +210,17 @@ __marimo__/
 
 #Cursor
 .cursor/
+
+# macOS / Windows
+.DS_Store
+Thumbs.db
+
+# Claves o certificados generados en local (no subir a git)
+*.pem
+*.key
+
+# JetBrains (PyCharm / IntelliJ)
+.idea/
+
+# Supabase CLI (enlace local; puede contener referencias sensibles al proyecto)
+.supabase/

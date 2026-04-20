@@ -1,10 +1,3 @@
-from fastapi import FastAPI
+from backend.api.app import app
 
-from .config import settings
-
-app = FastAPI(title=settings.app_name, debug=settings.debug)
-
-
-@app.get("/health")
-def health():
-    return {"status": "ok"}
+__all__ = ["app"]
