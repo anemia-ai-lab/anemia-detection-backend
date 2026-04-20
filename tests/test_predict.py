@@ -7,6 +7,7 @@ from postgrest import APIError
 
 import backend.core.patient_age as patient_age_module
 from backend.api import deps as api_deps
+from backend.core import config as config_module
 from backend.main import app
 from backend.repositories import predictions_repository as predictions_repo_module
 from backend.schemas.auth import UserOut
@@ -83,11 +84,66 @@ def test_predict_success_with_overrides() -> None:
         assert data["id"] == "22222222-2222-2222-2222-222222222222"
         assert data["risk"] == "low"
         assert data["score"] == 0.42
-        assert data["model_version"] == "mock-1.0.0"
+        assert data["model_version"] == "v1.0"
         assert data["created_at"].startswith("2026-05-01T10:00:00")
         assert data["birth_date"] is None
         assert data["age_months"] is None
         assert data["age_display"] is None
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_predict_risk_high_when_score_meets_threshold(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Mock score 0.42 → high si el umbral es <= 0.42."""
+    monkeypatch.setattr(config_module.settings, "risk_threshold", 0.41)
+    user = UserOut(
+        id="11111111-1111-1111-1111-111111111111",
+        email="p@example.com",
+        created_at=None,
+    )
+
+    def fake_context() -> tuple[UserOut, str]:
+        return (user, "aaa.bbb.ccc")
+
+    class FakeRepo:
+        def insert_for_user(
+            self,
+            _access_token: str,
+            *,
+            user_id: str,
+            risk: str,
+            score: float,
+            model_version: str,
+            age_months: int | None = None,
+            birth_date: str | None = None,
+            notes: str | None = None,
+            image_storage_path: str | None = None,
+        ) -> dict:
+            assert risk == "high"
+            return {
+                "id": "22222222-2222-2222-2222-222222222222",
+                "risk": risk,
+                "score": score,
+                "model_version": model_version,
+                "age_months": age_months,
+                "birth_date": birth_date,
+                "notes": notes,
+                "image_storage_path": image_storage_path,
+                "created_at": "2026-05-01T10:00:00+00:00",
+            }
+
+    def fake_prediction_service() -> PredictionService:
+        return PredictionService(repo=FakeRepo())
+
+    app.dependency_overrides[api_deps.get_predict_context] = fake_context
+    app.dependency_overrides[api_deps.get_prediction_service] = fake_prediction_service
+    try:
+        response = client.post(
+            "/predict",
+            headers={"Authorization": "Bearer aaa.bbb.ccc"},
+        )
+        assert response.status_code == 200
+        assert response.json()["risk"] == "high"
     finally:
         app.dependency_overrides.clear()
 
@@ -270,7 +326,7 @@ def test_predictions_get_success_with_overrides() -> None:
                     "id": "33333333-3333-3333-3333-333333333333",
                     "risk": "low",
                     "score": 0.1,
-                    "model_version": "mock-1.0.0",
+                    "model_version": "v1.0",
                     "age_months": 24,
                     "birth_date": "2024-05-01",
                     "notes": None,

@@ -3,6 +3,7 @@ from fastapi.requests import Request
 from fastapi.responses import JSONResponse
 
 from backend.api.routes.auth import router as auth_router
+from backend.api.routes.model import router as model_router
 from backend.api.routes.predict import router as predict_router
 from backend.core.config import settings
 from backend.services.exceptions import ClientHttpError
@@ -22,6 +23,10 @@ app = FastAPI(
         {
             "name": "predictions",
             "description": "Predicción mock y lectura del historial en Supabase.",
+        },
+        {
+            "name": "model",
+            "description": "Metadatos y métricas de evaluación del modelo (sin inferencia).",
         },
     ],
 )
@@ -44,4 +49,5 @@ def health():
 
 
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
+app.include_router(model_router, prefix="/model")
 app.include_router(predict_router)

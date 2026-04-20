@@ -1,4 +1,6 @@
 from backend.core import patient_age
+from backend.core.config import settings
+from backend.core.risk_mapping import risk_from_probability
 from backend.repositories.prediction_images_storage import PredictionImagesStorage
 from backend.repositories.predictions_repository import PredictionsRepository
 from backend.schemas.auth import UserOut
@@ -65,9 +67,9 @@ class PredictionService:
         *,
         image_storage_path: str | None,
     ) -> PredictionResponse:
-        risk = "low"
         score = 0.42
-        model_version = "mock-1.0.0"
+        risk = risk_from_probability(score, settings.risk_threshold)
+        model_version = settings.model_version
         ref = patient_age.utc_today()
         birth = body.birth_date
         birth_iso = birth.isoformat() if birth is not None else None

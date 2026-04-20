@@ -1,13 +1,12 @@
 """Prediction API contracts."""
 
 from datetime import date, datetime
-from typing import Literal, Optional
+from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from backend.core import patient_age
-
-RiskLevel = Literal["low", "moderate", "high"]
+from backend.core.risk_mapping import RiskLevel
 
 
 class PredictionCreateBody(BaseModel):
@@ -38,7 +37,7 @@ class PredictionHistoryItem(BaseModel):
                 "id": "00000000-0000-0000-0000-000000000000",
                 "risk": "low",
                 "score": 0.42,
-                "model_version": "mock-1.0.0",
+                "model_version": "v1.0",
                 "birth_date": "2016-01-15",
                 "age_months": 111,
                 "age_display": "9 años 3 meses",
@@ -51,7 +50,11 @@ class PredictionHistoryItem(BaseModel):
 
     id: str
     risk: RiskLevel
-    score: float = Field(ge=0.0, le=1.0)
+    score: float = Field(
+        ge=0.0,
+        le=1.0,
+        description="Probabilidad estimada de la clase positiva (v1, [0, 1]).",
+    )
     model_version: str
     birth_date: Optional[date] = None
     age_months: Optional[int] = None
@@ -82,7 +85,7 @@ class PredictionResponse(BaseModel):
                 "id": "00000000-0000-0000-0000-000000000000",
                 "risk": "low",
                 "score": 0.42,
-                "model_version": "mock-1.0.0",
+                "model_version": "v1.0",
                 "birth_date": "2016-01-15",
                 "age_months": 111,
                 "age_display": "9 años 3 meses",
@@ -95,7 +98,11 @@ class PredictionResponse(BaseModel):
 
     id: str = Field(description="Row id in `public.predictions`.")
     risk: RiskLevel
-    score: float = Field(ge=0.0, le=1.0)
+    score: float = Field(
+        ge=0.0,
+        le=1.0,
+        description="Probabilidad estimada de la clase positiva (v1, [0, 1]).",
+    )
     model_version: str
     birth_date: Optional[date] = None
     age_months: Optional[int] = None
