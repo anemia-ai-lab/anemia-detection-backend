@@ -233,6 +233,7 @@ ml/data/
 # MODELOS (NO VERSIONAR)
 ml/artifacts/models/*
 !ml/artifacts/models/.gitkeep
+!ml/artifacts/models/baseline_mobilenetv2.keras
 
 # MÉTRICAS (NO VERSIONAR)
 ml/artifacts/metrics/*
