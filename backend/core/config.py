@@ -109,10 +109,38 @@ class Settings(BaseSettings):
         ),
     )
 
+    cors_allowed_origins: str = Field(
+        default="",
+        validation_alias="CORS_ALLOWED_ORIGINS",
+        description=(
+            "Orígenes CORS permitidos, separados por coma (p. ej. ``http://localhost:3000``). "
+            "Vacío en ``development``: lista local reducida (Swagger / pruebas). "
+            "Vacío en otros entornos: sin cabeceras CORS (adecuado para clientes nativos)."
+        ),
+    )
+
     model_eval: ModelEvalMetrics = Field(
         default_factory=ModelEvalMetrics,
         description="Métricas de evaluación (sin versión; la versión es model_version).",
     )
+
+    def effective_cors_origins(self) -> list[str]:
+        raw = self.cors_allowed_origins.strip()
+        if raw:
+            return [o.strip() for o in raw.split(",") if o.strip()]
+        env = self.environment.strip().lower()
+        if env in ("development", "dev", "local"):
+            return [
+                "http://127.0.0.1:3000",
+                "http://localhost:3000",
+                "http://127.0.0.1:5173",
+                "http://localhost:5173",
+                "http://127.0.0.1:8080",
+                "http://localhost:8080",
+                "http://127.0.0.1:8000",
+                "http://localhost:8000",
+            ]
+        return []
 
 
 settings = Settings()

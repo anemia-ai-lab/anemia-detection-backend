@@ -1,10 +1,11 @@
+import logging
 from collections.abc import Callable
 
 import numpy as np
 
 from backend.core import patient_age
 from backend.core.config import settings
-from backend.core.risk_mapping import risk_from_probability
+from backend.core.risk_mapping import anemia_risk_label, risk_from_probability
 from backend.inference.image_predictor import ImagePredictor
 from backend.inference.nail_presence import require_fingernail_presence
 from backend.inference.prediction_image_input import prepare_prediction_image
@@ -25,6 +26,8 @@ from backend.schemas.prediction import (
 from backend.services.exceptions import PredictionServiceError
 
 _INFERENCE_MODE = "backend"
+
+logger = logging.getLogger(__name__)
 
 
 class PredictionService:
@@ -117,8 +120,9 @@ class PredictionService:
             image_storage_path=image_storage_path,
         )
         display = patient_age.age_display_from_months(row.get("age_months"))
+        human_summary = anemia_risk_label(risk)
         try:
-            return PredictionResponse.model_validate(
+            response = PredictionResponse.model_validate(
                 {
                     **row,
                     "age_display": display,
@@ -127,6 +131,8 @@ class PredictionService:
                     "calibrated_probability": calibrated_probability,
                     "threshold_used": threshold_used,
                     "prediction": prediction,
+                    "risk_label": human_summary,
+                    "message": human_summary,
                 },
             )
         except ValueError as e:
@@ -135,6 +141,14 @@ class PredictionService:
                 502,
                 code="invalid_insert_shape",
             ) from e
+        logger.info(
+            "prediction_completed model_version=%s inference_mode=%s risk=%s prediction=%s",
+            response.model_version,
+            response.inference_mode,
+            response.risk,
+            response.prediction,
+        )
+        return response
 
     def list_predictions(self, access_token: str) -> list[PredictionHistoryItem]:
         rows = self._repo.list_for_user(access_token)

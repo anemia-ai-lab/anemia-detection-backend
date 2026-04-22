@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import uuid
 
 from storage3.exceptions import StorageApiError
@@ -15,6 +16,8 @@ from backend.core.prediction_image_limits import (
 )
 from backend.integrations.supabase_client import create_supabase_user_client
 from backend.services.exceptions import PredictionServiceError
+
+logger = logging.getLogger(__name__)
 
 _SIGNED_URL_TTL_S: int = 3600
 
@@ -59,6 +62,12 @@ class PredictionImagesStorage:
             code = getattr(e, "code", "storage_error")
             status = getattr(e, "status", 502)
             sc = int(status) if str(status).isdigit() else 502
+            logger.warning(
+                "prediction_storage_error op=upload code=%s status=%s message=%s",
+                code,
+                status,
+                msg or "upload_failed",
+            )
             raise PredictionServiceError(
                 msg or "No se pudo subir la imagen",
                 sc if 400 <= sc < 600 else 502,
@@ -76,6 +85,11 @@ class PredictionImagesStorage:
                 _SIGNED_URL_TTL_S,
             )
         except (StorageApiError, StorageException) as e:
+            logger.warning(
+                "prediction_storage_error op=signed_url code=%s message=%s",
+                getattr(e, "code", "signed_url_failed"),
+                getattr(e, "message", str(e)) or "signed_url_failed",
+            )
             raise PredictionServiceError(
                 getattr(e, "message", str(e)) or "No se pudo firmar la URL",
                 502,

@@ -1,9 +1,13 @@
+import logging
+
 from postgrest import APIError
 
 from backend.repositories.profiles_repository import ProfilesRepository
 from backend.schemas.auth import UserOut
 from backend.schemas.profile import ProfileOut, ProfilePatchRequest
 from backend.services.exceptions import AuthServiceError
+
+logger = logging.getLogger(__name__)
 
 
 def _names_complete(first: str | None, last: str | None) -> bool:
@@ -18,6 +22,11 @@ class ProfileService:
         try:
             row = self._repo.fetch_by_user_id(access_token, user.id)
         except APIError as e:
+            logger.warning(
+                "profile_db_error op=fetch code=%s message=%s",
+                e.code or "profile_fetch_failed",
+                e.message or "fetch_failed",
+            )
             raise AuthServiceError(
                 e.message or "Could not load profile",
                 502,
@@ -56,6 +65,11 @@ class ProfileService:
         try:
             row = self._repo.fetch_by_user_id(access_token, user.id)
         except APIError as e:
+            logger.warning(
+                "profile_db_error op=fetch_for_update code=%s message=%s",
+                e.code or "profile_fetch_failed",
+                e.message or "fetch_failed",
+            )
             raise AuthServiceError(
                 e.message or "Could not load profile",
                 502,
@@ -78,6 +92,11 @@ class ProfileService:
         try:
             self._repo.upsert_profile(access_token, user_id=user.id, payload=payload)
         except APIError as e:
+            logger.warning(
+                "profile_db_error op=upsert code=%s message=%s",
+                e.code or "profile_save_failed",
+                e.message or "save_failed",
+            )
             raise AuthServiceError(
                 e.message or "Could not save profile",
                 502,

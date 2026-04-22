@@ -82,6 +82,9 @@ def test_register_validation_too_short_password() -> None:
         json={"email": "a@b.co", "password": "short"},
     )
     assert response.status_code == 422
+    body = response.json()
+    assert body["code"] == "validation_error"
+    assert "detail" in body
 
 
 def test_auth_service_error_returns_json_detail_and_code() -> None:

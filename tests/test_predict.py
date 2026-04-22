@@ -195,6 +195,8 @@ def test_predict_success_with_overrides(monkeypatch: pytest.MonkeyPatch) -> None
         assert data["calibrated_probability"] == pytest.approx(0.42)
         assert data["threshold_used"] == 0.5
         assert data["prediction"] == 0
+        assert data["risk_label"] == "Low anemia risk prediction"
+        assert data["message"] == data["risk_label"]
         assert data["model_version"] == "v1.0"
         assert data["created_at"].startswith("2026-05-01T10:00:00")
         assert data["birth_date"] is None
@@ -427,7 +429,10 @@ def test_predict_risk_high_when_score_meets_threshold(monkeypatch: pytest.Monkey
             files={"image": ("m.png", skin_patch_png(), "image/png")},
         )
         assert response.status_code == 200
-        assert response.json()["risk"] == "high"
+        body = response.json()
+        assert body["risk"] == "high"
+        assert body["risk_label"] == "High anemia risk prediction"
+        assert body["message"] == body["risk_label"]
     finally:
         app.dependency_overrides.clear()
 
@@ -501,6 +506,7 @@ def test_predict_with_birth_date_sets_age_display(monkeypatch: pytest.MonkeyPatc
         assert data["age_months"] == 111
         assert data["age_display"] == "9 años 3 meses"
         assert data["inference_mode"] == "backend"
+        assert data["message"] == data["risk_label"]
     finally:
         app.dependency_overrides.clear()
 
@@ -529,6 +535,7 @@ def test_predict_implausible_birth_date_422(monkeypatch: pytest.MonkeyPatch) -> 
             data={"birth_date": "1800-01-01"},
         )
         assert response.status_code == 422
+        assert response.json()["code"] == "validation_error"
     finally:
         app.dependency_overrides.clear()
 
@@ -552,6 +559,7 @@ def test_predict_future_birth_date_422() -> None:
             data={"birth_date": "2099-01-01"},
         )
         assert response.status_code == 422
+        assert response.json()["code"] == "validation_error"
     finally:
         app.dependency_overrides.clear()
 
@@ -765,6 +773,7 @@ def test_predict_with_image_multipart(monkeypatch: pytest.MonkeyPatch) -> None:
         assert data["calibrated_probability"] == pytest.approx(0.42)
         assert data["threshold_used"] == 0.5
         assert data["prediction"] == 0
+        assert data["message"] == data["risk_label"]
         assert "image_signed_url" not in data
     finally:
         app.dependency_overrides.clear()

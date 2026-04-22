@@ -84,7 +84,12 @@ class ModelEvalMetrics(BaseModel):
 
 
 class ModelEvaluationOut(ModelEvalMetrics):
-    """Respuesta de ``GET /model/evaluation`` (versión alineada con ``POST /predict``)."""
+    """
+    Cuerpo de ``GET /model/evaluation``: métricas offline + ``model_version`` coherente con ``POST /predict``.
+
+    Sirve como **cita reproducible** en memoria de tesis o artículo (tabla de rendimiento en test); no ejecuta
+    el modelo ni produce juicio sobre un individuo concreto.
+    """
 
     model_config = ConfigDict(
         json_schema_extra={
