@@ -63,7 +63,15 @@ def _require_image_file(image: UploadFile | None) -> UploadFile:
     "/predict",
     response_model=PredictionResponse,
     responses=_PREDICT_RESPONSES,
-    summary="Predicción con imagen obligatoria (multipart)",
+    summary="Predicción de riesgo (imagen obligatoria)",
+    description=(
+        "Ejecuta inferencia **asistiva** sobre una imagen de uña (CNN MobileNetV2 + calibración por temperatura "
+        "y umbral operacional configurados). Devuelve probabilidades, decisión binaria, nivel de riesgo y metadatos "
+        "persistidos en Supabase.\n\n"
+        "**Alcance:** estimación de riesgo para investigación o triaje informativo; **no** es diagnóstico clínico, "
+        "no sustituye criterio médico ni analítica de laboratorio.\n\n"
+        "Multipart: campo ``image`` obligatorio (JPEG, PNG o WebP); ``birth_date`` y ``notes`` opcionales."
+    ),
 )
 async def predict(
     ctx: PredictContextDep,

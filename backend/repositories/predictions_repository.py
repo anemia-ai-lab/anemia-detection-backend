@@ -1,11 +1,14 @@
 """Inserts into ``public.predictions`` using the caller's JWT (RLS)."""
 
+import logging
 from typing import Any
 
 from postgrest import APIError
 
 from backend.integrations.supabase_client import create_supabase_user_client
 from backend.services.exceptions import PredictionServiceError
+
+logger = logging.getLogger(__name__)
 
 
 class PredictionsRepository:
@@ -41,6 +44,11 @@ class PredictionsRepository:
             insert_result = client.from_("predictions").insert(payload).execute()
         except APIError as e:
             msg = e.message or "Could not save prediction"
+            logger.warning(
+                "predictions_db_error op=insert code=%s message=%s",
+                e.code or "postgrest_error",
+                msg,
+            )
             raise PredictionServiceError(
                 msg,
                 502,
@@ -77,6 +85,11 @@ class PredictionsRepository:
             )
         except APIError as e:
             msg = e.message or "Could not load prediction after insert"
+            logger.warning(
+                "predictions_db_error op=select_after_insert code=%s message=%s",
+                e.code or "postgrest_error",
+                msg,
+            )
             raise PredictionServiceError(
                 msg,
                 502,
@@ -110,6 +123,11 @@ class PredictionsRepository:
             )
         except APIError as e:
             msg = e.message or "Could not load predictions"
+            logger.warning(
+                "predictions_db_error op=list code=%s message=%s",
+                e.code or "postgrest_error",
+                msg,
+            )
             raise PredictionServiceError(
                 msg,
                 502,
@@ -143,6 +161,11 @@ class PredictionsRepository:
             )
         except APIError as e:
             msg = e.message or "Could not load prediction"
+            logger.warning(
+                "predictions_db_error op=fetch_image_path code=%s message=%s",
+                e.code or "postgrest_error",
+                msg,
+            )
             raise PredictionServiceError(
                 msg,
                 502,

@@ -8,3 +8,10 @@ def risk_from_probability(score: float, threshold: float) -> RiskLevel:
     if score >= threshold:
         return "high"
     return "low"
+
+
+def anemia_risk_label(risk: RiskLevel) -> str:
+    """Texto corto para demos (no sustituye los campos numéricos ni ``risk``)."""
+    if risk == "high":
+        return "High anemia risk prediction"
+    return "Low anemia risk prediction"

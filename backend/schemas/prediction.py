@@ -82,7 +82,12 @@ class PredictionImageSignedUrlOut(BaseModel):
 
 
 class PredictionResponse(BaseModel):
-    """Cuerpo de éxito de ``POST /predict`` (fila persistida + probabilidades y decisión calibrada)."""
+    """
+    Éxito de ``POST /predict``: fila persistida, probabilidades y decisión binaria **asistida por modelo**.
+
+    La API expone **predicción de riesgo** (salida del pipeline CNN + calibración configurada), no diagnóstico
+    clínico ni recomendación terapéutica.
+    """
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -94,6 +99,8 @@ class PredictionResponse(BaseModel):
                 "calibrated_probability": 0.12,
                 "threshold_used": 0.168,
                 "prediction": 0,
+                "risk_label": "Low anemia risk prediction",
+                "message": "Low anemia risk prediction",
                 "model_version": "v1.0",
                 "birth_date": "2016-01-15",
                 "age_months": 111,
@@ -133,6 +140,16 @@ class PredictionResponse(BaseModel):
     )
     prediction: Literal[0, 1] = Field(
         description="Decisión binaria: 1 si ``calibrated_probability >= threshold_used``, si no 0.",
+    )
+    risk_label: str = Field(
+        description="Resumen legible alineado con ``risk`` y ``prediction`` (demos / OpenAPI).",
+    )
+    message: Optional[str] = Field(
+        default=None,
+        description=(
+            "Mensaje humano opcional; si se incluye, coincide con ``risk_label`` y con ``risk``/``prediction``. "
+            "**Predicción asistiva, no diagnóstico médico.**"
+        ),
     )
     model_version: str
     birth_date: Optional[date] = None
