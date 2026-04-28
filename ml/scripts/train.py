@@ -23,6 +23,12 @@ Uso (desde la raíz del repo o desde ``ml/``)::
 
     Calibración de probabilidades (``temperature scaling``) sobre un .keras ya entrenado, sin
     modificar pesos: ``python scripts/calibrate_eval.py --experiment-json artifacts/runs/....json``.
+
+Seguimiento opcional en MLflow (backend local ``file:…/ml/mlruns`` por defecto; ver
+``baseline/mlflow_logging.py`` para variables de entorno). Si MLflow falla, el entrenamiento y los
+informes JSON/Markdown **no** se ven afectados::
+
+    python scripts/train.py … --mlflow
 """
 
 from __future__ import annotations
@@ -228,6 +234,14 @@ def _parse_args() -> argparse.Namespace:
             "JSON de un experimento previo para la tabla Δ (AUC, recall @operacional, etc.). "
             "Para evaluar fine-tuning, suele pasarse el mejor JSON *oversampling + --no-class-weight* "
             "sin fase 2 (p. ej. `experiment_20260420T042800Z.json`)."
+        ),
+    )
+    p.add_argument(
+        "--mlflow",
+        action="store_true",
+        help=(
+            "Registrar parámetros y métricas en MLflow (URI local ``file:<ml>/mlruns`` por defecto; "
+            "sobrescribible con MLFLOW_TRACKING_URI / MLFLOW_EXPERIMENT_NAME)."
         ),
     )
     return p.parse_args()
@@ -1045,9 +1059,23 @@ def main() -> None:
     write_json(json_path, experiment)
     write_text(md_path, _experiment_markdown(experiment))
 
+    mlflow_ok = False
+    if args.mlflow:
+        from baseline.mlflow_logging import safe_log_train_experiment
+
+        mlflow_ok = safe_log_train_experiment(
+            experiment,
+            ml_root=_ML_ROOT,
+            report_json=json_path,
+            report_md=md_path,
+            model_path=out_path,
+        )
+
     print(f"\nModelo guardado en: {out_path}")
     print(f"Informe JSON: {json_path}")
     print(f"Informe Markdown: {md_path}")
+    if args.mlflow and mlflow_ok:
+        print("MLflow: run registrado (ver ml/mlruns o MLFLOW_TRACKING_URI).")
 
 
 if __name__ == "__main__":

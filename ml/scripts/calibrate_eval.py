@@ -15,6 +15,12 @@ Uso (desde ``ml/``)::
 
 Si no se pasa ``--experiment-json``, usar ``--train-dir``, ``--validation-split`` y ``--seed``
 coherentes con el entrenamiento original.
+
+Opcional — MLflow (store local por defecto; mismo directorio ``ml/mlruns`` que ``train.py`` si no se
+configura ``MLFLOW_TRACKING_URI``). Un fallo en MLflow **no** impide generar los informes ni alterar
+métricas::
+
+    python scripts/calibrate_eval.py … --mlflow
 """
 
 from __future__ import annotations
@@ -107,6 +113,14 @@ def _parse_args() -> argparse.Namespace:
         type=Path,
         default=None,
         help="Ruta del informe Markdown (por defecto junto al JSON).",
+    )
+    p.add_argument(
+        "--mlflow",
+        action="store_true",
+        help=(
+            "Registrar calibración en MLflow (local ``file:<ml>/mlruns``; experimento "
+            "``anemia-baseline-calibration`` o MLFLOW_EXPERIMENT_NAME_CALIBRATION)."
+        ),
     )
     return p.parse_args()
 
@@ -403,9 +417,22 @@ def main() -> None:
     write_json(out_json, payload)
     write_text(out_md, _markdown_report(payload))
 
+    mlflow_ok = False
+    if args.mlflow:
+        from baseline.mlflow_logging import safe_log_calibration_run
+
+        mlflow_ok = safe_log_calibration_run(
+            payload,
+            ml_root=_ML_ROOT,
+            report_json=out_json,
+            report_md=out_md,
+        )
+
     print(f"\nTemperatura T (validación): {T}")
     print(f"JSON: {out_json}")
     print(f"Markdown: {out_md}")
+    if args.mlflow and mlflow_ok:
+        print("MLflow: run de calibración registrado (ver ml/mlruns o MLFLOW_TRACKING_URI).")
 
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.requests import Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 from backend.api.routes.auth import router as auth_router
 from backend.api.routes.model import router as model_router
@@ -13,10 +13,11 @@ from backend.api.routes.predict import router as predict_router
 from backend.core.config import settings
 from backend.core.http_error_codes import default_error_code
 from backend.core.logging_config import configure_logging
+from backend.core.prometheus_metrics import build_metrics_response, register_prometheus_middleware
 from backend.inference.runtime import (
     get_builtin_image_predictor,
-    init_inference_model,
     inference_service_status,
+    init_inference_model,
     shutdown_inference_model,
 )
 from backend.schemas.health import HealthOut
@@ -166,6 +167,22 @@ def health() -> HealthOut:
     )
 
 
+@app.get(
+    "/metrics",
+    summary="Prometheus (métricas internas)",
+    description=(
+        "Formato Prometheus/OpenMetrics: contadores HTTP, latencias, métricas de ``POST /predict`` "
+        "y estado ``model_loaded``. Sin datos personales ni tokens."
+    ),
+    include_in_schema=False,
+)
+def prometheus_metrics_endpoint() -> Response:
+    payload, ctype = build_metrics_response()
+    return Response(content=payload, media_type=ctype)
+
+
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
 app.include_router(model_router, prefix="/model")
 app.include_router(predict_router)
+
+register_prometheus_middleware(app)

@@ -1,0 +1,14 @@
+# Prometheus — scraping del backend FastAPI en GET /metrics.
+# El API debe estar en el host (puerto 8000); desde los contenedores se usa host.docker.internal.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: anemia-detection-backend
+    metrics_path: /metrics
+    scrape_interval: 15s
+    static_configs:
+      - targets:
+          - host.docker.internal:8000
