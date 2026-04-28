@@ -35,6 +35,23 @@ The following metrics refer to **test-set** evaluation with the **calibrated** p
 
 The operational point prioritizes **recall** relative to precision, which is appropriate for screening where false negatives carry high clinical cost. **Calibration** (low Brier score and moderate ECE) improves the interpretability of reported probabilities compared to raw sigmoid outputs, without changing the discriminative ordering underlying the ROC.
 
+### TensorFlow Lite (offline mobile inference)
+
+- **Backend (this API):** loads the trained **Keras** model (`.keras`) and applies the same **post-processing** as in the table above: `raw_probability` → **temperature scaling** → compare to **operational threshold** on the **calibrated** score (`POST /predict`).
+- **Mobile / offline:** consumes an exported **TensorFlow Lite** model (`.tflite`) produced by `ml/scripts/export_tflite.py`. The `.tflite` graph outputs the **raw sigmoid probability** only; **calibration** and **thresholding are not embedded** in the mobile artifact.
+
+Mobile clients must **replicate** backend logic using the companion **metadata JSON** from the export script (`temperature`, `operational_threshold`, preprocessing hint). Minimal pseudo-flow:
+
+```
+image → decode/float32 tensor [1,224,224,3]
+      → mobilenet_v2.preprocess_input (same convention as training/backend pipeline)
+      → TFLite inference → raw_prob (scalar sigmoid)
+      → temperature scaling using exported temperature T (matches backend calibration)
+      → compare calibrated probability to operational_threshold → binary prediction / screening flag
+```
+
+This repository does **not** swap backend inference for TFLite; production servers continue to use **Keras**. Mobile builds bundle `.tflite` + metadata independently.
+
 ## API
 
 **`POST /predict`**  

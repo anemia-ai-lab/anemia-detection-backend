@@ -1,0 +1,24 @@
+# Keepalive: runs on a schedule to keep the public demo environment "warm" (e.g. Render
+# free-tier sleep) and to reduce long idle gaps that can make Supabase-backed demo flows
+# feel stale. It only GETs /health—no app secrets; override the URL with repo var HEALTH_URL
+# if the default public URL changes.
+name: Keepalive (health)
+
+on:
+  schedule:
+    # Monday and Thursday, 15:00 UTC
+    - cron: "0 15 * * 1,4"
+  workflow_dispatch:
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    env:
+      # Optional: set repository variable HEALTH_URL to the full /health URL (e.g. https://…/health)
+      HEALTH_URL: ${{ vars.HEALTH_URL }}
+    steps:
+      - name: Ping deployed /health
+        run: |
+          set -euo pipefail
+          url="${HEALTH_URL:-https://anemia-detection-backend.onrender.com/health}"
+          curl -fsS --connect-timeout 20 --max-time 30 "$url" || { echo "Health check failed"; exit 1; }

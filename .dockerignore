@@ -1,0 +1,28 @@
+# Entorno / secretos
+.venv/
+venv/
+.env
+
+# Datos y resultados de experimentos (no runtime)
+ml/data/
+ml/data_raw/
+ml/artifacts/runs/
+ml/artifacts/metrics/
+
+# Cachés y tooling local
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# SCM / IDE (reduce contexto de build)
+.git/
+.idea/
+.vscode/

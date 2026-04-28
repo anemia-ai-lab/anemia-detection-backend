@@ -239,6 +239,9 @@ ml/artifacts/models/*
 ml/artifacts/metrics/*
 !ml/artifacts/metrics/.gitkeep
 
+# MLflow (almacenamiento local file:…/ml/mlruns)
+ml/mlruns/
+
 # RUNS (SOLO LOS IMPORTANTES)
 ml/artifacts/runs/*
 !ml/artifacts/runs/.gitkeep
