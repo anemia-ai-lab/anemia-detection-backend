@@ -136,6 +136,8 @@ celerybeat.pid
 
 # Environments
 .env
+.env.*
+!.env.example
 .envrc
 .env.local
 .env.*.local
@@ -218,6 +220,9 @@ Thumbs.db
 # Claves o certificados generados en local (no subir a git)
 *.pem
 *.key
+*credentials*.json
+*secret*.json
+*service-role*.json
 
 # JetBrains (PyCharm / IntelliJ)
 .idea/
@@ -238,6 +243,10 @@ ml/artifacts/models/*
 # MÉTRICAS (NO VERSIONAR)
 ml/artifacts/metrics/*
 !ml/artifacts/metrics/.gitkeep
+
+# Salidas locales de inferencia / explicabilidad (NO VERSIONAR)
+ml/artifacts/tflite_runs/
+ml/artifacts/explainability/
 
 # MLflow (almacenamiento local file:…/ml/mlruns)
 ml/mlruns/

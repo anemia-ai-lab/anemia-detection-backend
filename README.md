@@ -100,6 +100,16 @@ Run ML tests in Docker:
 make ml-test-docker
 ```
 
+## Public Release Notes
+
+The repository includes the trained Keras model artifact for academic reproducibility of the
+research prototype. The clinical image dataset, raw captures, patient-level records, and local
+environment secrets are not included.
+
+The included model artifact is provided for research inspection and software reproducibility only.
+It does not authorize clinical use, diagnosis, or deployment without independent validation,
+ethical review, and applicable regulatory assessment.
+
 ## Authorship
 
 **Mateo Alejandro Vilchez Rios**  
