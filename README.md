@@ -35,22 +35,77 @@ The following metrics refer to **test-set** evaluation with the **calibrated** p
 
 The operational point prioritizes **recall** relative to precision, which is appropriate for screening where false negatives carry high clinical cost. **Calibration** (low Brier score and moderate ECE) improves the interpretability of reported probabilities compared to raw sigmoid outputs, without changing the discriminative ordering underlying the ROC.
 
-### TensorFlow Lite (offline mobile inference)
+## Experimental pipelines (G8–G10)
 
-- **Backend (this API):** loads the trained **Keras** model (`.keras`) and applies the same **post-processing** as in the table above: `raw_probability` → **temperature scaling** → compare to **operational threshold** on the **calibrated** score (`POST /predict`).
-- **Mobile / offline:** consumes an exported **TensorFlow Lite** model (`.tflite`) produced by `ml/scripts/export_tflite.py`. The `.tflite` graph outputs the **raw sigmoid probability** only; **calibration** and **thresholding are not embedded** in the mobile artifact.
+The following components are **research-grade** and aligned with the modular layout (`ml/preprocessing`, `ml/inference`, `ml/explainability`). They reuse the same **temperature scaling** and **operational threshold** logic as `POST /predict` (`backend.inference.probability_calibration`).
 
-Mobile clients must **replicate** backend logic using the companion **metadata JSON** from the export script (`temperature`, `operational_threshold`, preprocessing hint). Minimal pseudo-flow:
+### G9 — Shared preprocessing (`ml/preprocessing/pipeline.py`)
 
+Single entry point for **backend Keras**, **TFLite offline**, and **Grad-CAM**:
+
+1. Decode (TensorFlow `decode_image`, RGB, robust formats).
+2. Validate geometry, channels, and minimum size.
+3. Resize to **224×224** (bilinear), float32 in \([0,255]\).
+4. Optional **lighting normalization** (`off` by default to preserve published calibration): `per_image_standardize` or `brightness_contrast_stabilize` (percentile stretch). Enabling these changes score distributions and **requires re-fitting** \(T\) and the operational threshold on held-out data.
+5. Optional **ROI hook** (`PreprocessingConfig.roi_extractor`) for future nail-region cropping (pass-through today).
+6. `mobilenet_v2.preprocess_input` (same convention as `ml/baseline/dataops.py` training pipelines).
+7. Batch dimension `(1,224,224,3)`.
+
+The FastAPI path `prepare_prediction_image` → `predict_from_rgb` avoids decoding PNG twice while keeping the nail heuristic on the **uint8 RGB** tensor.
+
+```mermaid
+flowchart LR
+    Bytes["image_bytes_or_rgb"]
+    Pipeline["ml/preprocessing/pipeline.py"]
+    Keras["KerasImagePredictor"]
+    TFLite["TFLiteInferenceEngine"]
+    GradCAM["GradCAM"]
+    Calib["temperature plus threshold"]
+    Risk["risk_mapping"]
+    Bytes --> Pipeline
+    Pipeline --> Keras
+    Pipeline --> TFLite
+    Pipeline --> GradCAM
+    Keras --> Calib
+    TFLite --> Calib
+    GradCAM --> Calib
+    Calib --> Risk
 ```
-image → decode/float32 tensor [1,224,224,3]
-      → mobilenet_v2.preprocess_input (same convention as training/backend pipeline)
-      → TFLite inference → raw_prob (scalar sigmoid)
-      → temperature scaling using exported temperature T (matches backend calibration)
-      → compare calibrated probability to operational_threshold → binary prediction / screening flag
+
+### G8 — Offline TFLite inference
+
+- **Module:** `ml/inference/tflite_inference.py` — lazy-loaded interpreter, metadata validation, `TFLiteInferenceResult.to_sync_payload()` for future backend ingestion (field names aligned with `PredictionResponse`; `inference_mode="tflite_offline"` is also allowed on the API schema for documentation/sync).
+- **CLI:** `ml/scripts/run_tflite_inference.py` — batch images, deterministic sorted JSON, optional `--artifacts-dir` → `ml/artifacts/tflite_runs/<run_id>/{outputs.json,manifest.json}`.
+- **Export:** `ml/scripts/export_tflite.py` escribe `.tflite` en **float32** sin optimizaciones del convertidor (`converter.optimizations = []`) para maximizar la **paridad numérica** con Keras; tras cambiar el script o la versión de TensorFlow, vuelva a exportar y commitear el `.tflite` si `make ml-test` exige tolerancias estrictas.
+
+Example (from repository root, with `PYTHONPATH` pointing at the repo so `backend` resolves):
+
+```bash
+cd ml && PYTHONPATH=.. python scripts/run_tflite_inference.py \
+  --image path/to/sample.png \
+  --tflite-path artifacts/models/baseline_mobilenetv2_v1.tflite \
+  --metadata-path artifacts/models/baseline_mobilenetv2_v1.metadata.json \
+  --artifacts-dir artifacts/tflite_runs
 ```
 
-This repository does **not** swap backend inference for TFLite; production servers continue to use **Keras**. Mobile builds bundle `.tflite` + metadata independently.
+### G10 — Grad-CAM interpretability
+
+Research **visual explanation** of where the network attends; **not** a diagnostic or a substitute for calibrated risk from `POST /predict`.
+
+- **Module:** `ml/explainability/gradcam.py` — last `Conv2D` / `DepthwiseConv2D` inside `mobilenet_backbone` by default, optional `--layer` override, `GradCAMError` on missing gradients.
+- **CLI:** `ml/scripts/generate_gradcam.py` — writes `ml/artifacts/explainability/<run_id>/<stem>/{original.png,preprocessed.png,heatmap.png,overlay.png,saliency.png,metadata.json}` with non-diagnostic disclaimer and pipeline provenance.
+
+```bash
+cd ml && PYTHONPATH=.. python scripts/generate_gradcam.py \
+  --image path/to/sample.png \
+  --output-dir artifacts/explainability
+```
+
+### TensorFlow Lite (summary)
+
+- **Backend (online inference):** loads **Keras** (`.keras`) for `POST /predict`; temperature scaling and the operational threshold are applied **outside** the neural network (same pure functions as in `ml/inference/tflite_inference.py`).
+- **Mobile / offline:** bundle the `.tflite` plus metadata JSON; the graph exposes **raw sigmoid probability** only; apply the same post-processing order as the server using exported `temperature` and `operational_threshold` on **calibrated** scores. Offline `TFLiteInferenceResult.to_sync_payload()` is structured so field names align with `PredictionResponse` for synchronization-ready payloads.
+- **Backend tests:** `make test` never imports TensorFlow (`DISABLE_TF=1`); optional `ALLOW_BACKEND_TF=1` in `tests/conftest.py` only if you intentionally need a real `.keras` load during API tests (not recommended in CI).
 
 ## API
 
@@ -69,12 +124,18 @@ Authentication, database, and object storage are provided via **Supabase** (see 
 - **Train/test:** patient-level separation at dataset construction so that all crops from a given subject appear in only one of train or test.  
 - **Artifacts:** training and calibration runs are logged as **JSON** and **Markdown** under `ml/artifacts/runs/` for traceability.
 
+## Automated testing
+
+- **API / core:** `make test` runs `pytest` on `tests/` only (see root `pytest.ini`). It sets `DISABLE_TF=1` and clears `INFERENCE_MODEL_PATH` so TensorFlow/Keras are never initialized and `.env` cannot pull in a `.keras` during collection.
+- **ML (TensorFlow + local `.keras` / `.tflite`):** `make ml-test` runs `pytest` under `ml/tests/` with `PYTHONPATH=..` so `backend` and `ml` import correctly. Requires a working TensorFlow install and the committed artifacts under `ml/artifacts/models/`. Tests use `pytest.importorskip("tensorflow")` where appropriate and skip if artifacts are missing.
+
 ## Project Structure
 
 ```
 backend/     # FastAPI application, inference, configuration, Supabase integration
-ml/          # Dataset utilities, training, calibration scripts, and artifact outputs
-tests/       # Automated tests for API and core components
+ml/          # Dataset utilities, training, calibration, G8–G10 modules, artifact outputs
+ml/tests/    # TensorFlow-heavy tests (``make ml-test``)
+tests/       # API and core unit tests (``make test``)
 ```
 
 ## Limitations

@@ -1,0 +1,798 @@
+{
+  "configuration" : { },
+  "description" : "C4 architecture model for a CNN-based childhood anemia risk prediction system.",
+  "documentation" : { },
+  "id" : 1,
+  "lastModifiedDate" : "2026-04-29T01:19:12Z",
+  "model" : {
+    "people" : [ {
+      "description" : "Uses the mobile application to submit fingernail images and review anemia risk predictions.",
+      "id" : "1",
+      "name" : "User",
+      "properties" : {
+        "structurizr.dsl.identifier" : "user"
+      },
+      "relationships" : [ {
+        "description" : "Uses",
+        "destinationId" : "3",
+        "id" : "26",
+        "sourceId" : "1",
+        "tags" : "Relationship"
+      }, {
+        "description" : "Uses",
+        "destinationId" : "2",
+        "id" : "27",
+        "linkedRelationshipId" : "26",
+        "sourceId" : "1"
+      } ],
+      "tags" : "Element,Person"
+    } ],
+    "softwareSystems" : [ {
+      "containers" : [ {
+        "description" : "Captures or selects fingernail images, sends prediction requests, and displays results/history.",
+        "documentation" : { },
+        "id" : "3",
+        "name" : "Mobile App",
+        "properties" : {
+          "structurizr.dsl.identifier" : "mobileApp"
+        },
+        "relationships" : [ {
+          "description" : "Submits image and receives calibrated prediction",
+          "destinationId" : "4",
+          "id" : "28",
+          "sourceId" : "3",
+          "tags" : "Relationship",
+          "technology" : "HTTPS / multipart-form-data / JSON"
+        }, {
+          "description" : "Can use for offline inference mode",
+          "destinationId" : "21",
+          "id" : "40",
+          "sourceId" : "3",
+          "tags" : "Relationship",
+          "technology" : "On-device inference"
+        }, {
+          "description" : "Calls backend HTTP endpoints",
+          "destinationId" : "5",
+          "id" : "41",
+          "sourceId" : "3",
+          "tags" : "Relationship",
+          "technology" : "HTTPS / JSON / multipart-form-data"
+        } ],
+        "tags" : "Element,Container",
+        "technology" : "React Native / Expo"
+      }, {
+        "components" : [ {
+          "description" : "HTTP endpoints for prediction, health, model evaluation, auth/profile, and metrics.",
+          "documentation" : { },
+          "id" : "5",
+          "name" : "API Routes",
+          "properties" : {
+            "structurizr.dsl.identifier" : "apiRoutes"
+          },
+          "relationships" : [ {
+            "description" : "Delegates prediction requests",
+            "destinationId" : "10",
+            "id" : "42",
+            "sourceId" : "5",
+            "tags" : "Relationship"
+          }, {
+            "description" : "Delegates authentication requests",
+            "destinationId" : "6",
+            "id" : "43",
+            "sourceId" : "5",
+            "tags" : "Relationship"
+          }, {
+            "description" : "Delegates profile requests",
+            "destinationId" : "7",
+            "id" : "44",
+            "sourceId" : "5",
+            "tags" : "Relationship"
+          }, {
+            "description" : "Returns model evaluation metadata",
+            "destinationId" : "17",
+            "id" : "45",
+            "sourceId" : "5",
+            "tags" : "Relationship"
+          }, {
+            "description" : "Exposes /health and /metrics",
+            "destinationId" : "18",
+            "id" : "46",
+            "sourceId" : "5",
+            "tags" : "Relationship"
+          } ],
+          "tags" : "Element,Component",
+          "technology" : "FastAPI routers"
+        }, {
+          "description" : "Handles registration, login, current-user lookup, and authenticated Supabase sessions.",
+          "documentation" : { },
+          "id" : "6",
+          "name" : "Auth Service",
+          "properties" : {
+            "structurizr.dsl.identifier" : "authService"
+          },
+          "relationships" : [ {
+            "description" : "Delegates Supabase Auth operations",
+            "destinationId" : "8",
+            "id" : "47",
+            "sourceId" : "6",
+            "tags" : "Relationship"
+          }, {
+            "description" : "Checks profile completion after auth flows",
+            "destinationId" : "7",
+            "id" : "48",
+            "sourceId" : "6",
+            "tags" : "Relationship"
+          }, {
+            "description" : "Ensures profile row on registration",
+            "destinationId" : "9",
+            "id" : "49",
+            "sourceId" : "6",
+            "tags" : "Relationship"
+          } ],
+          "tags" : "Element,Component",
+          "technology" : "Python service"
+        }, {
+          "description" : "Manages profile data for authenticated users.",
+          "documentation" : { },
+          "id" : "7",
+          "name" : "Profile Service",
+          "properties" : {
+            "structurizr.dsl.identifier" : "profileService"
+          },
+          "relationships" : [ {
+            "description" : "Reads and updates profile data",
+            "destinationId" : "9",
+            "id" : "50",
+            "sourceId" : "7",
+            "tags" : "Relationship"
+          } ],
+          "tags" : "Element,Component",
+          "technology" : "Python service"
+        }, {
+          "description" : "Wraps Supabase Auth operations for sign-up, sign-in, and user resolution.",
+          "documentation" : { },
+          "id" : "8",
+          "name" : "Auth Repository",
+          "properties" : {
+            "structurizr.dsl.identifier" : "authRepository"
+          },
+          "relationships" : [ {
+            "description" : "Registers, signs in, and resolves users",
+            "destinationId" : "23",
+            "id" : "51",
+            "sourceId" : "8",
+            "tags" : "Relationship"
+          }, {
+            "description" : "Registers, signs in, and resolves users",
+            "destinationId" : "22",
+            "id" : "52",
+            "linkedRelationshipId" : "51",
+            "sourceId" : "8"
+          } ],
+          "tags" : "Element,Component",
+          "technology" : "Supabase Auth client"
+        }, {
+          "description" : "Reads and updates profile rows.",
+          "documentation" : { },
+          "id" : "9",
+          "name" : "Profile Repository",
+          "properties" : {
+            "structurizr.dsl.identifier" : "profileRepository"
+          },
+          "relationships" : [ {
+            "description" : "Reads and updates profile rows",
+            "destinationId" : "24",
+            "id" : "53",
+            "sourceId" : "9",
+            "tags" : "Relationship"
+          }, {
+            "description" : "Reads and updates profile rows",
+            "destinationId" : "22",
+            "id" : "54",
+            "linkedRelationshipId" : "53",
+            "sourceId" : "9"
+          } ],
+          "tags" : "Element,Component",
+          "technology" : "Supabase PostgREST client"
+        }, {
+          "description" : "Orchestrates image validation, CNN inference, calibration, risk mapping, storage, and persistence.",
+          "documentation" : { },
+          "id" : "10",
+          "name" : "Prediction Service",
+          "properties" : {
+            "structurizr.dsl.identifier" : "predictionService"
+          },
+          "relationships" : [ {
+            "description" : "Validates and prepares image",
+            "destinationId" : "11",
+            "id" : "55",
+            "sourceId" : "10",
+            "tags" : "Relationship"
+          }, {
+            "description" : "Gets raw sigmoid probability",
+            "destinationId" : "12",
+            "id" : "56",
+            "sourceId" : "10",
+            "tags" : "Relationship"
+          }, {
+            "description" : "Applies temperature scaling",
+            "destinationId" : "13",
+            "id" : "57",
+            "sourceId" : "10",
+            "tags" : "Relationship"
+          }, {
+            "description" : "Maps calibrated probability to risk",
+            "destinationId" : "14",
+            "id" : "58",
+            "sourceId" : "10",
+            "tags" : "Relationship"
+          }, {
+            "description" : "Persists prediction record",
+            "destinationId" : "15",
+            "id" : "59",
+            "sourceId" : "10",
+            "tags" : "Relationship"
+          }, {
+            "description" : "Uploads image",
+            "destinationId" : "16",
+            "id" : "60",
+            "sourceId" : "10",
+            "tags" : "Relationship"
+          } ],
+          "tags" : "Element,Component",
+          "technology" : "Python service"
+        }, {
+          "description" : "Validates image size, type, decoding, resizing, and basic fingernail presence.",
+          "documentation" : { },
+          "id" : "11",
+          "name" : "Image Validation",
+          "properties" : {
+            "structurizr.dsl.identifier" : "imageValidation"
+          },
+          "tags" : "Element,Component",
+          "technology" : "Python / Pillow / TensorFlow utilities"
+        }, {
+          "description" : "Loads the final Keras model and produces raw sigmoid probability.",
+          "documentation" : { },
+          "id" : "12",
+          "name" : "CNN Predictor",
+          "properties" : {
+            "structurizr.dsl.identifier" : "cnnPredictor"
+          },
+          "tags" : "Element,Component",
+          "technology" : "TensorFlow / Keras / MobileNetV2"
+        }, {
+          "description" : "Applies temperature scaling and operational thresholding.",
+          "documentation" : { },
+          "id" : "13",
+          "name" : "Probability Calibration",
+          "properties" : {
+            "structurizr.dsl.identifier" : "calibration"
+          },
+          "tags" : "Element,Component",
+          "technology" : "Python"
+        }, {
+          "description" : "Maps calibrated probability into prediction and risk labels.",
+          "documentation" : { },
+          "id" : "14",
+          "name" : "Risk Mapping",
+          "properties" : {
+            "structurizr.dsl.identifier" : "riskMapping"
+          },
+          "tags" : "Element,Component",
+          "technology" : "Python"
+        }, {
+          "description" : "Persists and retrieves prediction records.",
+          "documentation" : { },
+          "id" : "15",
+          "name" : "Prediction Repository",
+          "properties" : {
+            "structurizr.dsl.identifier" : "predictionRepository"
+          },
+          "relationships" : [ {
+            "description" : "Inserts/selects prediction rows",
+            "destinationId" : "24",
+            "id" : "62",
+            "sourceId" : "15",
+            "tags" : "Relationship"
+          }, {
+            "description" : "Inserts/selects prediction rows",
+            "destinationId" : "22",
+            "id" : "63",
+            "linkedRelationshipId" : "62",
+            "sourceId" : "15"
+          } ],
+          "tags" : "Element,Component",
+          "technology" : "Supabase PostgREST client"
+        }, {
+          "description" : "Uploads prediction images to object storage.",
+          "documentation" : { },
+          "id" : "16",
+          "name" : "Prediction Image Storage",
+          "properties" : {
+            "structurizr.dsl.identifier" : "storageRepository"
+          },
+          "relationships" : [ {
+            "description" : "Uploads image objects",
+            "destinationId" : "25",
+            "id" : "64",
+            "sourceId" : "16",
+            "tags" : "Relationship"
+          }, {
+            "description" : "Uploads image objects",
+            "destinationId" : "22",
+            "id" : "65",
+            "linkedRelationshipId" : "64",
+            "sourceId" : "16"
+          } ],
+          "tags" : "Element,Component",
+          "technology" : "Supabase Storage client"
+        }, {
+          "description" : "Exposes static evaluation metrics and calibration metadata for model v1.0.",
+          "documentation" : { },
+          "id" : "17",
+          "name" : "Model Evaluation Service",
+          "properties" : {
+            "structurizr.dsl.identifier" : "modelEvaluation"
+          },
+          "tags" : "Element,Component",
+          "technology" : "Python"
+        }, {
+          "description" : "Provides operational health status, Prometheus metrics, and structured logs for local and deployed monitoring.",
+          "documentation" : { },
+          "id" : "18",
+          "name" : "Metrics / Health / Logging",
+          "properties" : {
+            "structurizr.dsl.identifier" : "metricsComponent"
+          },
+          "relationships" : [ {
+            "description" : "Reads model loaded status",
+            "destinationId" : "12",
+            "id" : "66",
+            "sourceId" : "18",
+            "tags" : "Relationship"
+          } ],
+          "tags" : "Element,Component",
+          "technology" : "Prometheus client / Python logging"
+        } ],
+        "description" : "Provides prediction, authentication/profile, health, model evaluation, and metrics endpoints.",
+        "documentation" : { },
+        "id" : "4",
+        "name" : "Backend API",
+        "properties" : {
+          "structurizr.dsl.identifier" : "backend"
+        },
+        "relationships" : [ {
+          "description" : "Validates authenticated user",
+          "destinationId" : "23",
+          "id" : "29",
+          "sourceId" : "4",
+          "tags" : "Relationship",
+          "technology" : "JWT / Supabase client"
+        }, {
+          "description" : "Validates authenticated user",
+          "destinationId" : "22",
+          "id" : "30",
+          "linkedRelationshipId" : "29",
+          "sourceId" : "4",
+          "technology" : "JWT / Supabase client"
+        }, {
+          "description" : "Stores and retrieves prediction/profile data",
+          "destinationId" : "24",
+          "id" : "33",
+          "sourceId" : "4",
+          "tags" : "Relationship",
+          "technology" : "PostgREST"
+        }, {
+          "description" : "Uploads prediction images",
+          "destinationId" : "25",
+          "id" : "35",
+          "sourceId" : "4",
+          "tags" : "Relationship",
+          "technology" : "Supabase Storage API"
+        } ],
+        "tags" : "Element,Container",
+        "technology" : "FastAPI + Uvicorn + Docker"
+      }, {
+        "description" : "Offline scripts for dataset preparation, model training, evaluation, calibration, and artifact generation.",
+        "documentation" : { },
+        "id" : "19",
+        "name" : "ML Pipeline",
+        "properties" : {
+          "structurizr.dsl.identifier" : "mlPipeline"
+        },
+        "relationships" : [ {
+          "description" : "Produces final Keras model and evaluation metadata",
+          "destinationId" : "4",
+          "id" : "38",
+          "sourceId" : "19",
+          "tags" : "Relationship",
+          "technology" : ".keras / JSON / Markdown"
+        }, {
+          "description" : "Exports mobile inference artifact",
+          "destinationId" : "21",
+          "id" : "39",
+          "sourceId" : "19",
+          "tags" : "Relationship",
+          "technology" : ".tflite + metadata JSON"
+        }, {
+          "description" : "Provides final Keras model artifact",
+          "destinationId" : "12",
+          "id" : "61",
+          "sourceId" : "19",
+          "tags" : "Relationship",
+          "technology" : ".keras"
+        } ],
+        "tags" : "Element,Container",
+        "technology" : "TensorFlow / Keras / optional MLflow / Python scripts"
+      }, {
+        "description" : "Collects and visualizes backend metrics for local validation and thesis/demo monitoring.",
+        "documentation" : { },
+        "id" : "20",
+        "name" : "Observability Stack",
+        "properties" : {
+          "structurizr.dsl.identifier" : "observability"
+        },
+        "relationships" : [ {
+          "description" : "Scrapes /metrics",
+          "destinationId" : "4",
+          "id" : "37",
+          "sourceId" : "20",
+          "tags" : "Relationship",
+          "technology" : "Prometheus scrape"
+        } ],
+        "tags" : "Element,Container",
+        "technology" : "Prometheus + Grafana"
+      }, {
+        "description" : "Exported model artifact that can be bundled with the mobile app for optional offline inference.",
+        "documentation" : { },
+        "id" : "21",
+        "name" : "TFLite Mobile Artifact",
+        "properties" : {
+          "structurizr.dsl.identifier" : "tfliteArtifact"
+        },
+        "tags" : "Element,Container",
+        "technology" : "TensorFlow Lite file + metadata JSON"
+      } ],
+      "description" : "Mobile and backend system for early childhood anemia risk prediction from fingernail images. It supports prediction, not clinical diagnosis.",
+      "documentation" : { },
+      "id" : "2",
+      "name" : "Anemia Prediction System",
+      "properties" : {
+        "structurizr.dsl.identifier" : "anemiaSystem"
+      },
+      "relationships" : [ {
+        "description" : "Validates authenticated user",
+        "destinationId" : "23",
+        "id" : "31",
+        "linkedRelationshipId" : "29",
+        "sourceId" : "2",
+        "technology" : "JWT / Supabase client"
+      }, {
+        "description" : "Validates authenticated user",
+        "destinationId" : "22",
+        "id" : "32",
+        "linkedRelationshipId" : "29",
+        "sourceId" : "2",
+        "technology" : "JWT / Supabase client"
+      }, {
+        "description" : "Stores and retrieves prediction/profile data",
+        "destinationId" : "24",
+        "id" : "34",
+        "linkedRelationshipId" : "33",
+        "sourceId" : "2",
+        "technology" : "PostgREST"
+      }, {
+        "description" : "Uploads prediction images",
+        "destinationId" : "25",
+        "id" : "36",
+        "linkedRelationshipId" : "35",
+        "sourceId" : "2",
+        "technology" : "Supabase Storage API"
+      } ],
+      "tags" : "Element,Software System"
+    }, {
+      "containers" : [ {
+        "description" : "Authenticates application users.",
+        "documentation" : { },
+        "id" : "23",
+        "name" : "Supabase Auth",
+        "properties" : {
+          "structurizr.dsl.identifier" : "supabaseAuth"
+        },
+        "tags" : "Element,Container",
+        "technology" : "Supabase Auth"
+      }, {
+        "description" : "Stores profiles and prediction records.",
+        "documentation" : { },
+        "id" : "24",
+        "name" : "PostgreSQL Database",
+        "properties" : {
+          "structurizr.dsl.identifier" : "supabaseDb"
+        },
+        "tags" : "Element,Container",
+        "technology" : "Supabase PostgreSQL"
+      }, {
+        "description" : "Stores uploaded fingernail images.",
+        "documentation" : { },
+        "id" : "25",
+        "name" : "Object Storage",
+        "properties" : {
+          "structurizr.dsl.identifier" : "supabaseStorage"
+        },
+        "tags" : "Element,Container",
+        "technology" : "Supabase Storage"
+      } ],
+      "description" : "Managed backend platform providing Auth, PostgreSQL, Storage, and Row-Level Security.",
+      "documentation" : { },
+      "id" : "22",
+      "name" : "Supabase",
+      "properties" : {
+        "structurizr.dsl.identifier" : "supabase"
+      },
+      "tags" : "Element,Software System,External"
+    } ]
+  },
+  "name" : "Anemia Prediction System",
+  "properties" : {
+    "structurizr.inspection.error" : "35",
+    "structurizr.dsl" : "d29ya3NwYWNlICJBbmVtaWEgUHJlZGljdGlvbiBTeXN0ZW0iICJDNCBhcmNoaXRlY3R1cmUgbW9kZWwgZm9yIGEgQ05OLWJhc2VkIGNoaWxkaG9vZCBhbmVtaWEgcmlzayBwcmVkaWN0aW9uIHN5c3RlbS4iIHsKCiAgICBtb2RlbCB7CiAgICAgICAgdXNlciA9IHBlcnNvbiAiVXNlciIgIlVzZXMgdGhlIG1vYmlsZSBhcHBsaWNhdGlvbiB0byBzdWJtaXQgZmluZ2VybmFpbCBpbWFnZXMgYW5kIHJldmlldyBhbmVtaWEgcmlzayBwcmVkaWN0aW9ucy4iCgogICAgICAgIGFuZW1pYVN5c3RlbSA9IHNvZnR3YXJlU3lzdGVtICJBbmVtaWEgUHJlZGljdGlvbiBTeXN0ZW0iICJNb2JpbGUgYW5kIGJhY2tlbmQgc3lzdGVtIGZvciBlYXJseSBjaGlsZGhvb2QgYW5lbWlhIHJpc2sgcHJlZGljdGlvbiBmcm9tIGZpbmdlcm5haWwgaW1hZ2VzLiBJdCBzdXBwb3J0cyBwcmVkaWN0aW9uLCBub3QgY2xpbmljYWwgZGlhZ25vc2lzLiIgewogICAgICAgICAgICAKICAgICAgICAgICAgbW9iaWxlQXBwID0gY29udGFpbmVyICJNb2JpbGUgQXBwIiAiQ2FwdHVyZXMgb3Igc2VsZWN0cyBmaW5nZXJuYWlsIGltYWdlcywgc2VuZHMgcHJlZGljdGlvbiByZXF1ZXN0cywgYW5kIGRpc3BsYXlzIHJlc3VsdHMvaGlzdG9yeS4iICJSZWFjdCBOYXRpdmUgLyBFeHBvIgoKICAgICAgICAgICAgYmFja2VuZCA9IGNvbnRhaW5lciAiQmFja2VuZCBBUEkiICJQcm92aWRlcyBwcmVkaWN0aW9uLCBhdXRoZW50aWNhdGlvbi9wcm9maWxlLCBoZWFsdGgsIG1vZGVsIGV2YWx1YXRpb24sIGFuZCBtZXRyaWNzIGVuZHBvaW50cy4iICJGYXN0QVBJICsgVXZpY29ybiArIERvY2tlciIgewogICAgICAgICAgICAgICAgYXBpUm91dGVzID0gY29tcG9uZW50ICJBUEkgUm91dGVzIiAiSFRUUCBlbmRwb2ludHMgZm9yIHByZWRpY3Rpb24sIGhlYWx0aCwgbW9kZWwgZXZhbHVhdGlvbiwgYXV0aC9wcm9maWxlLCBhbmQgbWV0cmljcy4iICJGYXN0QVBJIHJvdXRlcnMiCiAgICAgICAgICAgICAgICBhdXRoU2VydmljZSA9IGNvbXBvbmVudCAiQXV0aCBTZXJ2aWNlIiAiSGFuZGxlcyByZWdpc3RyYXRpb24sIGxvZ2luLCBjdXJyZW50LXVzZXIgbG9va3VwLCBhbmQgYXV0aGVudGljYXRlZCBTdXBhYmFzZSBzZXNzaW9ucy4iICJQeXRob24gc2VydmljZSIKICAgICAgICAgICAgICAgIHByb2ZpbGVTZXJ2aWNlID0gY29tcG9uZW50ICJQcm9maWxlIFNlcnZpY2UiICJNYW5hZ2VzIHByb2ZpbGUgZGF0YSBmb3IgYXV0aGVudGljYXRlZCB1c2Vycy4iICJQeXRob24gc2VydmljZSIKICAgICAgICAgICAgICAgIGF1dGhSZXBvc2l0b3J5ID0gY29tcG9uZW50ICJBdXRoIFJlcG9zaXRvcnkiICJXcmFwcyBTdXBhYmFzZSBBdXRoIG9wZXJhdGlvbnMgZm9yIHNpZ24tdXAsIHNpZ24taW4sIGFuZCB1c2VyIHJlc29sdXRpb24uIiAiU3VwYWJhc2UgQXV0aCBjbGllbnQiCiAgICAgICAgICAgICAgICBwcm9maWxlUmVwb3NpdG9yeSA9IGNvbXBvbmVudCAiUHJvZmlsZSBSZXBvc2l0b3J5IiAiUmVhZHMgYW5kIHVwZGF0ZXMgcHJvZmlsZSByb3dzLiIgIlN1cGFiYXNlIFBvc3RnUkVTVCBjbGllbnQiCiAgICAgICAgICAgICAgICBwcmVkaWN0aW9uU2VydmljZSA9IGNvbXBvbmVudCAiUHJlZGljdGlvbiBTZXJ2aWNlIiAiT3JjaGVzdHJhdGVzIGltYWdlIHZhbGlkYXRpb24sIENOTiBpbmZlcmVuY2UsIGNhbGlicmF0aW9uLCByaXNrIG1hcHBpbmcsIHN0b3JhZ2UsIGFuZCBwZXJzaXN0ZW5jZS4iICJQeXRob24gc2VydmljZSIKICAgICAgICAgICAgICAgIGltYWdlVmFsaWRhdGlvbiA9IGNvbXBvbmVudCAiSW1hZ2UgVmFsaWRhdGlvbiIgIlZhbGlkYXRlcyBpbWFnZSBzaXplLCB0eXBlLCBkZWNvZGluZywgcmVzaXppbmcsIGFuZCBiYXNpYyBmaW5nZXJuYWlsIHByZXNlbmNlLiIgIlB5dGhvbiAvIFBpbGxvdyAvIFRlbnNvckZsb3cgdXRpbGl0aWVzIgogICAgICAgICAgICAgICAgY25uUHJlZGljdG9yID0gY29tcG9uZW50ICJDTk4gUHJlZGljdG9yIiAiTG9hZHMgdGhlIGZpbmFsIEtlcmFzIG1vZGVsIGFuZCBwcm9kdWNlcyByYXcgc2lnbW9pZCBwcm9iYWJpbGl0eS4iICJUZW5zb3JGbG93IC8gS2VyYXMgLyBNb2JpbGVOZXRWMiIKICAgICAgICAgICAgICAgIGNhbGlicmF0aW9uID0gY29tcG9uZW50ICJQcm9iYWJpbGl0eSBDYWxpYnJhdGlvbiIgIkFwcGxpZXMgdGVtcGVyYXR1cmUgc2NhbGluZyBhbmQgb3BlcmF0aW9uYWwgdGhyZXNob2xkaW5nLiIgIlB5dGhvbiIKICAgICAgICAgICAgICAgIHJpc2tNYXBwaW5nID0gY29tcG9uZW50ICJSaXNrIE1hcHBpbmciICJNYXBzIGNhbGlicmF0ZWQgcHJvYmFiaWxpdHkgaW50byBwcmVkaWN0aW9uIGFuZCByaXNrIGxhYmVscy4iICJQeXRob24iCiAgICAgICAgICAgICAgICBwcmVkaWN0aW9uUmVwb3NpdG9yeSA9IGNvbXBvbmVudCAiUHJlZGljdGlvbiBSZXBvc2l0b3J5IiAiUGVyc2lzdHMgYW5kIHJldHJpZXZlcyBwcmVkaWN0aW9uIHJlY29yZHMuIiAiU3VwYWJhc2UgUG9zdGdSRVNUIGNsaWVudCIKICAgICAgICAgICAgICAgIHN0b3JhZ2VSZXBvc2l0b3J5ID0gY29tcG9uZW50ICJQcmVkaWN0aW9uIEltYWdlIFN0b3JhZ2UiICJVcGxvYWRzIHByZWRpY3Rpb24gaW1hZ2VzIHRvIG9iamVjdCBzdG9yYWdlLiIgIlN1cGFiYXNlIFN0b3JhZ2UgY2xpZW50IgogICAgICAgICAgICAgICAgbW9kZWxFdmFsdWF0aW9uID0gY29tcG9uZW50ICJNb2RlbCBFdmFsdWF0aW9uIFNlcnZpY2UiICJFeHBvc2VzIHN0YXRpYyBldmFsdWF0aW9uIG1ldHJpY3MgYW5kIGNhbGlicmF0aW9uIG1ldGFkYXRhIGZvciBtb2RlbCB2MS4wLiIgIlB5dGhvbiIKICAgICAgICAgICAgICAgIG1ldHJpY3NDb21wb25lbnQgPSBjb21wb25lbnQgIk1ldHJpY3MgLyBIZWFsdGggLyBMb2dnaW5nIiAiUHJvdmlkZXMgb3BlcmF0aW9uYWwgaGVhbHRoIHN0YXR1cywgUHJvbWV0aGV1cyBtZXRyaWNzLCBhbmQgc3RydWN0dXJlZCBsb2dzIGZvciBsb2NhbCBhbmQgZGVwbG95ZWQgbW9uaXRvcmluZy4iICJQcm9tZXRoZXVzIGNsaWVudCAvIFB5dGhvbiBsb2dnaW5nIgogICAgICAgICAgICB9CgogICAgICAgICAgICBtbFBpcGVsaW5lID0gY29udGFpbmVyICJNTCBQaXBlbGluZSIgIk9mZmxpbmUgc2NyaXB0cyBmb3IgZGF0YXNldCBwcmVwYXJhdGlvbiwgbW9kZWwgdHJhaW5pbmcsIGV2YWx1YXRpb24sIGNhbGlicmF0aW9uLCBhbmQgYXJ0aWZhY3QgZ2VuZXJhdGlvbi4iICJUZW5zb3JGbG93IC8gS2VyYXMgLyBvcHRpb25hbCBNTGZsb3cgLyBQeXRob24gc2NyaXB0cyIKCiAgICAgICAgICAgIG9ic2VydmFiaWxpdHkgPSBjb250YWluZXIgIk9ic2VydmFiaWxpdHkgU3RhY2siICJDb2xsZWN0cyBhbmQgdmlzdWFsaXplcyBiYWNrZW5kIG1ldHJpY3MgZm9yIGxvY2FsIHZhbGlkYXRpb24gYW5kIHRoZXNpcy9kZW1vIG1vbml0b3JpbmcuIiAiUHJvbWV0aGV1cyArIEdyYWZhbmEiCgogICAgICAgICAgICB0ZmxpdGVBcnRpZmFjdCA9IGNvbnRhaW5lciAiVEZMaXRlIE1vYmlsZSBBcnRpZmFjdCIgIkV4cG9ydGVkIG1vZGVsIGFydGlmYWN0IHRoYXQgY2FuIGJlIGJ1bmRsZWQgd2l0aCB0aGUgbW9iaWxlIGFwcCBmb3Igb3B0aW9uYWwgb2ZmbGluZSBpbmZlcmVuY2UuIiAiVGVuc29yRmxvdyBMaXRlIGZpbGUgKyBtZXRhZGF0YSBKU09OIgogICAgICAgIH0KCiAgICAgICAgc3VwYWJhc2UgPSBzb2Z0d2FyZVN5c3RlbSAiU3VwYWJhc2UiICJNYW5hZ2VkIGJhY2tlbmQgcGxhdGZvcm0gcHJvdmlkaW5nIEF1dGgsIFBvc3RncmVTUUwsIFN0b3JhZ2UsIGFuZCBSb3ctTGV2ZWwgU2VjdXJpdHkuIiAiRXh0ZXJuYWwiIHsKICAgICAgICAgICAgc3VwYWJhc2VBdXRoID0gY29udGFpbmVyICJTdXBhYmFzZSBBdXRoIiAiQXV0aGVudGljYXRlcyBhcHBsaWNhdGlvbiB1c2Vycy4iICJTdXBhYmFzZSBBdXRoIgogICAgICAgICAgICBzdXBhYmFzZURiID0gY29udGFpbmVyICJQb3N0Z3JlU1FMIERhdGFiYXNlIiAiU3RvcmVzIHByb2ZpbGVzIGFuZCBwcmVkaWN0aW9uIHJlY29yZHMuIiAiU3VwYWJhc2UgUG9zdGdyZVNRTCIKICAgICAgICAgICAgc3VwYWJhc2VTdG9yYWdlID0gY29udGFpbmVyICJPYmplY3QgU3RvcmFnZSIgIlN0b3JlcyB1cGxvYWRlZCBmaW5nZXJuYWlsIGltYWdlcy4iICJTdXBhYmFzZSBTdG9yYWdlIgogICAgICAgIH0KCiAgICAgICAgdXNlciAtPiBtb2JpbGVBcHAgIlVzZXMiCgogICAgICAgIG1vYmlsZUFwcCAtPiBiYWNrZW5kICJTdWJtaXRzIGltYWdlIGFuZCByZWNlaXZlcyBjYWxpYnJhdGVkIHByZWRpY3Rpb24iICJIVFRQUyAvIG11bHRpcGFydC1mb3JtLWRhdGEgLyBKU09OIgogICAgICAgIGJhY2tlbmQgLT4gc3VwYWJhc2VBdXRoICJWYWxpZGF0ZXMgYXV0aGVudGljYXRlZCB1c2VyIiAiSldUIC8gU3VwYWJhc2UgY2xpZW50IgogICAgICAgIGJhY2tlbmQgLT4gc3VwYWJhc2VEYiAiU3RvcmVzIGFuZCByZXRyaWV2ZXMgcHJlZGljdGlvbi9wcm9maWxlIGRhdGEiICJQb3N0Z1JFU1QiCiAgICAgICAgYmFja2VuZCAtPiBzdXBhYmFzZVN0b3JhZ2UgIlVwbG9hZHMgcHJlZGljdGlvbiBpbWFnZXMiICJTdXBhYmFzZSBTdG9yYWdlIEFQSSIKCiAgICAgICAgb2JzZXJ2YWJpbGl0eSAtPiBiYWNrZW5kICJTY3JhcGVzIC9tZXRyaWNzIiAiUHJvbWV0aGV1cyBzY3JhcGUiCgogICAgICAgIG1sUGlwZWxpbmUgLT4gYmFja2VuZCAiUHJvZHVjZXMgZmluYWwgS2VyYXMgbW9kZWwgYW5kIGV2YWx1YXRpb24gbWV0YWRhdGEiICIua2VyYXMgLyBKU09OIC8gTWFya2Rvd24iCiAgICAgICAgbWxQaXBlbGluZSAtPiB0ZmxpdGVBcnRpZmFjdCAiRXhwb3J0cyBtb2JpbGUgaW5mZXJlbmNlIGFydGlmYWN0IiAiLnRmbGl0ZSArIG1ldGFkYXRhIEpTT04iCgogICAgICAgIG1vYmlsZUFwcCAtPiB0ZmxpdGVBcnRpZmFjdCAiQ2FuIHVzZSBmb3Igb2ZmbGluZSBpbmZlcmVuY2UgbW9kZSIgIk9uLWRldmljZSBpbmZlcmVuY2UiCgogICAgICAgIG1vYmlsZUFwcCAtPiBhcGlSb3V0ZXMgIkNhbGxzIGJhY2tlbmQgSFRUUCBlbmRwb2ludHMiICJIVFRQUyAvIEpTT04gLyBtdWx0aXBhcnQtZm9ybS1kYXRhIgogICAgICAgIGFwaVJvdXRlcyAtPiBwcmVkaWN0aW9uU2VydmljZSAiRGVsZWdhdGVzIHByZWRpY3Rpb24gcmVxdWVzdHMiCiAgICAgICAgYXBpUm91dGVzIC0+IGF1dGhTZXJ2aWNlICJEZWxlZ2F0ZXMgYXV0aGVudGljYXRpb24gcmVxdWVzdHMiCiAgICAgICAgYXBpUm91dGVzIC0+IHByb2ZpbGVTZXJ2aWNlICJEZWxlZ2F0ZXMgcHJvZmlsZSByZXF1ZXN0cyIKICAgICAgICBhcGlSb3V0ZXMgLT4gbW9kZWxFdmFsdWF0aW9uICJSZXR1cm5zIG1vZGVsIGV2YWx1YXRpb24gbWV0YWRhdGEiCiAgICAgICAgYXBpUm91dGVzIC0+IG1ldHJpY3NDb21wb25lbnQgIkV4cG9zZXMgL2hlYWx0aCBhbmQgL21ldHJpY3MiCgogICAgICAgIGF1dGhTZXJ2aWNlIC0+IGF1dGhSZXBvc2l0b3J5ICJEZWxlZ2F0ZXMgU3VwYWJhc2UgQXV0aCBvcGVyYXRpb25zIgogICAgICAgIGF1dGhTZXJ2aWNlIC0+IHByb2ZpbGVTZXJ2aWNlICJDaGVja3MgcHJvZmlsZSBjb21wbGV0aW9uIGFmdGVyIGF1dGggZmxvd3MiCiAgICAgICAgYXV0aFNlcnZpY2UgLT4gcHJvZmlsZVJlcG9zaXRvcnkgIkVuc3VyZXMgcHJvZmlsZSByb3cgb24gcmVnaXN0cmF0aW9uIgogICAgICAgIHByb2ZpbGVTZXJ2aWNlIC0+IHByb2ZpbGVSZXBvc2l0b3J5ICJSZWFkcyBhbmQgdXBkYXRlcyBwcm9maWxlIGRhdGEiCiAgICAgICAgYXV0aFJlcG9zaXRvcnkgLT4gc3VwYWJhc2VBdXRoICJSZWdpc3RlcnMsIHNpZ25zIGluLCBhbmQgcmVzb2x2ZXMgdXNlcnMiCiAgICAgICAgcHJvZmlsZVJlcG9zaXRvcnkgLT4gc3VwYWJhc2VEYiAiUmVhZHMgYW5kIHVwZGF0ZXMgcHJvZmlsZSByb3dzIgogICAgICAgIHByZWRpY3Rpb25TZXJ2aWNlIC0+IGltYWdlVmFsaWRhdGlvbiAiVmFsaWRhdGVzIGFuZCBwcmVwYXJlcyBpbWFnZSIKICAgICAgICBwcmVkaWN0aW9uU2VydmljZSAtPiBjbm5QcmVkaWN0b3IgIkdldHMgcmF3IHNpZ21vaWQgcHJvYmFiaWxpdHkiCiAgICAgICAgcHJlZGljdGlvblNlcnZpY2UgLT4gY2FsaWJyYXRpb24gIkFwcGxpZXMgdGVtcGVyYXR1cmUgc2NhbGluZyIKICAgICAgICBwcmVkaWN0aW9uU2VydmljZSAtPiByaXNrTWFwcGluZyAiTWFwcyBjYWxpYnJhdGVkIHByb2JhYmlsaXR5IHRvIHJpc2siCiAgICAgICAgcHJlZGljdGlvblNlcnZpY2UgLT4gcHJlZGljdGlvblJlcG9zaXRvcnkgIlBlcnNpc3RzIHByZWRpY3Rpb24gcmVjb3JkIgogICAgICAgIHByZWRpY3Rpb25TZXJ2aWNlIC0+IHN0b3JhZ2VSZXBvc2l0b3J5ICJVcGxvYWRzIGltYWdlIgoKICAgICAgICBtbFBpcGVsaW5lIC0+IGNublByZWRpY3RvciAiUHJvdmlkZXMgZmluYWwgS2VyYXMgbW9kZWwgYXJ0aWZhY3QiICIua2VyYXMiCiAgICAgICAgcHJlZGljdGlvblJlcG9zaXRvcnkgLT4gc3VwYWJhc2VEYiAiSW5zZXJ0cy9zZWxlY3RzIHByZWRpY3Rpb24gcm93cyIKICAgICAgICBzdG9yYWdlUmVwb3NpdG9yeSAtPiBzdXBhYmFzZVN0b3JhZ2UgIlVwbG9hZHMgaW1hZ2Ugb2JqZWN0cyIKICAgICAgICBtZXRyaWNzQ29tcG9uZW50IC0+IGNublByZWRpY3RvciAiUmVhZHMgbW9kZWwgbG9hZGVkIHN0YXR1cyIKICAgIH0KCiAgICB2aWV3cyB7CiAgICAgICAgdGhlbWUgaHR0cHM6Ly9zdGF0aWMuc3RydWN0dXJpenIuY29tL3RoZW1lcy9kZWZhdWx0L3RoZW1lLmpzb24KCiAgICAgICAgc3lzdGVtQ29udGV4dCBhbmVtaWFTeXN0ZW0gIkMxLVN5c3RlbS1Db250ZXh0IiB7CiAgICAgICAgICAgIGluY2x1ZGUgKgogICAgICAgICAgICBhdXRvTGF5b3V0IGxyCiAgICAgICAgICAgIHRpdGxlICJDMSAtIFN5c3RlbSBDb250ZXh0OiBBbmVtaWEgUHJlZGljdGlvbiBTeXN0ZW0iCiAgICAgICAgICAgIGRlc2NyaXB0aW9uICJTeXN0ZW0gY29udGV4dCBkaWFncmFtIHNob3dpbmcgdGhlIHVzZXIsIGFuZW1pYSBwcmVkaWN0aW9uIHN5c3RlbSwgYW5kIGV4dGVybmFsIG1hbmFnZWQgcGxhdGZvcm0uIgogICAgICAgIH0KCiAgICAgICAgY29udGFpbmVyIGFuZW1pYVN5c3RlbSAiQzItQ29udGFpbmVycyIgewogICAgICAgICAgICBpbmNsdWRlICoKICAgICAgICAgICAgYXV0b0xheW91dCBscgogICAgICAgICAgICB0aXRsZSAiQzIgLSBDb250YWluZXIgRGlhZ3JhbTogQW5lbWlhIFByZWRpY3Rpb24gU3lzdGVtIgogICAgICAgICAgICBkZXNjcmlwdGlvbiAiQ29udGFpbmVyIGRpYWdyYW0gc2hvd2luZyB0aGUgbW9iaWxlIGFwcCwgYmFja2VuZCBBUEksIG9mZmxpbmUgTUwgcGlwZWxpbmUsIG9ic2VydmFiaWxpdHkgc3RhY2ssIGV4cG9ydGVkIFRGTGl0ZSBhcnRpZmFjdCwgYW5kIFN1cGFiYXNlIHNlcnZpY2VzLiIKICAgICAgICB9CgogICAgICAgIGNvbXBvbmVudCBiYWNrZW5kICJDMy1CYWNrZW5kLUNvbXBvbmVudHMiIHsKICAgICAgICAgICAgaW5jbHVkZSAqCiAgICAgICAgICAgIGF1dG9MYXlvdXQgbHIKICAgICAgICAgICAgdGl0bGUgIkMzIC0gQ29tcG9uZW50IERpYWdyYW06IEJhY2tlbmQgQVBJIgogICAgICAgICAgICBkZXNjcmlwdGlvbiAiQ29tcG9uZW50IGRpYWdyYW0gc2hvd2luZyB0aGUgbWFpbiBGYXN0QVBJIGJhY2tlbmQgbW9kdWxlcyBpbnZvbHZlZCBpbiBwcmVkaWN0aW9uLCBhdXRoZW50aWNhdGlvbi9wcm9maWxlLCByZXBvc2l0b3JpZXMsIGNhbGlicmF0aW9uLCBwZXJzaXN0ZW5jZSwgbWV0cmljcywgYW5kIG1vZGVsIGV2YWx1YXRpb24uIgogICAgICAgIH0KCiAgICAgICAgc3R5bGVzIHsKICAgICAgICAgICAgZWxlbWVudCAiUGVyc29uIiB7CiAgICAgICAgICAgICAgICBzaGFwZSBwZXJzb24KICAgICAgICAgICAgICAgIGJhY2tncm91bmQgIzA4NDI3QgogICAgICAgICAgICAgICAgY29sb3IgI0ZGRkZGRgogICAgICAgICAgICB9CgogICAgICAgICAgICBlbGVtZW50ICJTb2Z0d2FyZSBTeXN0ZW0iIHsKICAgICAgICAgICAgICAgIGJhY2tncm91bmQgIzExNjhCRAogICAgICAgICAgICAgICAgY29sb3IgI0ZGRkZGRgogICAgICAgICAgICB9CgogICAgICAgICAgICBlbGVtZW50ICJDb250YWluZXIiIHsKICAgICAgICAgICAgICAgIGJhY2tncm91bmQgIzQzOERENQogICAgICAgICAgICAgICAgY29sb3IgI0ZGRkZGRgogICAgICAgICAgICB9CgogICAgICAgICAgICBlbGVtZW50ICJDb21wb25lbnQiIHsKICAgICAgICAgICAgICAgIGJhY2tncm91bmQgIzg1QkJGMAogICAgICAgICAgICAgICAgY29sb3IgIzAwMDAwMAogICAgICAgICAgICB9CgogICAgICAgICAgICBlbGVtZW50ICJFeHRlcm5hbCIgewogICAgICAgICAgICAgICAgYmFja2dyb3VuZCAjOTk5OTk5CiAgICAgICAgICAgICAgICBjb2xvciAjRkZGRkZGCiAgICAgICAgICAgIH0KICAgICAgICB9CiAgICB9Cn0=",
+    "structurizr.inspection.info" : "0",
+    "structurizr.inspection.ignore" : "0",
+    "structurizr.inspection.warning" : "0"
+  },
+  "views" : {
+    "componentViews" : [ {
+      "automaticLayout" : {
+        "edgeSeparation" : 50,
+        "nodeSeparation" : 50,
+        "rankDirection" : "LeftRight",
+        "rankSeparation" : 100,
+        "vertices" : true
+      },
+      "containerId" : "4",
+      "description" : "Component diagram showing the main FastAPI backend modules involved in prediction, authentication/profile, repositories, calibration, persistence, metrics, and model evaluation.",
+      "elements" : [ {
+        "id" : "3",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "5",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "6",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "7",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "8",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "9",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "10",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "11",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "12",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "13",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "14",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "15",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "16",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "17",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "18",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "19",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "22",
+        "x" : 0,
+        "y" : 0
+      } ],
+      "externalContainerBoundariesVisible" : false,
+      "key" : "C3-Backend-Components",
+      "name" : "Component View: Anemia Prediction System - Backend API",
+      "order" : 3,
+      "relationships" : [ {
+        "id" : "41"
+      }, {
+        "id" : "42"
+      }, {
+        "id" : "43"
+      }, {
+        "id" : "44"
+      }, {
+        "id" : "45"
+      }, {
+        "id" : "46"
+      }, {
+        "id" : "47"
+      }, {
+        "id" : "48"
+      }, {
+        "id" : "49"
+      }, {
+        "id" : "50"
+      }, {
+        "id" : "52"
+      }, {
+        "id" : "54"
+      }, {
+        "id" : "55"
+      }, {
+        "id" : "56"
+      }, {
+        "id" : "57"
+      }, {
+        "id" : "58"
+      }, {
+        "id" : "59"
+      }, {
+        "id" : "60"
+      }, {
+        "id" : "61"
+      }, {
+        "id" : "63"
+      }, {
+        "id" : "65"
+      }, {
+        "id" : "66"
+      } ],
+      "title" : "C3 - Component Diagram: Backend API"
+    } ],
+    "configuration" : {
+      "styles" : {
+        "elements" : [ {
+          "background" : "#85bbf0",
+          "color" : "#000000",
+          "tag" : "Component"
+        }, {
+          "background" : "#438dd5",
+          "color" : "#ffffff",
+          "tag" : "Container"
+        }, {
+          "background" : "#999999",
+          "color" : "#ffffff",
+          "tag" : "External"
+        }, {
+          "background" : "#08427b",
+          "color" : "#ffffff",
+          "shape" : "Person",
+          "tag" : "Person"
+        }, {
+          "background" : "#1168bd",
+          "color" : "#ffffff",
+          "tag" : "Software System"
+        } ]
+      },
+      "terminology" : { },
+      "themes" : [ "https://static.structurizr.com/themes/default/theme.json" ]
+    },
+    "containerViews" : [ {
+      "automaticLayout" : {
+        "edgeSeparation" : 50,
+        "nodeSeparation" : 50,
+        "rankDirection" : "LeftRight",
+        "rankSeparation" : 100,
+        "vertices" : true
+      },
+      "description" : "Container diagram showing the mobile app, backend API, offline ML pipeline, observability stack, exported TFLite artifact, and Supabase services.",
+      "elements" : [ {
+        "id" : "1",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "3",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "4",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "19",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "20",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "21",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "22",
+        "x" : 0,
+        "y" : 0
+      } ],
+      "externalSoftwareSystemBoundariesVisible" : false,
+      "key" : "C2-Containers",
+      "name" : "Container View: Anemia Prediction System",
+      "order" : 2,
+      "relationships" : [ {
+        "id" : "26"
+      }, {
+        "id" : "28"
+      }, {
+        "id" : "30"
+      }, {
+        "id" : "37"
+      }, {
+        "id" : "38"
+      }, {
+        "id" : "39"
+      }, {
+        "id" : "40"
+      } ],
+      "softwareSystemId" : "2",
+      "title" : "C2 - Container Diagram: Anemia Prediction System"
+    } ],
+    "systemContextViews" : [ {
+      "automaticLayout" : {
+        "edgeSeparation" : 50,
+        "nodeSeparation" : 50,
+        "rankDirection" : "LeftRight",
+        "rankSeparation" : 100,
+        "vertices" : true
+      },
+      "description" : "System context diagram showing the user, anemia prediction system, and external managed platform.",
+      "elements" : [ {
+        "id" : "1",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "2",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "22",
+        "x" : 0,
+        "y" : 0
+      } ],
+      "enterpriseBoundaryVisible" : true,
+      "key" : "C1-System-Context",
+      "name" : "System Context View: Anemia Prediction System",
+      "order" : 1,
+      "relationships" : [ {
+        "id" : "27"
+      }, {
+        "id" : "32"
+      } ],
+      "softwareSystemId" : "2",
+      "title" : "C1 - System Context: Anemia Prediction System"
+    } ]
+  }
+}

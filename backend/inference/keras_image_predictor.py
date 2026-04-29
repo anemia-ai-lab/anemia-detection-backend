@@ -2,38 +2,46 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any
 
+import numpy as np
+
+from ml.preprocessing.pipeline import (
+    PreprocessingConfig,
+    preprocess_image_bytes,
+    preprocess_rgb_array,
+)
+
+
+def _tf_disabled() -> bool:
+    v = os.environ.get("DISABLE_TF", "").strip().lower()
+    return v in ("1", "true", "yes", "on")
+
 
 class KerasImagePredictor:
-    """Resize 224×224 + ``mobilenet_v2.preprocess_input`` + ``model.predict``."""
+    """Pipeline G9 + ``model.predict`` (salida sigmoide escalar)."""
 
     def __init__(self, model_path: Path) -> None:
+        if _tf_disabled():
+            msg = "KerasImagePredictor no disponible con DISABLE_TF=1 (entornos de test sin TensorFlow)."
+            raise RuntimeError(msg)
         from tensorflow import keras
 
         self._model: Any = keras.models.load_model(model_path, compile=False)
+        self._pre_cfg = PreprocessingConfig()
 
-    def predict_score(self, image_bytes: bytes) -> float:
-        import numpy as np
-        import tensorflow as tf
-        from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
-
-        batch = self._preprocess(image_bytes, tf=tf, preprocess_input=preprocess_input)
+    def predict_from_rgb(self, rgb_uint8: np.ndarray) -> float:
+        """Inferencia desde RGB ya validado (sin re-decodificar el PNG intermedio)."""
+        batch = preprocess_rgb_array(rgb_uint8, cfg=self._pre_cfg).model_input_tensor
         out = self._model.predict(batch, verbose=0)
         score = float(np.asarray(out).squeeze())
         return max(0.0, min(1.0, score))
 
-    @staticmethod
-    def _preprocess(
-        image_bytes: bytes,
-        *,
-        tf: Any,
-        preprocess_input: Any,
-    ) -> Any:
-        img = tf.io.decode_image(image_bytes, channels=3, expand_animations=False)
-        img.set_shape([None, None, 3])
-        img = tf.image.resize(img, [224, 224])
-        img = tf.cast(img, tf.float32)
-        img = preprocess_input(img)
-        return tf.expand_dims(img, 0)
+    def predict_score(self, image_bytes: bytes) -> float:
+        """Compatibilidad: decodifica bytes y aplica el mismo pipeline G9."""
+        batch = preprocess_image_bytes(image_bytes, cfg=self._pre_cfg).model_input_tensor
+        out = self._model.predict(batch, verbose=0)
+        score = float(np.asarray(out).squeeze())
+        return max(0.0, min(1.0, score))

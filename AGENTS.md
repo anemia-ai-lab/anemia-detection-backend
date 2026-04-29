@@ -37,7 +37,8 @@ Repository layout (modular monolith):
 Local development:
 	•	Environment: copy `.env.example` to `.env` at the repo root; `Settings` reads that file.
 	•	`make run` — dev server (uvicorn `--reload`).
-	•	`make test` — pytest; `make lint` / `make format` — ruff.
+	•	`make test` — solo `tests/` con `DISABLE_TF=1` e `INFERENCE_MODEL_PATH` vacío (sin TensorFlow en la suite del API); `make ml-test` — `ml/tests/` con TensorFlow y artefactos locales.
+	•	`make lint` / `make format` — ruff.
 
 Supabase keys (security):
 	•	`SUPABASE_KEY` with `get_supabase_client()`: subject to RLS; still a server secret — do not ship to browsers.
