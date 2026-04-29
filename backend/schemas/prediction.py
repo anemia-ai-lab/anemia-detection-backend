@@ -69,9 +69,9 @@ class PredictionHistoryItem(BaseModel):
         description="Ruta del objeto en el bucket de Storage (prefijo = user id).",
     )
     created_at: datetime
-    inference_mode: Literal["backend"] = Field(
+    inference_mode: Literal["backend", "tflite_offline"] = Field(
         default="backend",
-        description="Dónde se ejecutó la inferencia (siempre backend en esta API).",
+        description="Dónde se ejecutó la inferencia (API backend u offline TFLite para sincronización).",
     )
 
 
@@ -164,7 +164,7 @@ class PredictionResponse(BaseModel):
         description="Ruta del objeto en Storage.",
     )
     created_at: datetime
-    inference_mode: Literal["backend"] = Field(
+    inference_mode: Literal["backend", "tflite_offline"] = Field(
         default="backend",
-        description="Dónde se ejecutó la inferencia (siempre backend en esta API).",
+        description="Dónde se ejecutó la inferencia (API backend u offline TFLite para sincronización).",
     )

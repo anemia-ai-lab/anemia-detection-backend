@@ -1,5 +1,15 @@
 """Shared test helpers (no pytest plugin hooks required)."""
 
+from __future__ import annotations
+
+import os
+
+# La suite del backend no debe inicializar TensorFlow/Keras (velocidad, determinismo, sin exit 134).
+# Opcional: ALLOW_BACKEND_TF=1 para cargar el .keras real durante tests (no recomendado en CI).
+if os.environ.get("ALLOW_BACKEND_TF", "").strip().lower() not in ("1", "true", "yes", "on"):
+    os.environ["DISABLE_TF"] = "1"
+    os.environ["INFERENCE_MODEL_PATH"] = ""
+
 from datetime import datetime, timezone
 
 from supabase_auth.types import AuthResponse, Session, User, UserResponse

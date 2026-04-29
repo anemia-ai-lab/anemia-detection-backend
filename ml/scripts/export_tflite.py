@@ -21,7 +21,8 @@ Uso::
 Flags::
     --verify              Validación post-conversión (predeterminado).
     --no-verify           Omitir validación (depuración).
-    --overwrite           Sobrescribe ``.tflite`` / JSON si ya existen (sin esto, falla antes de convertir).
+    --overwrite           Sobrescribe ``.tflite`` / JSON si ya existen
+                            (sin esto, falla antes de convertir).
 """
 
 from __future__ import annotations
@@ -207,9 +208,9 @@ def verify_tflite_model(tflite_bytes: bytes) -> None:
 
 
 def _convert_keras_to_tflite(model: keras.Model) -> bytes:
-    """Convierte con ``Optimize.DEFAULT``; verificación exige salida float32."""
+    """Convierte sin cuantificación: paridad numérica con Keras (float32; tests G8)."""
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
-    converter.optimizations = [tf.lite.Optimize.DEFAULT]
+    converter.optimizations = []
     try:
         return converter.convert()
     except Exception as e:

@@ -72,7 +72,8 @@ class PredictionService:
         )
         self._nail_checker(rgb)
         predictor = self._effective_image_predictor()
-        raw_probability = float(predictor.predict_score(processed_bytes))
+        # Evita doble decodificación PNG: el pipeline G9 opera sobre el RGB ya preparado.
+        raw_probability = float(predictor.predict_from_rgb(rgb))
         path = self._images.upload_user_image(
             access_token,
             user_id=user.id,

@@ -1,6 +1,7 @@
-.PHONY: install run dev lint format test db-push ml-install ml-train-demo ml-train ml-eval ml-shell
+.PHONY: install run dev lint format test ml-test db-push ml-install ml-train-demo ml-train ml-eval ml-shell
 
 PYTHON := python3
+TEST_PYTHON := $(shell test -x .venv/bin/python && echo .venv/bin/python || echo $(PYTHON))
 ML_DIR := ml
 ML_PYTHON := .venv/bin/python
 
@@ -19,7 +20,10 @@ format:
 	$(PYTHON) -m ruff format .
 
 test:
-	$(PYTHON) -m pytest
+	env DISABLE_TF=1 INFERENCE_MODEL_PATH= $(TEST_PYTHON) -m pytest tests/
+
+ml-test:
+	cd $(ML_DIR) && PYTHONPATH=.. ../$(ML_PYTHON) -m pytest tests/
 
 db-push:
 	supabase db push
