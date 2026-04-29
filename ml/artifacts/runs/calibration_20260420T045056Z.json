@@ -5,11 +5,11 @@
     "tensorflow": "2.21.0",
     "keras": "3.14.0"
   },
-  "model_path": "/Users/teus/Documents/Github/anemia-detection-backend/ml/artifacts/models/baseline_mobilenetv2.keras",
-  "train_dir": "/Users/teus/Documents/Github/anemia-detection-backend/ml/data/train",
-  "test_dir": "/Users/teus/Documents/Github/anemia-detection-backend/ml/data/test",
+  "model_path": "ml/artifacts/models/baseline_mobilenetv2.keras",
+  "train_dir": "ml/data/train",
+  "test_dir": "ml/data/test",
   "source_experiment": {
-    "experiment_json_path": "/Users/teus/Documents/Github/anemia-detection-backend/ml/artifacts/runs/experiment_20260420T043804Z.json",
+    "experiment_json_path": "ml/artifacts/runs/experiment_20260420T043804Z.json",
     "source_run_id": "20260420T043804Z",
     "model_version_training": "baseline-mobilenetv2-v1"
   },

@@ -101,11 +101,11 @@
     "demo": false,
     "oversample_positive": true,
     "no_class_weight": true,
-    "baseline_experiment_json": "/Users/teus/Documents/Github/anemia-detection-backend/ml/artifacts/runs/experiment_20260420T042800Z.json",
+    "baseline_experiment_json": "ml/artifacts/runs/experiment_20260420T042800Z.json",
     "callbacks_configuration": [
       {
         "class": "ModelCheckpoint",
-        "filepath": "/Users/teus/Documents/Github/anemia-detection-backend/ml/artifacts/models/baseline_mobilenetv2_best.keras",
+        "filepath": "ml/artifacts/models/baseline_mobilenetv2_best.keras",
         "monitor": "val_auc",
         "mode": "max",
         "save_best_only": true,
@@ -145,7 +145,7 @@
     "oversampling_requested": true
   },
   "baseline_comparison": {
-    "baseline_experiment_path": "/Users/teus/Documents/Github/anemia-detection-backend/ml/artifacts/runs/experiment_20260420T042800Z.json",
+    "baseline_experiment_path": "ml/artifacts/runs/experiment_20260420T042800Z.json",
     "baseline_run_id": "20260420T042800Z",
     "metrics_baseline": {
       "auc": 0.7865101099014282,
@@ -188,8 +188,8 @@
     }
   },
   "results": {
-    "evaluation_dataset": "Carpeta test independiente: /Users/teus/Documents/Github/anemia-detection-backend/ml/data/test",
-    "model_path": "/Users/teus/Documents/Github/anemia-detection-backend/ml/artifacts/models/baseline_mobilenetv2.keras",
+    "evaluation_dataset": "Carpeta test independiente: ml/data/test",
+    "model_path": "ml/artifacts/models/baseline_mobilenetv2.keras",
     "loss": 0.3870152235031128,
     "auc": 0.7950918078422546,
     "auc_note": "AUC de Keras (ROC); independiente del umbral de decisi\u00f3n.",
