@@ -43,9 +43,9 @@ from baseline.calibration import (  # noqa: E402
     mean_binary_cross_entropy,
 )
 from baseline.config import (  # noqa: E402
-    DEFAULT_TRAIN_DIR,
-    DEFAULT_TEST_DIR,
     DEFAULT_MODEL_NAME,
+    DEFAULT_TEST_DIR,
+    DEFAULT_TRAIN_DIR,
     MODEL_DIR,
     RUNS_DIR,
     SEED,
@@ -287,7 +287,7 @@ def main() -> None:
     if not test_dir.is_dir():
         raise SystemExit(f"No existe --test-dir: {test_dir}")
 
-    model = keras.models.load_model(model_path)
+    model = keras.models.load_model(model_path, compile=False)
 
     val_ds, val_counts, _class_names = load_validation_dataset(
         train_dir,

@@ -357,7 +357,7 @@ def _experiment_markdown(payload: dict) -> str:
         aft = osb.get("after_train_by_class") or {}
         blk = [
             "**Oversampling (solo subconjunto train del `fit`, no val/test):**",
-            f"- **Solicitado (`--oversample-positive`):** sí.",
+            "- **Solicitado (`--oversample-positive`):** sí.",
             f"- **Aplicado a los datos:** {'**sí**' if osb.get('applied') else '**no**'}",
         ]
         if not osb.get("applied") and osb.get("reason"):

@@ -2,6 +2,7 @@
 
 from fastapi.testclient import TestClient
 
+from backend.core import config as config_module
 from backend.core.prometheus_metrics import route_template_for_path
 from backend.main import app
 
@@ -20,6 +21,25 @@ def test_metrics_endpoint_returns_prometheus_text() -> None:
     ctype = response.headers.get("content-type", "")
     assert ctype.startswith("text/plain")
     assert "version=0.0.4" in ctype
+
+
+def test_metrics_requires_token_outside_local(monkeypatch) -> None:
+    monkeypatch.setattr(config_module.settings, "environment", "production")
+    monkeypatch.setattr(config_module.settings, "metrics_bearer_token", "secret")
+
+    forbidden = client.get("/metrics")
+    assert forbidden.status_code == 403
+
+    allowed = client.get("/metrics", headers={"Authorization": "Bearer secret"})
+    assert allowed.status_code == 200
+
+
+def test_metrics_not_found_in_prod_without_configured_token(monkeypatch) -> None:
+    monkeypatch.setattr(config_module.settings, "environment", "production")
+    monkeypatch.setattr(config_module.settings, "metrics_bearer_token", "")
+
+    response = client.get("/metrics")
+    assert response.status_code == 404
 
 
 def test_route_templates_low_cardinality() -> None:

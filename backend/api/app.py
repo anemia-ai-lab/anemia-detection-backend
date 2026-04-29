@@ -14,6 +14,7 @@ from backend.core.config import settings
 from backend.core.http_error_codes import default_error_code
 from backend.core.logging_config import configure_logging
 from backend.core.prometheus_metrics import build_metrics_response, register_prometheus_middleware
+from backend.core.rate_limit import register_rate_limit_middleware
 from backend.inference.runtime import (
     get_builtin_image_predictor,
     inference_service_status,
@@ -26,9 +27,15 @@ from backend.services.exceptions import ClientHttpError
 configure_logging()
 logger = logging.getLogger(__name__)
 
+_LOCAL_ENVIRONMENTS = {"development", "dev", "local", "test", "testing"}
+
 
 def _prediction_api_path(path: str) -> bool:
     return path == "/predict" or path.startswith("/predictions")
+
+
+def _local_environment() -> bool:
+    return settings.environment.strip().lower() in _LOCAL_ENVIRONMENTS
 
 
 @asynccontextmanager
@@ -163,7 +170,7 @@ def health() -> HealthOut:
         model_loaded=model_loaded,
         model_version=settings.model_version,
         calibration_enabled=calibration_enabled,
-        inference_model_path=raw_path or None,
+        inference_model_path=(raw_path or None) if _local_environment() else None,
     )
 
 
@@ -176,7 +183,14 @@ def health() -> HealthOut:
     ),
     include_in_schema=False,
 )
-def prometheus_metrics_endpoint() -> Response:
+def prometheus_metrics_endpoint(request: Request) -> Response:
+    token = settings.metrics_bearer_token.strip()
+    if not _local_environment():
+        if not token:
+            raise HTTPException(status_code=404, detail="Not found")
+        auth = request.headers.get("authorization", "")
+        if auth != f"Bearer {token}":
+            raise HTTPException(status_code=403, detail="Forbidden")
     payload, ctype = build_metrics_response()
     return Response(content=payload, media_type=ctype)
 
@@ -186,3 +200,4 @@ app.include_router(model_router, prefix="/model")
 app.include_router(predict_router)
 
 register_prometheus_middleware(app)
+register_rate_limit_middleware(app)
