@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from backend.schemas.model_evaluation import ModelEvalMetrics
@@ -32,6 +32,39 @@ class Settings(BaseSettings):
     app_name: str = "Anemia Detection API"
     environment: str = Field(default="development", validation_alias="APP_ENV")
     debug: bool = False
+    metrics_bearer_token: str = Field(
+        default="",
+        validation_alias="METRICS_BEARER_TOKEN",
+        description=(
+            "Token opcional para proteger GET /metrics. En entornos no locales es obligatorio "
+            "configurarlo para exponer métricas."
+        ),
+    )
+    rate_limit_enabled: bool = Field(
+        default=True,
+        validation_alias="RATE_LIMIT_ENABLED",
+        description="Activa límites en memoria para rutas costosas o sensibles.",
+    )
+    rate_limit_window_seconds: int = Field(
+        default=60,
+        ge=1,
+        le=3600,
+        validation_alias="RATE_LIMIT_WINDOW_SECONDS",
+    )
+    rate_limit_auth_requests: int = Field(
+        default=20,
+        ge=1,
+        le=1000,
+        validation_alias="RATE_LIMIT_AUTH_REQUESTS",
+        description="Máximo de POST /auth/login y /auth/register por cliente y ventana.",
+    )
+    rate_limit_predict_requests: int = Field(
+        default=30,
+        ge=1,
+        le=1000,
+        validation_alias="RATE_LIMIT_PREDICT_REQUESTS",
+        description="Máximo de POST /predict por cliente y ventana.",
+    )
 
     supabase_url: str = ""
     supabase_key: str = ""
@@ -91,6 +124,13 @@ class Settings(BaseSettings):
         validation_alias="PREDICTION_IMAGE_MAX_EDGE_PX",
         description="Lado máximo en píxeles tras decodificar (antes de uña y CNN).",
     )
+    prediction_image_max_pixels: int = Field(
+        default=12_000_000,
+        ge=64,
+        le=100_000_000,
+        validation_alias="PREDICTION_IMAGE_MAX_PIXELS",
+        description="Límite duro de píxeles tras decodificar, antes de redimensionar.",
+    )
 
     nail_presence_min_skin_ratio: float = Field(
         default=0.012,
@@ -123,6 +163,14 @@ class Settings(BaseSettings):
         default_factory=ModelEvalMetrics,
         description="Métricas de evaluación (sin versión; la versión es model_version).",
     )
+
+    @model_validator(mode="after")
+    def _production_safety_checks(self) -> "Settings":
+        env = self.environment.strip().lower()
+        if env in ("production", "prod") and self.debug:
+            msg = "DEBUG=true is not allowed when APP_ENV=production"
+            raise ValueError(msg)
+        return self
 
     def effective_cors_origins(self) -> list[str]:
         raw = self.cors_allowed_origins.strip()

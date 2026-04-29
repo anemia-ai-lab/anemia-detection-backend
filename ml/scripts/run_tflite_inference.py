@@ -26,6 +26,16 @@ for p in (str(REPO_ROOT), str(ML_ROOT)):
         sys.path.insert(0, p)
 
 _IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
+_CONTENT_TYPE_BY_SUFFIX = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".webp": "image/webp",
+}
+
+
+def _content_type_for_path(path: Path) -> str:
+    return _CONTENT_TYPE_BY_SUFFIX.get(path.suffix.lower(), "application/octet-stream")
 
 
 def _parse_args() -> argparse.Namespace:
@@ -65,6 +75,14 @@ def _parse_args() -> argparse.Namespace:
     )
     p.add_argument("--overwrite", action="store_true")
     p.add_argument("--seed", type=int, default=42)
+    p.add_argument(
+        "--backend-staging",
+        action="store_true",
+        help=(
+            "Replica el staging de POST /predict antes de TFLite: validación MIME, límite de bytes, "
+            "límite de píxeles, resize de lado máximo y heurística de uña."
+        ),
+    )
     return p.parse_args()
 
 
@@ -87,6 +105,8 @@ def main() -> int:
     import numpy as np
     import tensorflow as tf
 
+    from backend.inference.nail_presence import require_fingernail_presence
+    from backend.inference.prediction_image_input import prepare_prediction_image
     from ml.inference.tflite_inference import get_tflite_engine
 
     args = _parse_args()
@@ -107,8 +127,16 @@ def main() -> int:
     meta = args.metadata_path.resolve()
 
     engine = get_tflite_engine(str(tflite), str(meta))
-    images = [p.read_bytes() for p in paths]
-    results = engine.predict_batch(images)
+    if args.backend_staging:
+        staged_rgb = []
+        for p in paths:
+            _ct, _png, rgb = prepare_prediction_image(_content_type_for_path(p), p.read_bytes())
+            require_fingernail_presence(rgb)
+            staged_rgb.append(rgb)
+        results = engine.predict_rgb_batch(staged_rgb)
+    else:
+        images = [p.read_bytes() for p in paths]
+        results = engine.predict_batch(images)
 
     out_results = []
     for p, r in zip(paths, results, strict=True):
@@ -122,6 +150,7 @@ def main() -> int:
         "tflite_path": str(tflite),
         "metadata_path": str(meta),
         "seed": int(args.seed),
+        "backend_staging": bool(args.backend_staging),
         "results": out_results,
     }
     text = json.dumps(payload, indent=2, sort_keys=True)
@@ -148,6 +177,7 @@ def main() -> int:
             "metadata_path": str(meta),
             "image_paths": [str(p) for p in paths],
             "seed": int(args.seed),
+            "backend_staging": bool(args.backend_staging),
         }
         (base / "manifest.json").write_text(
             json.dumps(manifest, indent=2, sort_keys=True),

@@ -22,7 +22,11 @@ from backend.inference.probability_calibration import (
     apply_temperature_calibration,
     binary_prediction_from_threshold,
 )
-from ml.preprocessing.pipeline import PreprocessingConfig, preprocess_image_bytes
+from ml.preprocessing.pipeline import (
+    PreprocessingConfig,
+    preprocess_image_bytes,
+    preprocess_rgb_array,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -161,7 +165,18 @@ class TFLiteInferenceEngine:
     def predict(self, image_bytes: bytes) -> TFLiteInferenceResult:
         return self.predict_batch([image_bytes])[0]
 
+    def predict_rgb(self, rgb_uint8: np.ndarray) -> TFLiteInferenceResult:
+        return self.predict_rgb_batch([rgb_uint8])[0]
+
     def predict_batch(self, images: Sequence[bytes]) -> list[TFLiteInferenceResult]:
+        preprocessed = [preprocess_image_bytes(raw, cfg=self._preprocess_cfg) for raw in images]
+        return self._predict_preprocessed(preprocessed)
+
+    def predict_rgb_batch(self, images: Sequence[np.ndarray]) -> list[TFLiteInferenceResult]:
+        preprocessed = [preprocess_rgb_array(rgb, cfg=self._preprocess_cfg) for rgb in images]
+        return self._predict_preprocessed(preprocessed)
+
+    def _predict_preprocessed(self, preprocessed: Sequence[Any]) -> list[TFLiteInferenceResult]:
         self._ensure_loaded()
         assert self._meta is not None and self._interpreter is not None
 
@@ -169,8 +184,7 @@ class TFLiteInferenceEngine:
         out = self._interpreter.get_output_details()[0]
 
         results: list[TFLiteInferenceResult] = []
-        for raw in images:
-            pre = preprocess_image_bytes(raw, cfg=self._preprocess_cfg)
+        for pre in preprocessed:
             batch = pre.model_input_tensor.astype(np.float32)
             if batch.shape != tuple(inp["shape"]):
                 try:

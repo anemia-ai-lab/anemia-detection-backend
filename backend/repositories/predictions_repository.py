@@ -50,7 +50,7 @@ class PredictionsRepository:
                 msg,
             )
             raise PredictionServiceError(
-                msg,
+                "Could not save prediction",
                 502,
                 code=e.code or "postgrest_error",
             ) from e
@@ -91,7 +91,7 @@ class PredictionsRepository:
                 msg,
             )
             raise PredictionServiceError(
-                msg,
+                "Could not load prediction after save",
                 502,
                 code=e.code or "postgrest_error",
             ) from e
@@ -129,7 +129,7 @@ class PredictionsRepository:
                 msg,
             )
             raise PredictionServiceError(
-                msg,
+                "Could not load predictions",
                 502,
                 code=e.code or "postgrest_error",
             ) from e
@@ -167,7 +167,7 @@ class PredictionsRepository:
                 msg,
             )
             raise PredictionServiceError(
-                msg,
+                "Could not load prediction",
                 502,
                 code=e.code or "postgrest_error",
             ) from e

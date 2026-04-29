@@ -20,7 +20,6 @@ class HealthOut(BaseModel):
                 "model_loaded": True,
                 "model_version": "v1.0",
                 "calibration_enabled": True,
-                "inference_model_path": "ml/artifacts/models/baseline_mobilenetv2.keras",
             }
         },
     )
@@ -43,5 +42,7 @@ class HealthOut(BaseModel):
     )
     inference_model_path: str | None = Field(
         default=None,
-        description="Valor literal de ``INFERENCE_MODEL_PATH`` del entorno (relativo al repo o absoluto); omitido si vacío.",
+        description=(
+            "Valor literal de ``INFERENCE_MODEL_PATH`` solo en entornos locales; omitido en producción."
+        ),
     )

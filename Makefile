@@ -16,8 +16,8 @@ run:
 dev: install run
 
 lint:
-	$(PYTHON) -m ruff check .
-
+	$(TEST_PYTHON) -m ruff check .
+	
 format:
 	$(PYTHON) -m ruff format .
 

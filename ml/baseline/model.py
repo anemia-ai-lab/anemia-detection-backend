@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 import tensorflow as tf
+from baseline.config import IMG_SIZE
 from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.keras.applications import MobileNetV2
-
-from baseline.config import IMG_SIZE
 
 BACKBONE_LAYER_NAME = "mobilenet_backbone"
 

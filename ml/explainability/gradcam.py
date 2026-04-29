@@ -141,6 +141,7 @@ class GradCAMResult:
     raw_probability: float
     calibrated_probability: float
     selected_layer: str
+    explanation_status: str
 
 
 class GradCAM:
@@ -229,10 +230,12 @@ class GradCAM:
             # Keras 3 + grafo auxiliar ``bb_conv(model.input)``: la predicción no retropropaga
             # al tensor ``conv_out`` del submodelo. Se usa un mapa neutro (canal medio) para no
             # abortar; no sustituye Grad-CAM fiel hasta unificar el grafo en una sola pasada.
+            explanation_status = "degraded_no_gradients"
             g_np = np.ones_like(conv_out.numpy(), dtype=np.float32) / float(
                 max(1, conv_out.shape[-1]),
             )
         else:
+            explanation_status = "gradcam"
             g_np = grads.numpy()
         conv_np = conv_out.numpy()
         weights = np.mean(g_np, axis=(1, 2))[0]  # (C,)
@@ -275,6 +278,7 @@ class GradCAM:
             raw_probability=raw_p,
             calibrated_probability=cal,
             selected_layer=self._selected,
+            explanation_status=explanation_status,
         )
 
     def explain_with_decision(

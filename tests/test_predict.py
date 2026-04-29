@@ -8,9 +8,9 @@ from fastapi.testclient import TestClient
 from postgrest import APIError
 
 import backend.core.patient_age as patient_age_module
+import backend.inference.prediction_image_input as prediction_image_input_module
 from backend.api import deps as api_deps
 from backend.core import config as config_module
-import backend.inference.prediction_image_input as prediction_image_input_module
 from backend.inference.image_predictor import StaticImagePredictor
 from backend.main import app
 from backend.repositories import predictions_repository as predictions_repo_module
@@ -368,6 +368,74 @@ def test_predict_rejects_when_no_fingernail_detected() -> None:
         app.dependency_overrides.clear()
 
 
+def test_predict_rejects_image_too_small() -> None:
+    from PIL import Image
+
+    buf = BytesIO()
+    Image.new("RGB", (4, 4), (220, 180, 140)).save(buf, format="PNG")
+    user = UserOut(
+        id="11111111-1111-1111-1111-111111111111",
+        email="p@example.com",
+        created_at=None,
+    )
+
+    def fake_context() -> tuple[UserOut, str]:
+        return (user, "aaa.bbb.ccc")
+
+    def fake_prediction_service() -> PredictionService:
+        return PredictionService(
+            repo=_ExplodingRepo(),
+            images=_FakeImgStore(),
+            image_predictor=StaticImagePredictor(0.99),
+        )
+
+    app.dependency_overrides[api_deps.get_predict_context] = fake_context
+    app.dependency_overrides[api_deps.get_prediction_service] = fake_prediction_service
+    try:
+        response = client.post(
+            "/predict",
+            headers={"Authorization": "Bearer aaa.bbb.ccc"},
+            files={"image": ("tiny.png", buf.getvalue(), "image/png")},
+        )
+        assert response.status_code == 400
+        assert response.json()["code"] == "image_too_small"
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_predict_rejects_decoded_image_too_large(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(config_module.settings, "prediction_image_max_pixels", 100)
+    user = UserOut(
+        id="11111111-1111-1111-1111-111111111111",
+        email="p@example.com",
+        created_at=None,
+    )
+
+    def fake_context() -> tuple[UserOut, str]:
+        return (user, "aaa.bbb.ccc")
+
+    def fake_prediction_service() -> PredictionService:
+        return PredictionService(
+            repo=_ExplodingRepo(),
+            images=_FakeImgStore(),
+            image_predictor=StaticImagePredictor(0.99),
+            nail_checker=_skip_nail,
+        )
+
+    app.dependency_overrides[api_deps.get_predict_context] = fake_context
+    app.dependency_overrides[api_deps.get_prediction_service] = fake_prediction_service
+    try:
+        response = client.post(
+            "/predict",
+            headers={"Authorization": "Bearer aaa.bbb.ccc"},
+            files={"image": ("m.png", skin_patch_png(), "image/png")},
+        )
+        assert response.status_code == 413
+        assert response.json()["code"] == "image_resolution_too_large"
+    finally:
+        app.dependency_overrides.clear()
+
+
 def test_predict_risk_high_when_score_meets_threshold(monkeypatch: pytest.MonkeyPatch) -> None:
     """Mock score 0.42 → high si el umbral calibrado es <= 0.42 (con T=1, score raw = calibrado)."""
     monkeypatch.setattr(config_module.settings, "inference_calibration_temperature", 1.0)
@@ -599,7 +667,35 @@ def test_predict_postgrest_api_error_returns_502(monkeypatch: pytest.MonkeyPatch
         )
         assert response.status_code == 502
         assert response.json()["code"] == "42501"
-        assert "RLS" in response.json()["detail"]
+        assert response.json()["detail"] == "Could not save prediction"
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_predict_without_loaded_model_returns_503() -> None:
+    user = UserOut(id="11111111-1111-1111-1111-111111111111", email="e@e.co", created_at=None)
+
+    def fake_context() -> tuple[UserOut, str]:
+        return (user, "aaa.bbb.ccc")
+
+    def fake_prediction_service() -> PredictionService:
+        return PredictionService(
+            repo=_ExplodingRepo(),
+            images=_FakeImgStore(),
+            image_predictor=None,
+            nail_checker=_skip_nail,
+        )
+
+    app.dependency_overrides[api_deps.get_predict_context] = fake_context
+    app.dependency_overrides[api_deps.get_prediction_service] = fake_prediction_service
+    try:
+        response = client.post(
+            "/predict",
+            headers={"Authorization": "Bearer aaa.bbb.ccc"},
+            files={"image": ("m.png", skin_patch_png(), "image/png")},
+        )
+        assert response.status_code == 503
+        assert response.json()["code"] == "inference_model_unavailable"
     finally:
         app.dependency_overrides.clear()
 

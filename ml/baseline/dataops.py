@@ -8,9 +8,6 @@ from pathlib import Path
 
 import numpy as np
 import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras import layers
-
 from baseline.config import (
     AUG_BRIGHTNESS_MAX_DELTA,
     AUG_CONTRAST_FACTOR,
@@ -21,6 +18,8 @@ from baseline.config import (
     SEED,
 )
 from baseline.model import apply_mobilenet_preprocess
+from tensorflow import keras
+from tensorflow.keras import layers
 
 ALLOWED_IMAGE_EXT: frozenset[str] = frozenset(
     {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"},

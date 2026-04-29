@@ -69,7 +69,7 @@ class PredictionImagesStorage:
                 msg or "upload_failed",
             )
             raise PredictionServiceError(
-                msg or "No se pudo subir la imagen",
+                "No se pudo almacenar la imagen de predicción.",
                 sc if 400 <= sc < 600 else 502,
                 code=str(code),
             ) from e
@@ -91,7 +91,7 @@ class PredictionImagesStorage:
                 getattr(e, "message", str(e)) or "signed_url_failed",
             )
             raise PredictionServiceError(
-                getattr(e, "message", str(e)) or "No se pudo firmar la URL",
+                "No se pudo generar la URL firmada de la imagen.",
                 502,
                 code="signed_url_failed",
             ) from e

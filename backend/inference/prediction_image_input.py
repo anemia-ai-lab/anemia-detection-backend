@@ -47,6 +47,19 @@ def resize_rgb_max_edge(rgb: np.ndarray, max_edge: int) -> np.ndarray:
     return tf.cast(tf.clip_by_value(tf.round(out), 0, 255), tf.uint8).numpy()
 
 
+def require_rgb_pixel_limit(rgb: np.ndarray, max_pixels: int) -> None:
+    """Evita expandir imágenes comprimidas a tensores enormes antes del resize."""
+    h, w = int(rgb.shape[0]), int(rgb.shape[1])
+    pixels = h * w
+    if pixels > max_pixels:
+        mp = max_pixels / 1_000_000
+        raise PredictionServiceError(
+            f"La imagen supera la resolución máxima permitida ({mp:.1f} MP).",
+            413,
+            code="image_resolution_too_large",
+        )
+
+
 def rgb_to_png_bytes(rgb: np.ndarray) -> bytes:
     import tensorflow as tf
 
@@ -76,6 +89,7 @@ def prepare_prediction_image(content_type: str | None, raw: bytes) -> tuple[str,
             code="unsupported_media_type",
         )
     rgb = decode_rgb_uint8(raw)
+    require_rgb_pixel_limit(rgb, settings.prediction_image_max_pixels)
     rgb = resize_rgb_max_edge(rgb, settings.prediction_image_max_edge_px)
     png_bytes = rgb_to_png_bytes(rgb)
     return _OUTPUT_CONTENT_TYPE, png_bytes, rgb

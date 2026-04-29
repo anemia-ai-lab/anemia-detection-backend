@@ -69,7 +69,6 @@ def youden_optimal_threshold(y_true: np.ndarray, y_prob: np.ndarray) -> tuple[fl
         y_pred = (y_prob >= t).astype(int, copy=False)
         tp = int(np.sum((y_pred == 1) & (y_true == 1)))
         fp = int(np.sum((y_pred == 1) & (y_true == 0)))
-        fn = int(np.sum((y_pred == 0) & (y_true == 1)))
         tpr = tp / pos if pos else 0.0
         fpr = fp / neg if neg else 0.0
         j = tpr - fpr

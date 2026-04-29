@@ -65,6 +65,14 @@ def _parse_args() -> argparse.Namespace:
         default=ML_ROOT / "artifacts" / "explainability",
     )
     p.add_argument("--seed", type=int, default=42)
+    p.add_argument(
+        "--backend-staging",
+        action="store_true",
+        help=(
+            "Replica el staging de POST /predict antes de Grad-CAM: validación MIME, límite de bytes, "
+            "límite de píxeles, resize de lado máximo y heurística de uña."
+        ),
+    )
     p.add_argument("--verbose", action="store_true")
     p.add_argument("--debug", action="store_true")
     return p.parse_args()
@@ -83,6 +91,18 @@ def _collect_images(args: argparse.Namespace) -> list[Path]:
             if child.is_file() and child.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp"}:
                 paths.append(child.resolve())
     return sorted({p for p in paths if p.is_file()})
+
+
+_CONTENT_TYPE_BY_SUFFIX = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".webp": "image/webp",
+}
+
+
+def _content_type_for_path(path: Path) -> str:
+    return _CONTENT_TYPE_BY_SUFFIX.get(path.suffix.lower(), "application/octet-stream")
 
 
 def _save_uint8_png(arr: object, path: Path) -> None:
@@ -111,6 +131,8 @@ def main() -> int:
     from tensorflow import keras
 
     from backend.core.config import settings
+    from backend.inference.nail_presence import require_fingernail_presence
+    from backend.inference.prediction_image_input import prepare_prediction_image
     from ml.explainability.gradcam import GradCAM
     from ml.preprocessing.pipeline import preprocess_image_bytes
 
@@ -142,8 +164,13 @@ def main() -> int:
 
     for img_path in paths:
         raw = img_path.read_bytes()
-        pre = preprocess_image_bytes(raw)
-        rgb = pre.decoded_rgb_uint8
+        if args.backend_staging:
+            _ct, _png, rgb = prepare_prediction_image(_content_type_for_path(img_path), raw)
+            require_fingernail_presence(rgb)
+            pre = preprocess_image_bytes(_png)
+        else:
+            pre = preprocess_image_bytes(raw)
+            rgb = pre.decoded_rgb_uint8
         res, pred, risk, risk_label = gc.explain_with_decision(rgb)
 
         stem = img_path.stem
@@ -173,6 +200,8 @@ def main() -> int:
             "risk": risk,
             "risk_label": risk_label,
             "inference_mode": "keras_backend",
+            "backend_staging": bool(args.backend_staging),
+            "explanation_status": res.explanation_status,
             "created_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
             "image_sha256": pre.provenance.get("raw_bytes_sha256", ""),
             "source_path": str(img_path),

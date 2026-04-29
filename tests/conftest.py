@@ -9,6 +9,7 @@ import os
 if os.environ.get("ALLOW_BACKEND_TF", "").strip().lower() not in ("1", "true", "yes", "on"):
     os.environ["DISABLE_TF"] = "1"
     os.environ["INFERENCE_MODEL_PATH"] = ""
+os.environ.setdefault("RATE_LIMIT_ENABLED", "false")
 
 from datetime import datetime, timezone
 
