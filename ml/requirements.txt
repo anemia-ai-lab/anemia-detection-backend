@@ -1,6 +1,19 @@
-# Dependencias solo para entrenamiento/evaluación ML (no mezclar con backend FastAPI).
-# TensorFlow: comprobar wheels para tu SO/CPU; suele haber soporte estable en 3.10–3.12.
-# En Python 3.13 suelen publicarse solo versiones recientes (p. ej. 2.20+).
-tensorflow>=2.15.0,<2.22.0
-numpy>=1.26.0,<3.0.0
+# Dependencias ML (``make ml-test``); no mezclar con el venv del backend FastAPI.
+# Usar Python 3.11 (ver ``.python-version`` en la raíz del repo).
+#
+# --- macOS arm64 (Apple Silicon) ---
+# TensorFlow 2.20–2.21+ en Darwin puede abortar al importar con:
+#   libc++abi: ... system_error: mutex lock failed: Invalid argument
+# (TF + Abseil / protobuf / pyarrow; ver tensorflow#98563, tensorflow#99464).
+# Pin a TF 2.19.x: combinación estable en Python 3.11 + arm64 con wheels oficiales.
+#
+# PyArrow: no se fija aquí; ``mlflow`` declara ``pyarrow<20`` (p. ej. 15–19). Evitar
+# combinar TF 2.20+ con pyarrow 21.x en el mismo venv (choque documentado en macOS).
+#
+tensorflow==2.19.1
+numpy>=1.26.0,<2.1.0
 mlflow>=2.10.0,<3.0.0
+pytest>=8.0.0
+# ``backend.core.config`` (Grad-CAM, paridad Keras/TFLite importan ``settings``).
+pydantic-settings>=2.0,<3
+python-dotenv>=1.0,<2

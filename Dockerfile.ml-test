@@ -1,0 +1,21 @@
+# Imagen mínima para ``make ml-test-docker`` (Linux) si TF en macOS falla al importar.
+# Build: ``docker build -f Dockerfile.ml-test .`` desde la raíz (``.dockerignore`` reduce contexto).
+
+FROM python:3.11-slim-bookworm
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace
+
+COPY ml/requirements.txt ml/requirements.txt
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel \
+    && pip install --no-cache-dir -r ml/requirements.txt
+
+COPY backend/ backend/
+COPY ml/ ml/
+
+ENV PYTHONPATH=/workspace
+
+CMD ["python", "-m", "pytest", "ml/tests/"]

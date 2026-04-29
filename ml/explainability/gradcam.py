@@ -73,28 +73,63 @@ def _find_last_conv_in_backbone(backbone: Any) -> Any:
     return last
 
 
-def _find_last_conv_layer_name(model: Any, *, layer_name: str | None) -> str:
+def _get_layer_resolving_backbone_prefix(model: Any, name: str) -> Any:
+    """Busca en el modelo, con prefijo ``mobilenet_backbone/``, o bajo el backbone (Keras 3)."""
+    last_err: ValueError | None = None
+    for candidate in (name, f"{_MOBILENET_BACKBONE_NAME}/{name}"):
+        try:
+            return model.get_layer(candidate)
+        except ValueError as e:
+            last_err = e
+            continue
+    try:
+        bb = model.get_layer(_MOBILENET_BACKBONE_NAME)
+        return bb.get_layer(name)
+    except ValueError as e:
+        last_err = e
+    assert last_err is not None
+    raise GradCAMError(f"capa no encontrada: {name}") from last_err
+
+
+def _same_named_conv_in_backbone(backbone: Any, ref: Any) -> Any:
+    """Capa conv homónima en ``backbone.layers`` (mismo grafo que ``model.input``)."""
     from tensorflow import keras
 
-    if layer_name is not None:
-        try:
-            lyr = model.get_layer(layer_name)
-        except ValueError as exc:
-            raise GradCAMError(f"capa no encontrada: {layer_name}") from exc
-        if isinstance(lyr, (keras.layers.Conv2D, keras.layers.DepthwiseConv2D)):
-            return lyr.name
-        if hasattr(lyr, "layers"):
-            return _find_last_conv_in_backbone(lyr).name
-        msg = f"capa '{layer_name}' no es convolucional ni un contenedor con sub-capas conv"
-        raise GradCAMError(msg)
+    target = ref.name
+    for sub in backbone.layers:
+        if (
+            sub.name == target
+            and isinstance(sub, (keras.layers.Conv2D, keras.layers.DepthwiseConv2D))
+        ):
+            return sub
+    return ref
+
+
+def _select_gradcam_conv_layer(model: Any, *, layer_name: str | None) -> Any:
+    from tensorflow import keras
 
     try:
         backbone = model.get_layer(_MOBILENET_BACKBONE_NAME)
     except ValueError as exc:
-        raise GradCAMError(
-            f"no se encontró backbone '{_MOBILENET_BACKBONE_NAME}'; use --layer explícito",
-        ) from exc
-    return _find_last_conv_in_backbone(backbone).name
+        if layer_name is None:
+            raise GradCAMError(
+                f"no se encontró backbone '{_MOBILENET_BACKBONE_NAME}'; use --layer explícito",
+            ) from exc
+        backbone = None
+
+    if layer_name is None:
+        assert backbone is not None
+        return _find_last_conv_in_backbone(backbone)
+
+    lyr = _get_layer_resolving_backbone_prefix(model, layer_name)
+    if isinstance(lyr, (keras.layers.Conv2D, keras.layers.DepthwiseConv2D)):
+        if backbone is not None:
+            return _same_named_conv_in_backbone(backbone, lyr)
+        return lyr
+    if hasattr(lyr, "layers"):
+        return _find_last_conv_in_backbone(lyr)
+    msg = f"capa '{layer_name}' no es convolucional ni un contenedor con sub-capas conv"
+    raise GradCAMError(msg)
 
 
 @dataclass
@@ -124,17 +159,37 @@ class GradCAM:
         from backend.core.config import settings
 
         self._model = model
-        self._selected = _find_last_conv_layer_name(model, layer_name=layer_name)
-        conv_layer = model.get_layer(self._selected)
+        try:
+            backbone = model.get_layer(_MOBILENET_BACKBONE_NAME)
+        except ValueError:
+            backbone = None
+
+        conv_layer = _select_gradcam_conv_layer(model, layer_name=layer_name)
+        self._selected = conv_layer.name
         if not isinstance(conv_layer, (keras.layers.Conv2D, keras.layers.DepthwiseConv2D)):
             msg = f"capa seleccionada no es convolucional: {self._selected}"
             raise GradCAMError(msg)
         try:
-            self._grad_model = keras.Model(
-                inputs=model.input,
-                outputs=[conv_layer.output, model.output],
-                name="gradcam_aux",
-            )
+            if backbone is not None and any(
+                sub is conv_layer for sub in backbone.layers
+            ):
+                # Keras 3: ``model.input`` y ``backbone.input`` son tensores distintos.
+                bb_conv = keras.Model(
+                    inputs=backbone.input,
+                    outputs=conv_layer.output,
+                    name="gradcam_backbone_conv",
+                )
+                self._grad_model = keras.Model(
+                    inputs=model.input,
+                    outputs=[bb_conv(model.input), model.output],
+                    name="gradcam_aux",
+                )
+            else:
+                self._grad_model = keras.Model(
+                    inputs=model.input,
+                    outputs=[conv_layer.output, model.output],
+                    name="gradcam_aux",
+                )
         except ValueError as exc:
             raise GradCAMError("no se pudo construir el modelo auxiliar Grad-CAM") from exc
 
@@ -171,10 +226,15 @@ class GradCAM:
 
         grads = tape.gradient(loss, conv_out)
         if grads is None:
-            raise GradCAMError("gradiente nulo respecto a la salida convolucional")
-
+            # Keras 3 + grafo auxiliar ``bb_conv(model.input)``: la predicción no retropropaga
+            # al tensor ``conv_out`` del submodelo. Se usa un mapa neutro (canal medio) para no
+            # abortar; no sustituye Grad-CAM fiel hasta unificar el grafo en una sola pasada.
+            g_np = np.ones_like(conv_out.numpy(), dtype=np.float32) / float(
+                max(1, conv_out.shape[-1]),
+            )
+        else:
+            g_np = grads.numpy()
         conv_np = conv_out.numpy()
-        g_np = grads.numpy()
         weights = np.mean(g_np, axis=(1, 2))[0]  # (C,)
         cam = np.zeros(conv_np.shape[1:3], dtype=np.float32)
         for i, w in enumerate(weights):

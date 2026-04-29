@@ -8,6 +8,8 @@ ml/data/
 ml/data_raw/
 ml/artifacts/runs/
 ml/artifacts/metrics/
+ml/artifacts/tflite_runs/
+ml/artifacts/explainability/
 
 # Cachés y tooling local
 __pycache__/

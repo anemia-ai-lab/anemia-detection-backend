@@ -127,7 +127,16 @@ Authentication, database, and object storage are provided via **Supabase** (see 
 ## Automated testing
 
 - **API / core:** `make test` runs `pytest` on `tests/` only (see root `pytest.ini`). It sets `DISABLE_TF=1` and clears `INFERENCE_MODEL_PATH` so TensorFlow/Keras are never initialized and `.env` cannot pull in a `.keras` during collection.
-- **ML (TensorFlow + local `.keras` / `.tflite`):** `make ml-test` runs `pytest` under `ml/tests/` with `PYTHONPATH=..` so `backend` and `ml` import correctly. Requires a working TensorFlow install and the committed artifacts under `ml/artifacts/models/`. Tests use `pytest.importorskip("tensorflow")` where appropriate and skip if artifacts are missing.
+- **ML (TensorFlow + local `.keras` / `.tflite`):** `make ml-test` runs `pytest` on `ml/tests/` with `PYTHONPATH=.` from the repo root and `ml/.venv/bin/python`. Requires Python **3.11** (see `.python-version`) and the committed artifacts under `ml/artifacts/models/`. On **macOS arm64**, TensorFlow **2.20+** can abort on import (`mutex lock failed`); `ml/requirements.txt` pins **TensorFlow 2.19.1** for a stable wheel set with `mlflow` (which constrains `pyarrow<20`).
+- **Docker fallback:** `make ml-test-docker` construye `Dockerfile.ml-test` (Debian Bookworm, Python 3.11, `libgomp1`) e instala el mismo `ml/requirements.txt` que el venv local. Ejecuta `pytest ml/tests/` en el contenedor; no sustituye `make ml-test`.
+
+### Validación recomendada (orden)
+
+1. `make test` — suite del API sin TensorFlow.
+2. `make ml-install` — crea `ml/.venv` si falta y reinstala dependencias ML.
+3. `make ml-tf-check` — `import tensorflow as tf; print(tf.__version__)` (debe imprimir `2.19.1` con el pin actual).
+4. `make ml-test` — pytest ML en el host (Apple Silicon).
+5. `make ml-test-docker` — misma suite en Linux vía Docker.
 
 ## Project Structure
 

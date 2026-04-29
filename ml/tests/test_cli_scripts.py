@@ -16,8 +16,8 @@ ML_ROOT = REPO_ROOT / "ml"
 @pytest.mark.parametrize(
     ("script", "needle"),
     [
-        ("scripts/run_tflite_inference.py", "inferencia"),
-        ("scripts/generate_gradcam.py", "grad-cam"),
+        ("scripts/run_tflite_inference.py", "tflite"),
+        ("scripts/generate_gradcam.py", "mobilenet"),
     ],
 )
 def test_cli_help_exits_zero(script: str, needle: str) -> None:

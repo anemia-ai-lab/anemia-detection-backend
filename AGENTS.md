@@ -37,7 +37,9 @@ Repository layout (modular monolith):
 Local development:
 	•	Environment: copy `.env.example` to `.env` at the repo root; `Settings` reads that file.
 	•	`make run` — dev server (uvicorn `--reload`).
-	•	`make test` — solo `tests/` con `DISABLE_TF=1` e `INFERENCE_MODEL_PATH` vacío (sin TensorFlow en la suite del API); `make ml-test` — `ml/tests/` con TensorFlow y artefactos locales.
+	•	`make test` — solo `tests/` con `DISABLE_TF=1` e `INFERENCE_MODEL_PATH` vacío (sin TensorFlow en la suite del API); `make ml-test` — `pytest ml/tests/` con `ml/.venv` y `PYTHONPATH=.`.
+	•	`make ml-venv` / `make ml-install` — crea `ml/.venv` (prefiere `python3.11`) e instala `ml/requirements.txt` (TensorFlow 2.19.1 fijado para estabilidad en macOS arm64).
+	•	`make ml-tf-check` — verifica que TensorFlow importa en el venv ML; `make ml-test-docker` — misma suite en contenedor Linux (`Dockerfile.ml-test`).
 	•	`make lint` / `make format` — ruff.
 
 Supabase keys (security):
