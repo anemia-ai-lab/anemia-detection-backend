@@ -70,6 +70,10 @@ Run backend tests without TensorFlow:
 make test
 ```
 
+`requirements.txt` includes TensorFlow because the production backend can load the bundled
+Keras model. The backend test suite sets `DISABLE_TF=1` and clears `INFERENCE_MODEL_PATH`
+so API tests do not import TensorFlow.
+
 Run linting:
 
 ```bash
@@ -102,13 +106,18 @@ make ml-test-docker
 
 ## Public Release Notes
 
-The repository includes the trained Keras model artifact for academic reproducibility of the
-research prototype. The clinical image dataset, raw captures, patient-level records, and local
-environment secrets are not included.
+The repository includes the trained Keras model artifact and the exported TensorFlow Lite
+artifact plus metadata for academic reproducibility of the research prototype. The clinical
+image dataset, raw captures, patient-level records, and local environment secrets are not
+included.
 
 The included model artifact is provided for research inspection and software reproducibility only.
 It does not authorize clinical use, diagnosis, or deployment without independent validation,
 ethical review, and applicable regulatory assessment.
+
+Supabase service-role credentials and metrics bearer tokens are server-side secrets. They are
+represented only as empty variables in `.env.example` and must never be shipped to mobile or web
+clients.
 
 ## Authorship
 
@@ -122,4 +131,6 @@ Languages: English / Spanish
 
 ## License / Academic Usage Note
 
-This software is intended for academic and research use. Any clinical, commercial, or public health deployment requires independent validation, ethical review, regulatory assessment, data protection review, and explicit licensing terms beyond this repository.
+This software is released under the MIT License. The academic and medical-safety notes above limit
+the intended interpretation of this research prototype; they do not establish clinical validity,
+regulatory approval, or fitness for medical deployment.

@@ -19,7 +19,7 @@ lint:
 	$(TEST_PYTHON) -m ruff check .
 	
 format:
-	$(PYTHON) -m ruff format .
+	$(TEST_PYTHON) -m ruff format .
 
 test:
 	env DISABLE_TF=1 INFERENCE_MODEL_PATH= $(TEST_PYTHON) -m pytest tests/

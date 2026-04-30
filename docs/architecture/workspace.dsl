@@ -8,7 +8,7 @@ workspace "Anemia Prediction System" "C4 architecture model for a CNN-based chil
             mobileApp = container "Mobile App" "Captures or selects fingernail images, sends prediction requests, and displays results/history." "React Native / Expo"
 
             backend = container "Backend API" "Provides prediction, authentication/profile, health, model evaluation, and metrics endpoints." "FastAPI + Uvicorn + Docker" {
-                apiRoutes = component "API Routes" "HTTP endpoints for authentication/profile, prediction (POST + history + signed image URL), health, model evaluation, and metrics." "FastAPI routers + lifespan in app.py"
+                apiRoutes = component "API Routes" "HTTP endpoints for authentication/profile, prediction (POST + history + signed image URL), health, model evaluation, and metrics." "FastAPI routers + lifespan in backend/api/app.py"
                 rateLimitMiddleware = component "Rate Limit Middleware" "In-memory sliding-window throttle for sensitive POST routes (/auth/login, /auth/register, /predict)." "Starlette BaseHTTPMiddleware"
                 authService = component "Auth Service" "Handles registration, login, current-user lookup, and authenticated Supabase sessions." "Python service"
                 profileService = component "Profile Service" "Manages profile data for authenticated users." "Python service"

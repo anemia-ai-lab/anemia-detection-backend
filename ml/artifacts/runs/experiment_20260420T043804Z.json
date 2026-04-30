@@ -147,6 +147,7 @@
   "baseline_comparison": {
     "baseline_experiment_path": "ml/artifacts/runs/experiment_20260420T042800Z.json",
     "baseline_run_id": "20260420T042800Z",
+    "public_release_note": "The referenced earlier comparison run is not included in the public release artifact set; this comparison is retained as context for the final report.",
     "metrics_baseline": {
       "auc": 0.7865101099014282,
       "loss": 0.4498313367366791,

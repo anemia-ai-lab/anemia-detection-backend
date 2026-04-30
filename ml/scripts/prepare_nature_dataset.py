@@ -2,14 +2,14 @@
 """
 Prepara el dataset Nature (uñas) para entrenamiento CNN: crops 224×224 en train/test por clase.
 
-Ejemplo (este repo usa ``data-raw`` con guión)::
+Ejemplo (este repo usa ``data_raw`` con guión bajo)::
 
     python ml/scripts/prepare_nature_dataset.py \\
-        --images-dir ml/data-raw/nature/images \\
-        --metadata-path ml/data-raw/nature/metadata.csv
+        --images-dir ml/data_raw/nature/images \\
+        --metadata-path ml/data_raw/nature/metadata.csv
 
-Por defecto se usan ``ml/data_raw/...`` (guión bajo) como en el enunciado; si no existen,
-pasa explícitamente ``--images-dir`` / ``--metadata-path``.
+Por defecto se usan ``ml/data_raw/...``; si no existen, pasa explícitamente
+``--images-dir`` / ``--metadata-path``.
 """
 
 from __future__ import annotations

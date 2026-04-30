@@ -1,0 +1,20 @@
+{
+  "model_version": "v1.0",
+  "input_size": "224x224",
+  "temperature": 0.7510018331928743,
+  "operational_threshold": 0.1680544387290045,
+  "preprocessing": "mobilenet_v2.preprocess_input",
+  "output_type": "probability",
+  "calibration_required": true,
+  "thresholding_required": true,
+  "raw_output_is_sigmoid_probability": true,
+  "temperature_scaling_applied_inside_graph": false,
+  "post_processing_order": [
+    "Decode/float32 RGB tensor shaped [1,224,224,3]",
+    "mobilenet_v2.preprocess_input",
+    "Run TFLite inference \u2192 scalar raw_prob \u2208 [0,1]",
+    "Apply temperature scaling to raw_prob using `temperature` (same formula as backend)",
+    "Compare calibrated probability to `operational_threshold` for binary prediction"
+  ],
+  "notes": "Salida .tflite = probabilidad sigmoide sin calibrar (como raw_probability del API). Aplicar temperature fuera del grafo. Usar operational_threshold sobre la probabilidad ya calibrada, no sobre la salida cruda."
+}
