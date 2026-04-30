@@ -87,3 +87,11 @@ c4-code-render:
 
 c4-code-clean:
 	rm -rf $(C4_CODE_GENERATED) $(C4_CODE_RENDERED)
+
+.PHONY: c4-structurizr
+
+c3-structurizr:
+	docker run -it --rm \
+		-p 8080:8080 \
+		-v "$(PWD)/docs/architecture:/usr/local/structurizr" \
+		structurizr/structurizr local
