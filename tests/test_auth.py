@@ -244,7 +244,7 @@ def test_me_supabase_rejects_token(monkeypatch: pytest.MonkeyPatch) -> None:
     )
     assert response.status_code == 401
     body = response.json()
-    assert "detail" in body
+    assert body["detail"] == "Invalid authentication token"
     assert body.get("code") == "bad_jwt"
 
 
@@ -391,4 +391,5 @@ def test_login_invalid_credentials_from_supabase(monkeypatch: pytest.MonkeyPatch
         json={"email": "login@example.com", "password": "wrong"},
     )
     assert response.status_code == 401
+    assert response.json()["detail"] == "Invalid email or password"
     assert response.json()["code"] == "invalid_credentials"

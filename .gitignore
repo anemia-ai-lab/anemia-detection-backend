@@ -249,6 +249,8 @@ ml/data/
 ml/artifacts/models/*
 !ml/artifacts/models/.gitkeep
 !ml/artifacts/models/baseline_mobilenetv2.keras
+!ml/artifacts/models/baseline_mobilenetv2_v1.tflite
+!ml/artifacts/models/baseline_mobilenetv2_v1.metadata.json
 
 # MÉTRICAS (NO VERSIONAR)
 ml/artifacts/metrics/*

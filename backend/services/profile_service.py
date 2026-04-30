@@ -28,7 +28,7 @@ class ProfileService:
                 e.message or "fetch_failed",
             )
             raise AuthServiceError(
-                e.message or "Could not load profile",
+                "Could not load profile",
                 502,
                 code=e.code or "profile_fetch_failed",
             ) from e
@@ -71,7 +71,7 @@ class ProfileService:
                 e.message or "fetch_failed",
             )
             raise AuthServiceError(
-                e.message or "Could not load profile",
+                "Could not load profile",
                 502,
                 code=e.code or "profile_fetch_failed",
             ) from e
@@ -98,7 +98,7 @@ class ProfileService:
                 e.message or "save_failed",
             )
             raise AuthServiceError(
-                e.message or "Could not save profile",
+                "Could not save profile",
                 502,
                 code=e.code or "profile_save_failed",
             ) from e

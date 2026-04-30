@@ -63,8 +63,8 @@ class TokensOut(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-                "refresh_token": "v1:...",
+                "access_token": "<access-token>",
+                "refresh_token": "<refresh-token>",
                 "expires_in": 3600,
                 "token_type": "bearer",
             }
@@ -117,8 +117,8 @@ class LoginAuthResponse(_AuthSessionBody):
                     "created_at": "2026-04-01T12:00:00Z",
                 },
                 "tokens": {
-                    "access_token": "eyJ...",
-                    "refresh_token": "v1:...",
+                    "access_token": "<access-token>",
+                    "refresh_token": "<refresh-token>",
                     "expires_in": 3600,
                     "token_type": "bearer",
                 },
@@ -142,8 +142,8 @@ class RegisterAuthResponse(_AuthSessionBody):
                     "created_at": "2026-04-01T12:00:00Z",
                 },
                 "tokens": {
-                    "access_token": "eyJ...",
-                    "refresh_token": "v1:...",
+                    "access_token": "<access-token>",
+                    "refresh_token": "<refresh-token>",
                     "expires_in": 3600,
                     "token_type": "bearer",
                 },

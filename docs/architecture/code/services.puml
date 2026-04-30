@@ -45,12 +45,12 @@ package "backend.repositories" {
 package "backend.inference" {
   class InferenceRuntime <<module>>
   class ImageValidation <<module>>
+  class ProbabilityCalibration <<module>>
   interface ImagePredictor
 }
 
 package "backend.core" {
   class RiskMapping <<module>>
-  class ProbabilityCalibration <<module>>
   class PatientAge <<module>>
   class Settings
 }

@@ -1,0 +1,4 @@
+-- Public release seed placeholder.
+--
+-- Supabase CLI expects this file because `supabase/config.toml` enables db.seed.
+-- Keep it empty unless deterministic, non-sensitive reference data is needed.
