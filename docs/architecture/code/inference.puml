@@ -1,0 +1,76 @@
+@startuml inference
+skinparam classAttributeIconSize 0
+hide empty members
+title backend.inference
+
+package "backend.inference" {
+  interface ImagePredictor {
+    +predict_score(image_bytes: bytes): float
+    +predict_from_rgb(rgb_uint8: ndarray): float
+  }
+
+  class KerasImagePredictor {
+    -_model
+    -_pre_cfg
+    +predict_score(image_bytes: bytes): float
+    +predict_from_rgb(rgb_uint8: ndarray): float
+  }
+
+  class StaticImagePredictor {
+    +score: float
+    +predict_score(image_bytes: bytes): float
+    +predict_from_rgb(rgb_uint8: object): float
+  }
+
+  class InferenceRuntime <<module>> {
+    +init_inference_model(): void
+    +shutdown_inference_model(): void
+    +get_builtin_image_predictor(): Any
+    +inference_service_status(): tuple[status, loaded]
+  }
+
+  class PredictionImageInput <<module>> {
+    +decode_rgb_uint8(raw: bytes): ndarray
+    +resize_rgb_max_edge(rgb: ndarray, max_edge: int): ndarray
+    +require_rgb_pixel_limit(rgb: ndarray, max_pixels: int): void
+    +rgb_to_png_bytes(rgb: ndarray): bytes
+    +prepare_prediction_image(content_type: str?, raw: bytes): tuple
+  }
+
+  class NailPresence <<module>> {
+    +require_fingernail_presence(rgb_uint8: ndarray): void
+  }
+
+  class ProbabilityCalibration <<module>> {
+    +apply_temperature_calibration(probability: float, temperature: float): float
+    +binary_prediction_from_threshold(calibrated_probability: float, threshold: float): int
+  }
+}
+
+package "backend.core" {
+  class Settings
+  class PredictionImageLimits <<module>>
+}
+
+package "ml.preprocessing" {
+  class PreprocessingPipeline <<module>> {
+    +preprocess_image_bytes(...)
+    +preprocess_rgb_array(...)
+  }
+}
+
+KerasImagePredictor ..|> ImagePredictor
+StaticImagePredictor ..|> ImagePredictor
+
+InferenceRuntime --> KerasImagePredictor : lazy load .keras model
+InferenceRuntime --> Settings : INFERENCE_MODEL_PATH\nDISABLE_TF
+
+KerasImagePredictor --> PreprocessingPipeline : shared G9 preprocessing
+PredictionImageInput --> PredictionImageLimits : max bytes / pixels / edge
+
+note right of InferenceRuntime
+  Owns the production predictor singleton.
+  /health and /metrics read model status here.
+end note
+
+@enduml

@@ -1,0 +1,87 @@
+@startuml core
+skinparam classAttributeIconSize 0
+hide empty members
+title backend.core
+
+package "backend.core" {
+  class Settings {
+    +app_name: str
+    +environment: str
+    +debug: bool
+    +supabase_url: str
+    +supabase_key: str
+    +supabase_service_role_key: str
+    +inference_model_path: str
+    +model_version: str
+    +model_eval: ModelEvalMetrics
+    +inference_calibration_temperature: float
+    +inference_calibration_operational_threshold: float
+    +prediction_image_max_bytes: int
+    +prediction_image_max_edge_px: int
+    +prediction_image_max_pixels: int
+    +rate_limit_enabled: bool
+    +rate_limit_auth_requests: int
+    +rate_limit_predict_requests: int
+    +rate_limit_window_seconds: int
+    +effective_cors_origins(): list[str]
+  }
+
+  class AuthToken <<module>> {
+    +parse_bearer_token(credentials): str
+    +require_well_formed_jwt(access_token: str): void
+  }
+
+  class TokenValidationError {
+    +message: str
+    +code: str
+  }
+
+  class RateLimit <<module>> {
+    +register_rate_limit_middleware(app): void
+  }
+
+  class PrometheusMetrics <<module>> {
+    +route_template_for_path(path: str): str
+    +build_metrics_response(): tuple[bytes, str]
+    +register_prometheus_middleware(app): void
+  }
+
+  class RiskMapping <<module>> {
+    +risk_from_probability(score: float, threshold: float): RiskLevel
+    +anemia_risk_label(risk: RiskLevel): str
+  }
+
+  class PatientAge <<module>> {
+    +utc_today(): date
+    +completed_age_months(birth: date, ref: date): int
+    +age_display_from_months(months: int?): str?
+  }
+
+  class PredictionImageLimits <<module>> {
+    +prediction_image_max_bytes(): int
+  }
+
+  class LoggingConfig <<module>> {
+    +configure_logging(): void
+  }
+
+  class HttpErrorCodes <<module>> {
+    +default_error_code(status_code: int): str
+  }
+}
+
+package "backend.inference" {
+  class InferenceRuntime <<module>>
+}
+
+package "backend.schemas" {
+  class ModelEvalMetrics
+}
+
+Settings --> ModelEvalMetrics : embeds static model eval
+PrometheusMetrics --> InferenceRuntime : reads model_loaded
+RateLimit --> Settings : limits and window
+PredictionImageLimits --> Settings : configured max size
+AuthToken --> TokenValidationError : raises
+
+@enduml

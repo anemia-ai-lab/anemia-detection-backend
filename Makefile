@@ -60,3 +60,30 @@ ml-eval:
 
 ml-shell:
 	cd $(ML_DIR) && zsh
+
+.PHONY: c4-code-generate c4-code-render c4-code-clean
+
+C4_CODE_DIR := docs/architecture/code
+C4_CODE_GENERATED := $(C4_CODE_DIR)/_generated
+C4_CODE_RENDERED := $(C4_CODE_DIR)/rendered
+C4_CODE_PACKAGES := services repositories inference core api schemas
+
+c4-code-generate:
+	mkdir -p $(C4_CODE_GENERATED)
+	docker run --rm -v "$(PWD):/app" -w /app python:3.11-slim sh -c ' \
+		python -m pip install --quiet pylint && \
+		for pkg in $(C4_CODE_PACKAGES); do \
+			echo ">> pyreverse backend.$$pkg"; \
+			python -m pylint.pyreverse.main \
+				-o puml -p $$pkg \
+				-d $(C4_CODE_GENERATED) \
+				backend.$$pkg || true; \
+		done'
+
+c4-code-render:
+	mkdir -p $(C4_CODE_RENDERED)
+	docker run --rm -v "$(PWD)/$(C4_CODE_DIR):/data" plantuml/plantuml \
+		-tsvg -o rendered "/data/*.puml"
+
+c4-code-clean:
+	rm -rf $(C4_CODE_GENERATED) $(C4_CODE_RENDERED)

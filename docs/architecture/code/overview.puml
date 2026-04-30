@@ -1,0 +1,37 @@
+@startuml overview
+skinparam classAttributeIconSize 0
+hide empty members
+title Backend code overview
+
+package "backend.api" as api
+package "backend.services" as services
+package "backend.repositories" as repositories
+package "backend.inference" as inference
+package "backend.core" as core
+package "backend.schemas" as schemas
+package "backend.integrations" as integrations
+package "ml.preprocessing" as mlpreprocessing
+
+api --> services : dependency injection\nand route delegation
+api --> core : middleware, health,\nmetrics, auth token parsing
+api --> schemas : request/response models
+
+services --> repositories : persistence and storage
+services --> inference : prediction runtime\nand preprocessing
+services --> core : risk mapping,\nsettings, age helpers
+services --> schemas : typed contracts
+
+repositories --> integrations : Supabase clients
+repositories --> schemas : user DTOs
+
+inference --> core : settings and limits
+inference --> mlpreprocessing : shared G9 preprocessing
+
+core --> schemas : health and model metrics
+
+note right of mlpreprocessing
+  Shared with the offline ML pipeline.
+  The backend does not run TFLite or Grad-CAM.
+end note
+
+@enduml

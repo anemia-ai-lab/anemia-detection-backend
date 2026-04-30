@@ -8,20 +8,22 @@ workspace "Anemia Prediction System" "C4 architecture model for a CNN-based chil
             mobileApp = container "Mobile App" "Captures or selects fingernail images, sends prediction requests, and displays results/history." "React Native / Expo"
 
             backend = container "Backend API" "Provides prediction, authentication/profile, health, model evaluation, and metrics endpoints." "FastAPI + Uvicorn + Docker" {
-                apiRoutes = component "API Routes" "HTTP endpoints for prediction, health, model evaluation, auth/profile, and metrics." "FastAPI routers"
+                apiRoutes = component "API Routes" "HTTP endpoints for authentication/profile, prediction (POST + history + signed image URL), health, model evaluation, and metrics." "FastAPI routers + lifespan in app.py"
+                rateLimitMiddleware = component "Rate Limit Middleware" "In-memory sliding-window throttle for sensitive POST routes (/auth/login, /auth/register, /predict)." "Starlette BaseHTTPMiddleware"
                 authService = component "Auth Service" "Handles registration, login, current-user lookup, and authenticated Supabase sessions." "Python service"
                 profileService = component "Profile Service" "Manages profile data for authenticated users." "Python service"
                 authRepository = component "Auth Repository" "Wraps Supabase Auth operations for sign-up, sign-in, and user resolution." "Supabase Auth client"
                 profileRepository = component "Profile Repository" "Reads and updates profile rows." "Supabase PostgREST client"
-                predictionService = component "Prediction Service" "Orchestrates image validation, CNN inference, calibration, risk mapping, storage, and persistence." "Python service"
-                imageValidation = component "Image Validation" "Validates image size, type, decoding, resizing, and basic fingernail presence." "Python / Pillow / TensorFlow utilities"
-                cnnPredictor = component "CNN Predictor" "Loads the final Keras model and produces raw sigmoid probability." "TensorFlow / Keras / MobileNetV2"
+                predictionService = component "Prediction Service" "Orchestrates image validation, CNN inference, calibration, risk mapping, storage, and persistence (POST /predict, history, signed URL)." "Python service"
+                imageValidation = component "Image Validation" "Validates MIME/size limits, decodes and resizes the image, and runs a fingernail-presence heuristic before inference." "Python / Pillow / TensorFlow utilities"
+                inferenceRuntime = component "Inference Runtime" "Owns model lifecycle (init/shutdown), resolves the active image predictor, and reports model_loaded / degraded status to health and metrics." "Python module + FastAPI lifespan"
+                cnnPredictor = component "CNN Predictor" "ImagePredictor protocol with KerasImagePredictor as the production implementation; runs the shared G9 preprocessing pipeline and produces a raw sigmoid probability." "TensorFlow / Keras / MobileNetV2 + ml.preprocessing"
                 calibration = component "Probability Calibration" "Applies temperature scaling and operational thresholding." "Python"
                 riskMapping = component "Risk Mapping" "Maps calibrated probability into prediction and risk labels." "Python"
                 predictionRepository = component "Prediction Repository" "Persists and retrieves prediction records." "Supabase PostgREST client"
-                storageRepository = component "Prediction Image Storage" "Uploads prediction images to object storage." "Supabase Storage client"
+                storageRepository = component "Prediction Image Storage" "Uploads prediction images and issues signed download URLs." "Supabase Storage client"
                 modelEvaluation = component "Model Evaluation Service" "Exposes static evaluation metrics and calibration metadata for model v1.0." "Python"
-                metricsComponent = component "Metrics / Health / Logging" "Provides operational health status, Prometheus metrics, and structured logs for local and deployed monitoring." "Prometheus client / Python logging"
+                metricsComponent = component "Metrics / Health / Logging" "Prometheus HTTP middleware, /metrics builder, /health status, and structured logs for local and deployed monitoring." "Prometheus client / Starlette middleware / Python logging"
             }
 
             mlPipeline = container "ML Pipeline" "Offline scripts for dataset preparation, model training, evaluation, calibration, artifact generation, shared preprocessing (G9), TFLite offline inference (G8), and Grad-CAM (G10)." "TensorFlow / Keras / optional MLflow / Python scripts"
@@ -51,7 +53,8 @@ workspace "Anemia Prediction System" "C4 architecture model for a CNN-based chil
 
         mobileApp -> tfliteArtifact "Can use for offline inference mode" "On-device inference"
 
-        mobileApp -> apiRoutes "Calls backend HTTP endpoints" "HTTPS / JSON / multipart-form-data"
+        mobileApp -> rateLimitMiddleware "Calls backend HTTP endpoints" "HTTPS / JSON / multipart-form-data"
+        rateLimitMiddleware -> apiRoutes "Forwards allowed requests"
         apiRoutes -> predictionService "Delegates prediction requests"
         apiRoutes -> authService "Delegates authentication requests"
         apiRoutes -> profileService "Delegates profile requests"
@@ -65,16 +68,19 @@ workspace "Anemia Prediction System" "C4 architecture model for a CNN-based chil
         authRepository -> supabaseAuth "Registers, signs in, and resolves users"
         profileRepository -> supabaseDb "Reads and updates profile rows"
         predictionService -> imageValidation "Validates and prepares image"
+        predictionService -> inferenceRuntime "Resolves the active image predictor"
         predictionService -> cnnPredictor "Gets raw sigmoid probability"
         predictionService -> calibration "Applies temperature scaling"
         predictionService -> riskMapping "Maps calibrated probability to risk"
         predictionService -> predictionRepository "Persists prediction record"
-        predictionService -> storageRepository "Uploads image"
+        predictionService -> storageRepository "Uploads image and issues signed URLs"
 
-        mlPipeline -> cnnPredictor "Provides final Keras model artifact" ".keras"
+        inferenceRuntime -> cnnPredictor "Loads and owns the Keras predictor instance"
+        mlPipeline -> inferenceRuntime "Provides final Keras model artifact" ".keras"
+        mlPipeline -> cnnPredictor "Shares preprocessing pipeline (G9)" "ml.preprocessing module"
         predictionRepository -> supabaseDb "Inserts/selects prediction rows"
         storageRepository -> supabaseStorage "Uploads image objects"
-        metricsComponent -> cnnPredictor "Reads model loaded status"
+        metricsComponent -> inferenceRuntime "Reads model_loaded / service status"
     }
 
     views {
@@ -98,7 +104,7 @@ workspace "Anemia Prediction System" "C4 architecture model for a CNN-based chil
             include *
             autoLayout lr
             title "C3 - Component Diagram: Backend API"
-            description "Component diagram showing the main FastAPI backend modules involved in prediction, authentication/profile, repositories, calibration, persistence, metrics, and model evaluation."
+            description "Component diagram showing the main FastAPI backend modules involved in prediction, authentication/profile, repositories, inference runtime, calibration, persistence, rate limiting, metrics, and model evaluation."
         }
 
         styles {
