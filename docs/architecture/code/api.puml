@@ -1,0 +1,94 @@
+@startuml api
+skinparam classAttributeIconSize 0
+hide empty members
+title backend.api
+
+package "backend.api" {
+  class FastAPIApp <<module>> {
+    +app: FastAPI
+    +health(): HealthOut
+    +prometheus_metrics_endpoint(request): Response
+  }
+
+  class Dependencies <<module>> {
+    +get_access_token(credentials): str
+    +get_auth_service(): AuthService
+    +get_prediction_service(): PredictionService
+    +get_model_evaluation_service(): ModelEvaluationService
+    +get_profile_service(): ProfileService
+    +get_predict_context(...): PredictContext
+  }
+}
+
+package "backend.api.routes" {
+  class AuthRoutes <<module>> {
+    +register(body, auth): RegisterAuthResponse
+    +login(body, auth): LoginAuthResponse
+    +me(token, auth): UserOut
+    +get_my_profile(user, token, profiles): ProfileOut
+    +patch_my_profile(user, token, patch, profiles): ProfileOut
+  }
+
+  class PredictRoutes <<module>> {
+    +predict(...): PredictionResponse
+    +list_predictions(...): list[PredictionHistoryItem]
+    +prediction_image_signed_url(...): PredictionImageSignedUrlOut
+  }
+
+  class ModelRoutes <<module>> {
+    +model_evaluation(svc): ModelEvaluationOut
+  }
+}
+
+package "backend.services" {
+  class AuthService
+  class ProfileService
+  class PredictionService
+  class ModelEvaluationService
+}
+
+package "backend.core" {
+  class AuthToken <<module>>
+  class RateLimit <<module>>
+  class PrometheusMetrics <<module>>
+}
+
+package "backend.inference" {
+  class InferenceRuntime <<module>>
+}
+
+package "backend.schemas" {
+  class HealthOut
+  class RegisterAuthResponse
+  class LoginAuthResponse
+  class UserOut
+  class ProfileOut
+  class PredictionResponse
+  class PredictionHistoryItem
+  class PredictionImageSignedUrlOut
+  class ModelEvaluationOut
+}
+
+FastAPIApp --> AuthRoutes : include_router /auth
+FastAPIApp --> PredictRoutes : include_router
+FastAPIApp --> ModelRoutes : include_router /model
+FastAPIApp --> RateLimit : register middleware
+FastAPIApp --> PrometheusMetrics : register middleware\nand /metrics
+FastAPIApp --> InferenceRuntime : lifespan init/shutdown\nand /health
+
+Dependencies --> AuthToken : parse bearer token
+Dependencies --> AuthService : factory
+Dependencies --> ProfileService : factory
+Dependencies --> PredictionService : factory
+Dependencies --> ModelEvaluationService : factory
+
+AuthRoutes --> Dependencies : FastAPI Depends
+AuthRoutes --> AuthService : register/login/me
+AuthRoutes --> ProfileService : profile endpoints
+
+PredictRoutes --> Dependencies : FastAPI Depends
+PredictRoutes --> PredictionService : predict/history/signed URL
+
+ModelRoutes --> ModelEvaluationService : evaluation metadata
+
+@enduml

@@ -1,0 +1,91 @@
+@startuml services
+skinparam classAttributeIconSize 0
+hide empty members
+title backend.services
+
+package "backend.services" {
+  class AuthService {
+    +register(email: str, password: str): RegisterAuthResponse
+    +login(email: str, password: str): LoginAuthResponse
+    +me(access_token: str): UserOut
+  }
+
+  class ProfileService {
+    +get_profile(user: UserOut, access_token: str): ProfileOut
+    +update_profile(user: UserOut, access_token: str, patch: ProfilePatchRequest): ProfileOut
+  }
+
+  class PredictionService {
+    +run_predict(user: UserOut, access_token: str, body: PredictionCreateBody, file_bytes: bytes, content_type: str?): PredictionResponse
+    +list_predictions(access_token: str): list[PredictionHistoryItem]
+    +signed_image_url_for_prediction(user: UserOut, access_token: str, prediction_id: str): PredictionImageSignedUrlOut
+  }
+
+  class ModelEvaluationService {
+    +get_evaluation(): ModelEvaluationOut
+  }
+
+  class ClientHttpError {
+    +message: str
+    +status_code: int
+    +code: str?
+  }
+
+  class AuthServiceError
+  class PredictionServiceError
+}
+
+package "backend.repositories" {
+  class AuthRepository
+  class ProfilesRepository
+  class PredictionsRepository
+  class PredictionImagesStorage
+}
+
+package "backend.inference" {
+  class InferenceRuntime <<module>>
+  class ImageValidation <<module>>
+  interface ImagePredictor
+}
+
+package "backend.core" {
+  class RiskMapping <<module>>
+  class ProbabilityCalibration <<module>>
+  class PatientAge <<module>>
+  class Settings
+}
+
+package "backend.schemas" {
+  class RegisterAuthResponse
+  class LoginAuthResponse
+  class UserOut
+  class ProfileOut
+  class ProfilePatchRequest
+  class PredictionCreateBody
+  class PredictionResponse
+  class PredictionHistoryItem
+  class PredictionImageSignedUrlOut
+  class ModelEvaluationOut
+}
+
+AuthService --> AuthRepository : sign up / sign in / me
+AuthService --> ProfilesRepository : ensure profile row
+AuthService --> ProfileService : profile flags
+
+ProfileService --> ProfilesRepository : fetch / upsert
+
+PredictionService --> ImageValidation : validate and prepare image
+PredictionService --> InferenceRuntime : resolve predictor
+PredictionService --> ImagePredictor : predict score
+PredictionService --> ProbabilityCalibration : calibrate score
+PredictionService --> RiskMapping : map risk
+PredictionService --> PatientAge : derive age display
+PredictionService --> PredictionsRepository : insert / list / image path
+PredictionService --> PredictionImagesStorage : upload / signed URL
+
+ModelEvaluationService --> Settings : static evaluation config
+
+AuthServiceError --|> ClientHttpError
+PredictionServiceError --|> ClientHttpError
+
+@enduml

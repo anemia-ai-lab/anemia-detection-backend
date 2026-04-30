@@ -70,6 +70,16 @@ instance/
 
 # Sphinx documentation
 docs/_build/
+docs/architecture/code/_generated/
+docs/architecture/code/rendered/
+
+# Structurizr runtime
+docs/architecture/.structurizr/
+docs/architecture/*.log
+docs/architecture/*.gz
+
+# Generated thumbnails
+*thumbnail*.png
 
 # PyBuilder
 .pybuilder/

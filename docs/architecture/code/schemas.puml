@@ -1,0 +1,147 @@
+@startuml schemas
+skinparam classAttributeIconSize 0
+hide empty members
+title backend.schemas
+
+package "backend.schemas.auth" {
+  class RegisterRequest {
+    +email
+    +password: str
+  }
+
+  class LoginRequest {
+    +email
+    +password: str
+  }
+
+  class UserOut {
+    +id: str
+    +email: str?
+    +created_at: datetime?
+  }
+
+  class WarningItem {
+    +code: str
+    +message: str
+  }
+
+  class TokensOut {
+    +access_token: str
+    +refresh_token: str
+    +expires_in: int
+    +token_type: str
+  }
+
+  abstract class AuthSessionBody {
+    +user: UserOut
+    +tokens: TokensOut?
+    +has_profile_row: bool?
+    +profile_completed: bool?
+    +warnings: list[WarningItem]
+  }
+
+  class LoginAuthResponse
+  class RegisterAuthResponse {
+    +profile_created: bool
+  }
+}
+
+package "backend.schemas.profile" {
+  class ProfileOut {
+    +id: str
+    +email: str?
+    +has_profile_row: bool
+    +profile_completed: bool
+    +first_name: str?
+    +last_name: str?
+    +department: str?
+    +province: str?
+    +created_at: datetime?
+  }
+
+  class ProfilePatchRequest {
+    +first_name: str?
+    +last_name: str?
+    +department: str?
+    +province: str?
+  }
+}
+
+package "backend.schemas.prediction" {
+  class PredictionCreateBody {
+    +birth_date: date?
+    +notes: str?
+  }
+
+  class PredictionHistoryItem {
+    +id: str
+    +risk: Literal
+    +score: float
+    +model_version: str
+    +inference_mode: Literal
+    +age_months: int?
+    +age_display: str?
+    +image_storage_path: str?
+    +created_at: datetime
+  }
+
+  class PredictionResponse {
+    +raw_probability: float
+    +calibrated_probability: float
+    +threshold_used: float
+    +prediction: Literal[0, 1]
+    +risk_label: str
+    +message: str?
+  }
+
+  class PredictionImageSignedUrlOut {
+    +signed_url: str
+  }
+}
+
+package "backend.schemas.model_evaluation" {
+  class ModelEvalMetrics {
+    +accuracy_operational: float
+    +precision_operational: float
+    +recall_operational: float
+    +auc: float
+    +brier_score: float
+    +expected_calibration_error: float
+    +temperature: float
+    +operational_threshold: float
+    +dataset_version: str
+    +evaluated_at: datetime
+  }
+
+  class ModelEvaluationOut {
+    +model_version: str
+  }
+}
+
+package "backend.schemas.health" {
+  class HealthOut {
+    +status: Literal["ok", "degraded"]
+    +model_loaded: bool
+    +model_version: str
+    +calibration_enabled: bool
+    +inference_model_path: str?
+  }
+}
+
+package "backend.schemas.errors" {
+  class ErrorResponse {
+    +detail: str
+    +code: str?
+  }
+}
+
+LoginAuthResponse --|> AuthSessionBody
+RegisterAuthResponse --|> AuthSessionBody
+AuthSessionBody --> UserOut
+AuthSessionBody --> TokensOut
+AuthSessionBody --> WarningItem
+
+PredictionResponse --|> PredictionHistoryItem
+ModelEvaluationOut --|> ModelEvalMetrics
+
+@enduml

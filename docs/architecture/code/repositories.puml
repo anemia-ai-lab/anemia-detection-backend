@@ -1,0 +1,56 @@
+@startuml repositories
+skinparam classAttributeIconSize 0
+hide empty members
+title backend.repositories
+
+package "backend.repositories" {
+  class AuthRepository {
+    +sign_up_with_email(email: str, password: str): AuthResponse
+    +sign_in_with_email(email: str, password: str): AuthResponse
+    +get_user(access_token: str): UserResponse
+  }
+
+  class ProfilesRepository {
+    +try_insert_on_register(user_id: str, access_token: str?): bool
+    +fetch_by_user_id(access_token: str, user_id: str): dict?
+    +upsert_profile(access_token: str, user_id: str, payload: dict): dict
+  }
+
+  class PredictionsRepository {
+    +insert_for_user(access_token: str, user_id: str, ...): dict
+    +list_for_user(access_token: str): list[dict]
+    +fetch_image_storage_path(access_token: str, prediction_id: str): str?
+  }
+
+  class PredictionImagesStorage {
+    +upload_user_image(access_token: str, user_id: str, file_bytes: bytes, content_type: str): str
+    +create_signed_url(access_token: str, object_path: str): str
+  }
+}
+
+package "backend.integrations" {
+  class SupabaseClient <<module>> {
+    +get_supabase_client(): Client
+    +create_supabase_anon_client(): Client
+    +create_supabase_user_client(access_token: str): Client
+    +get_supabase_service_client(): Client
+  }
+}
+
+package "Supabase" {
+  class SupabaseAuth <<external>>
+  class PostgreSQLDatabase <<external>>
+  class ObjectStorage <<external>>
+}
+
+AuthRepository --> SupabaseClient : client factories
+ProfilesRepository --> SupabaseClient : user/service clients
+PredictionsRepository --> SupabaseClient : user client
+PredictionImagesStorage --> SupabaseClient : user client
+
+AuthRepository --> SupabaseAuth : GoTrue API
+ProfilesRepository --> PostgreSQLDatabase : profiles table
+PredictionsRepository --> PostgreSQLDatabase : predictions table
+PredictionImagesStorage --> ObjectStorage : prediction images bucket
+
+@enduml

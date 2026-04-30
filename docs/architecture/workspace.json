@@ -3,7 +3,7 @@
   "description" : "C4 architecture model for a CNN-based childhood anemia risk prediction system.",
   "documentation" : { },
   "id" : 1,
-  "lastModifiedDate" : "2026-04-29T01:19:12Z",
+  "lastModifiedDate" : "2026-04-30T02:35:10Z",
   "model" : {
     "people" : [ {
       "description" : "Uses the mobile application to submit fingernail images and review anemia risk predictions.",
@@ -15,14 +15,14 @@
       "relationships" : [ {
         "description" : "Uses",
         "destinationId" : "3",
-        "id" : "26",
+        "id" : "28",
         "sourceId" : "1",
         "tags" : "Relationship"
       }, {
         "description" : "Uses",
         "destinationId" : "2",
-        "id" : "27",
-        "linkedRelationshipId" : "26",
+        "id" : "29",
+        "linkedRelationshipId" : "28",
         "sourceId" : "1"
       } ],
       "tags" : "Element,Person"
@@ -39,21 +39,21 @@
         "relationships" : [ {
           "description" : "Submits image and receives calibrated prediction",
           "destinationId" : "4",
-          "id" : "28",
+          "id" : "30",
           "sourceId" : "3",
           "tags" : "Relationship",
           "technology" : "HTTPS / multipart-form-data / JSON"
         }, {
           "description" : "Can use for offline inference mode",
-          "destinationId" : "21",
-          "id" : "40",
+          "destinationId" : "23",
+          "id" : "42",
           "sourceId" : "3",
           "tags" : "Relationship",
           "technology" : "On-device inference"
         }, {
           "description" : "Calls backend HTTP endpoints",
-          "destinationId" : "5",
-          "id" : "41",
+          "destinationId" : "6",
+          "id" : "43",
           "sourceId" : "3",
           "tags" : "Relationship",
           "technology" : "HTTPS / JSON / multipart-form-data"
@@ -62,7 +62,7 @@
         "technology" : "React Native / Expo"
       }, {
         "components" : [ {
-          "description" : "HTTP endpoints for prediction, health, model evaluation, auth/profile, and metrics.",
+          "description" : "HTTP endpoints for authentication/profile, prediction (POST + history + signed image URL), health, model evaluation, and metrics.",
           "documentation" : { },
           "id" : "5",
           "name" : "API Routes",
@@ -71,62 +71,79 @@
           },
           "relationships" : [ {
             "description" : "Delegates prediction requests",
-            "destinationId" : "10",
-            "id" : "42",
-            "sourceId" : "5",
-            "tags" : "Relationship"
-          }, {
-            "description" : "Delegates authentication requests",
-            "destinationId" : "6",
-            "id" : "43",
-            "sourceId" : "5",
-            "tags" : "Relationship"
-          }, {
-            "description" : "Delegates profile requests",
-            "destinationId" : "7",
-            "id" : "44",
-            "sourceId" : "5",
-            "tags" : "Relationship"
-          }, {
-            "description" : "Returns model evaluation metadata",
-            "destinationId" : "17",
+            "destinationId" : "11",
             "id" : "45",
             "sourceId" : "5",
             "tags" : "Relationship"
           }, {
-            "description" : "Exposes /health and /metrics",
-            "destinationId" : "18",
+            "description" : "Delegates authentication requests",
+            "destinationId" : "7",
             "id" : "46",
+            "sourceId" : "5",
+            "tags" : "Relationship"
+          }, {
+            "description" : "Delegates profile requests",
+            "destinationId" : "8",
+            "id" : "47",
+            "sourceId" : "5",
+            "tags" : "Relationship"
+          }, {
+            "description" : "Returns model evaluation metadata",
+            "destinationId" : "19",
+            "id" : "48",
+            "sourceId" : "5",
+            "tags" : "Relationship"
+          }, {
+            "description" : "Exposes /health and /metrics",
+            "destinationId" : "20",
+            "id" : "49",
             "sourceId" : "5",
             "tags" : "Relationship"
           } ],
           "tags" : "Element,Component",
-          "technology" : "FastAPI routers"
+          "technology" : "FastAPI routers + lifespan in app.py"
+        }, {
+          "description" : "In-memory sliding-window throttle for sensitive POST routes (/auth/login, /auth/register, /predict).",
+          "documentation" : { },
+          "id" : "6",
+          "name" : "Rate Limit Middleware",
+          "properties" : {
+            "structurizr.dsl.identifier" : "rateLimitMiddleware"
+          },
+          "relationships" : [ {
+            "description" : "Forwards allowed requests",
+            "destinationId" : "5",
+            "id" : "44",
+            "sourceId" : "6",
+            "tags" : "Relationship"
+          } ],
+          "tags" : "Element,Component",
+          "technology" : "Starlette BaseHTTPMiddleware"
         }, {
           "description" : "Handles registration, login, current-user lookup, and authenticated Supabase sessions.",
           "documentation" : { },
-          "id" : "6",
+          "id" : "7",
           "name" : "Auth Service",
           "properties" : {
             "structurizr.dsl.identifier" : "authService"
           },
           "relationships" : [ {
             "description" : "Delegates Supabase Auth operations",
-            "destinationId" : "8",
-            "id" : "47",
-            "sourceId" : "6",
+            "destinationId" : "9",
+            "id" : "50",
+            "sourceId" : "7",
             "tags" : "Relationship"
           }, {
             "description" : "Checks profile completion after auth flows",
-            "destinationId" : "7",
-            "id" : "48",
-            "sourceId" : "6",
+            "destinationId" : "8",
+            "id" : "51",
+            "sourceId" : "7",
             "tags" : "Relationship"
           }, {
             "description" : "Ensures profile row on registration",
-            "destinationId" : "9",
-            "id" : "49",
-            "sourceId" : "6",
+            "destinationId" : "10",
+            "id" : "52",
+            "sourceId" : "7",
             "tags" : "Relationship"
           } ],
           "tags" : "Element,Component",
@@ -134,16 +151,16 @@
         }, {
           "description" : "Manages profile data for authenticated users.",
           "documentation" : { },
-          "id" : "7",
+          "id" : "8",
           "name" : "Profile Service",
           "properties" : {
             "structurizr.dsl.identifier" : "profileService"
           },
           "relationships" : [ {
             "description" : "Reads and updates profile data",
-            "destinationId" : "9",
-            "id" : "50",
-            "sourceId" : "7",
+            "destinationId" : "10",
+            "id" : "53",
+            "sourceId" : "8",
             "tags" : "Relationship"
           } ],
           "tags" : "Element,Component",
@@ -151,100 +168,106 @@
         }, {
           "description" : "Wraps Supabase Auth operations for sign-up, sign-in, and user resolution.",
           "documentation" : { },
-          "id" : "8",
+          "id" : "9",
           "name" : "Auth Repository",
           "properties" : {
             "structurizr.dsl.identifier" : "authRepository"
           },
           "relationships" : [ {
             "description" : "Registers, signs in, and resolves users",
-            "destinationId" : "23",
-            "id" : "51",
-            "sourceId" : "8",
+            "destinationId" : "25",
+            "id" : "54",
+            "sourceId" : "9",
             "tags" : "Relationship"
           }, {
             "description" : "Registers, signs in, and resolves users",
-            "destinationId" : "22",
-            "id" : "52",
-            "linkedRelationshipId" : "51",
-            "sourceId" : "8"
+            "destinationId" : "24",
+            "id" : "55",
+            "linkedRelationshipId" : "54",
+            "sourceId" : "9"
           } ],
           "tags" : "Element,Component",
           "technology" : "Supabase Auth client"
         }, {
           "description" : "Reads and updates profile rows.",
           "documentation" : { },
-          "id" : "9",
+          "id" : "10",
           "name" : "Profile Repository",
           "properties" : {
             "structurizr.dsl.identifier" : "profileRepository"
           },
           "relationships" : [ {
             "description" : "Reads and updates profile rows",
-            "destinationId" : "24",
-            "id" : "53",
-            "sourceId" : "9",
+            "destinationId" : "26",
+            "id" : "56",
+            "sourceId" : "10",
             "tags" : "Relationship"
           }, {
             "description" : "Reads and updates profile rows",
-            "destinationId" : "22",
-            "id" : "54",
-            "linkedRelationshipId" : "53",
-            "sourceId" : "9"
+            "destinationId" : "24",
+            "id" : "57",
+            "linkedRelationshipId" : "56",
+            "sourceId" : "10"
           } ],
           "tags" : "Element,Component",
           "technology" : "Supabase PostgREST client"
         }, {
-          "description" : "Orchestrates image validation, CNN inference, calibration, risk mapping, storage, and persistence.",
+          "description" : "Orchestrates image validation, CNN inference, calibration, risk mapping, storage, and persistence (POST /predict, history, signed URL).",
           "documentation" : { },
-          "id" : "10",
+          "id" : "11",
           "name" : "Prediction Service",
           "properties" : {
             "structurizr.dsl.identifier" : "predictionService"
           },
           "relationships" : [ {
             "description" : "Validates and prepares image",
-            "destinationId" : "11",
-            "id" : "55",
-            "sourceId" : "10",
+            "destinationId" : "12",
+            "id" : "58",
+            "sourceId" : "11",
+            "tags" : "Relationship"
+          }, {
+            "description" : "Resolves the active image predictor",
+            "destinationId" : "13",
+            "id" : "59",
+            "sourceId" : "11",
             "tags" : "Relationship"
           }, {
             "description" : "Gets raw sigmoid probability",
-            "destinationId" : "12",
-            "id" : "56",
-            "sourceId" : "10",
+            "destinationId" : "14",
+            "id" : "60",
+            "sourceId" : "11",
             "tags" : "Relationship"
           }, {
             "description" : "Applies temperature scaling",
-            "destinationId" : "13",
-            "id" : "57",
-            "sourceId" : "10",
+            "destinationId" : "15",
+            "id" : "61",
+            "sourceId" : "11",
             "tags" : "Relationship"
           }, {
             "description" : "Maps calibrated probability to risk",
-            "destinationId" : "14",
-            "id" : "58",
-            "sourceId" : "10",
+            "destinationId" : "16",
+            "id" : "62",
+            "sourceId" : "11",
             "tags" : "Relationship"
           }, {
             "description" : "Persists prediction record",
-            "destinationId" : "15",
-            "id" : "59",
-            "sourceId" : "10",
+            "destinationId" : "17",
+            "id" : "63",
+            "sourceId" : "11",
             "tags" : "Relationship"
           }, {
-            "description" : "Uploads image",
-            "destinationId" : "16",
-            "id" : "60",
-            "sourceId" : "10",
+            "description" : "Uploads image and issues signed URLs",
+            "destinationId" : "18",
+            "id" : "64",
+            "sourceId" : "11",
             "tags" : "Relationship"
           } ],
           "tags" : "Element,Component",
           "technology" : "Python service"
         }, {
-          "description" : "Validates image size, type, decoding, resizing, and basic fingernail presence.",
+          "description" : "Validates MIME/size limits, decodes and resizes the image, and runs a fingernail-presence heuristic before inference.",
           "documentation" : { },
-          "id" : "11",
+          "id" : "12",
           "name" : "Image Validation",
           "properties" : {
             "structurizr.dsl.identifier" : "imageValidation"
@@ -252,19 +275,36 @@
           "tags" : "Element,Component",
           "technology" : "Python / Pillow / TensorFlow utilities"
         }, {
-          "description" : "Loads the final Keras model and produces raw sigmoid probability.",
+          "description" : "Owns model lifecycle (init/shutdown), resolves the active image predictor, and reports model_loaded / degraded status to health and metrics.",
           "documentation" : { },
-          "id" : "12",
+          "id" : "13",
+          "name" : "Inference Runtime",
+          "properties" : {
+            "structurizr.dsl.identifier" : "inferenceRuntime"
+          },
+          "relationships" : [ {
+            "description" : "Loads and owns the Keras predictor instance",
+            "destinationId" : "14",
+            "id" : "65",
+            "sourceId" : "13",
+            "tags" : "Relationship"
+          } ],
+          "tags" : "Element,Component",
+          "technology" : "Python module + FastAPI lifespan"
+        }, {
+          "description" : "ImagePredictor protocol with KerasImagePredictor as the production implementation; runs the shared G9 preprocessing pipeline and produces a raw sigmoid probability.",
+          "documentation" : { },
+          "id" : "14",
           "name" : "CNN Predictor",
           "properties" : {
             "structurizr.dsl.identifier" : "cnnPredictor"
           },
           "tags" : "Element,Component",
-          "technology" : "TensorFlow / Keras / MobileNetV2"
+          "technology" : "TensorFlow / Keras / MobileNetV2 + ml.preprocessing"
         }, {
           "description" : "Applies temperature scaling and operational thresholding.",
           "documentation" : { },
-          "id" : "13",
+          "id" : "15",
           "name" : "Probability Calibration",
           "properties" : {
             "structurizr.dsl.identifier" : "calibration"
@@ -274,7 +314,7 @@
         }, {
           "description" : "Maps calibrated probability into prediction and risk labels.",
           "documentation" : { },
-          "id" : "14",
+          "id" : "16",
           "name" : "Risk Mapping",
           "properties" : {
             "structurizr.dsl.identifier" : "riskMapping"
@@ -284,53 +324,53 @@
         }, {
           "description" : "Persists and retrieves prediction records.",
           "documentation" : { },
-          "id" : "15",
+          "id" : "17",
           "name" : "Prediction Repository",
           "properties" : {
             "structurizr.dsl.identifier" : "predictionRepository"
           },
           "relationships" : [ {
             "description" : "Inserts/selects prediction rows",
-            "destinationId" : "24",
-            "id" : "62",
-            "sourceId" : "15",
+            "destinationId" : "26",
+            "id" : "68",
+            "sourceId" : "17",
             "tags" : "Relationship"
           }, {
             "description" : "Inserts/selects prediction rows",
-            "destinationId" : "22",
-            "id" : "63",
-            "linkedRelationshipId" : "62",
-            "sourceId" : "15"
+            "destinationId" : "24",
+            "id" : "69",
+            "linkedRelationshipId" : "68",
+            "sourceId" : "17"
           } ],
           "tags" : "Element,Component",
           "technology" : "Supabase PostgREST client"
         }, {
-          "description" : "Uploads prediction images to object storage.",
+          "description" : "Uploads prediction images and issues signed download URLs.",
           "documentation" : { },
-          "id" : "16",
+          "id" : "18",
           "name" : "Prediction Image Storage",
           "properties" : {
             "structurizr.dsl.identifier" : "storageRepository"
           },
           "relationships" : [ {
             "description" : "Uploads image objects",
-            "destinationId" : "25",
-            "id" : "64",
-            "sourceId" : "16",
+            "destinationId" : "27",
+            "id" : "70",
+            "sourceId" : "18",
             "tags" : "Relationship"
           }, {
             "description" : "Uploads image objects",
-            "destinationId" : "22",
-            "id" : "65",
-            "linkedRelationshipId" : "64",
-            "sourceId" : "16"
+            "destinationId" : "24",
+            "id" : "71",
+            "linkedRelationshipId" : "70",
+            "sourceId" : "18"
           } ],
           "tags" : "Element,Component",
           "technology" : "Supabase Storage client"
         }, {
           "description" : "Exposes static evaluation metrics and calibration metadata for model v1.0.",
           "documentation" : { },
-          "id" : "17",
+          "id" : "19",
           "name" : "Model Evaluation Service",
           "properties" : {
             "structurizr.dsl.identifier" : "modelEvaluation"
@@ -338,22 +378,22 @@
           "tags" : "Element,Component",
           "technology" : "Python"
         }, {
-          "description" : "Provides operational health status, Prometheus metrics, and structured logs for local and deployed monitoring.",
+          "description" : "Prometheus HTTP middleware, /metrics builder, /health status, and structured logs for local and deployed monitoring.",
           "documentation" : { },
-          "id" : "18",
+          "id" : "20",
           "name" : "Metrics / Health / Logging",
           "properties" : {
             "structurizr.dsl.identifier" : "metricsComponent"
           },
           "relationships" : [ {
-            "description" : "Reads model loaded status",
-            "destinationId" : "12",
-            "id" : "66",
-            "sourceId" : "18",
+            "description" : "Reads model_loaded / service status",
+            "destinationId" : "13",
+            "id" : "72",
+            "sourceId" : "20",
             "tags" : "Relationship"
           } ],
           "tags" : "Element,Component",
-          "technology" : "Prometheus client / Python logging"
+          "technology" : "Prometheus client / Starlette middleware / Python logging"
         } ],
         "description" : "Provides prediction, authentication/profile, health, model evaluation, and metrics endpoints.",
         "documentation" : { },
@@ -364,29 +404,29 @@
         },
         "relationships" : [ {
           "description" : "Validates authenticated user",
-          "destinationId" : "23",
-          "id" : "29",
+          "destinationId" : "25",
+          "id" : "31",
           "sourceId" : "4",
           "tags" : "Relationship",
           "technology" : "JWT / Supabase client"
         }, {
           "description" : "Validates authenticated user",
-          "destinationId" : "22",
-          "id" : "30",
-          "linkedRelationshipId" : "29",
+          "destinationId" : "24",
+          "id" : "32",
+          "linkedRelationshipId" : "31",
           "sourceId" : "4",
           "technology" : "JWT / Supabase client"
         }, {
           "description" : "Stores and retrieves prediction/profile data",
-          "destinationId" : "24",
-          "id" : "33",
+          "destinationId" : "26",
+          "id" : "35",
           "sourceId" : "4",
           "tags" : "Relationship",
           "technology" : "PostgREST"
         }, {
           "description" : "Uploads prediction images",
-          "destinationId" : "25",
-          "id" : "35",
+          "destinationId" : "27",
+          "id" : "37",
           "sourceId" : "4",
           "tags" : "Relationship",
           "technology" : "Supabase Storage API"
@@ -394,9 +434,9 @@
         "tags" : "Element,Container",
         "technology" : "FastAPI + Uvicorn + Docker"
       }, {
-        "description" : "Offline scripts for dataset preparation, model training, evaluation, calibration, and artifact generation.",
+        "description" : "Offline scripts for dataset preparation, model training, evaluation, calibration, artifact generation, shared preprocessing (G9), TFLite offline inference (G8), and Grad-CAM (G10).",
         "documentation" : { },
-        "id" : "19",
+        "id" : "21",
         "name" : "ML Pipeline",
         "properties" : {
           "structurizr.dsl.identifier" : "mlPipeline"
@@ -404,31 +444,38 @@
         "relationships" : [ {
           "description" : "Produces final Keras model and evaluation metadata",
           "destinationId" : "4",
-          "id" : "38",
-          "sourceId" : "19",
+          "id" : "40",
+          "sourceId" : "21",
           "tags" : "Relationship",
           "technology" : ".keras / JSON / Markdown"
         }, {
           "description" : "Exports mobile inference artifact",
-          "destinationId" : "21",
-          "id" : "39",
-          "sourceId" : "19",
+          "destinationId" : "23",
+          "id" : "41",
+          "sourceId" : "21",
           "tags" : "Relationship",
           "technology" : ".tflite + metadata JSON"
         }, {
           "description" : "Provides final Keras model artifact",
-          "destinationId" : "12",
-          "id" : "61",
-          "sourceId" : "19",
+          "destinationId" : "13",
+          "id" : "66",
+          "sourceId" : "21",
           "tags" : "Relationship",
           "technology" : ".keras"
+        }, {
+          "description" : "Shares preprocessing pipeline (G9)",
+          "destinationId" : "14",
+          "id" : "67",
+          "sourceId" : "21",
+          "tags" : "Relationship",
+          "technology" : "ml.preprocessing module"
         } ],
         "tags" : "Element,Container",
         "technology" : "TensorFlow / Keras / optional MLflow / Python scripts"
       }, {
         "description" : "Collects and visualizes backend metrics for local validation and thesis/demo monitoring.",
         "documentation" : { },
-        "id" : "20",
+        "id" : "22",
         "name" : "Observability Stack",
         "properties" : {
           "structurizr.dsl.identifier" : "observability"
@@ -436,17 +483,17 @@
         "relationships" : [ {
           "description" : "Scrapes /metrics",
           "destinationId" : "4",
-          "id" : "37",
-          "sourceId" : "20",
+          "id" : "39",
+          "sourceId" : "22",
           "tags" : "Relationship",
           "technology" : "Prometheus scrape"
         } ],
         "tags" : "Element,Container",
         "technology" : "Prometheus + Grafana"
       }, {
-        "description" : "Exported model artifact that can be bundled with the mobile app for optional offline inference.",
+        "description" : "Exported float32 TFLite graph (raw sigmoid only). Temperature scaling and operational threshold from metadata JSON are applied off-device, matching backend calibration. Bundled for optional offline inference.",
         "documentation" : { },
-        "id" : "21",
+        "id" : "23",
         "name" : "TFLite Mobile Artifact",
         "properties" : {
           "structurizr.dsl.identifier" : "tfliteArtifact"
@@ -463,30 +510,30 @@
       },
       "relationships" : [ {
         "description" : "Validates authenticated user",
-        "destinationId" : "23",
-        "id" : "31",
-        "linkedRelationshipId" : "29",
+        "destinationId" : "25",
+        "id" : "33",
+        "linkedRelationshipId" : "31",
         "sourceId" : "2",
         "technology" : "JWT / Supabase client"
       }, {
         "description" : "Validates authenticated user",
-        "destinationId" : "22",
-        "id" : "32",
-        "linkedRelationshipId" : "29",
+        "destinationId" : "24",
+        "id" : "34",
+        "linkedRelationshipId" : "31",
         "sourceId" : "2",
         "technology" : "JWT / Supabase client"
       }, {
         "description" : "Stores and retrieves prediction/profile data",
-        "destinationId" : "24",
-        "id" : "34",
-        "linkedRelationshipId" : "33",
+        "destinationId" : "26",
+        "id" : "36",
+        "linkedRelationshipId" : "35",
         "sourceId" : "2",
         "technology" : "PostgREST"
       }, {
         "description" : "Uploads prediction images",
-        "destinationId" : "25",
-        "id" : "36",
-        "linkedRelationshipId" : "35",
+        "destinationId" : "27",
+        "id" : "38",
+        "linkedRelationshipId" : "37",
         "sourceId" : "2",
         "technology" : "Supabase Storage API"
       } ],
@@ -495,7 +542,7 @@
       "containers" : [ {
         "description" : "Authenticates application users.",
         "documentation" : { },
-        "id" : "23",
+        "id" : "25",
         "name" : "Supabase Auth",
         "properties" : {
           "structurizr.dsl.identifier" : "supabaseAuth"
@@ -505,7 +552,7 @@
       }, {
         "description" : "Stores profiles and prediction records.",
         "documentation" : { },
-        "id" : "24",
+        "id" : "26",
         "name" : "PostgreSQL Database",
         "properties" : {
           "structurizr.dsl.identifier" : "supabaseDb"
@@ -515,7 +562,7 @@
       }, {
         "description" : "Stores uploaded fingernail images.",
         "documentation" : { },
-        "id" : "25",
+        "id" : "27",
         "name" : "Object Storage",
         "properties" : {
           "structurizr.dsl.identifier" : "supabaseStorage"
@@ -525,7 +572,7 @@
       } ],
       "description" : "Managed backend platform providing Auth, PostgreSQL, Storage, and Row-Level Security.",
       "documentation" : { },
-      "id" : "22",
+      "id" : "24",
       "name" : "Supabase",
       "properties" : {
         "structurizr.dsl.identifier" : "supabase"
@@ -535,8 +582,8 @@
   },
   "name" : "Anemia Prediction System",
   "properties" : {
-    "structurizr.inspection.error" : "35",
-    "structurizr.dsl" : "d29ya3NwYWNlICJBbmVtaWEgUHJlZGljdGlvbiBTeXN0ZW0iICJDNCBhcmNoaXRlY3R1cmUgbW9kZWwgZm9yIGEgQ05OLWJhc2VkIGNoaWxkaG9vZCBhbmVtaWEgcmlzayBwcmVkaWN0aW9uIHN5c3RlbS4iIHsKCiAgICBtb2RlbCB7CiAgICAgICAgdXNlciA9IHBlcnNvbiAiVXNlciIgIlVzZXMgdGhlIG1vYmlsZSBhcHBsaWNhdGlvbiB0byBzdWJtaXQgZmluZ2VybmFpbCBpbWFnZXMgYW5kIHJldmlldyBhbmVtaWEgcmlzayBwcmVkaWN0aW9ucy4iCgogICAgICAgIGFuZW1pYVN5c3RlbSA9IHNvZnR3YXJlU3lzdGVtICJBbmVtaWEgUHJlZGljdGlvbiBTeXN0ZW0iICJNb2JpbGUgYW5kIGJhY2tlbmQgc3lzdGVtIGZvciBlYXJseSBjaGlsZGhvb2QgYW5lbWlhIHJpc2sgcHJlZGljdGlvbiBmcm9tIGZpbmdlcm5haWwgaW1hZ2VzLiBJdCBzdXBwb3J0cyBwcmVkaWN0aW9uLCBub3QgY2xpbmljYWwgZGlhZ25vc2lzLiIgewogICAgICAgICAgICAKICAgICAgICAgICAgbW9iaWxlQXBwID0gY29udGFpbmVyICJNb2JpbGUgQXBwIiAiQ2FwdHVyZXMgb3Igc2VsZWN0cyBmaW5nZXJuYWlsIGltYWdlcywgc2VuZHMgcHJlZGljdGlvbiByZXF1ZXN0cywgYW5kIGRpc3BsYXlzIHJlc3VsdHMvaGlzdG9yeS4iICJSZWFjdCBOYXRpdmUgLyBFeHBvIgoKICAgICAgICAgICAgYmFja2VuZCA9IGNvbnRhaW5lciAiQmFja2VuZCBBUEkiICJQcm92aWRlcyBwcmVkaWN0aW9uLCBhdXRoZW50aWNhdGlvbi9wcm9maWxlLCBoZWFsdGgsIG1vZGVsIGV2YWx1YXRpb24sIGFuZCBtZXRyaWNzIGVuZHBvaW50cy4iICJGYXN0QVBJICsgVXZpY29ybiArIERvY2tlciIgewogICAgICAgICAgICAgICAgYXBpUm91dGVzID0gY29tcG9uZW50ICJBUEkgUm91dGVzIiAiSFRUUCBlbmRwb2ludHMgZm9yIHByZWRpY3Rpb24sIGhlYWx0aCwgbW9kZWwgZXZhbHVhdGlvbiwgYXV0aC9wcm9maWxlLCBhbmQgbWV0cmljcy4iICJGYXN0QVBJIHJvdXRlcnMiCiAgICAgICAgICAgICAgICBhdXRoU2VydmljZSA9IGNvbXBvbmVudCAiQXV0aCBTZXJ2aWNlIiAiSGFuZGxlcyByZWdpc3RyYXRpb24sIGxvZ2luLCBjdXJyZW50LXVzZXIgbG9va3VwLCBhbmQgYXV0aGVudGljYXRlZCBTdXBhYmFzZSBzZXNzaW9ucy4iICJQeXRob24gc2VydmljZSIKICAgICAgICAgICAgICAgIHByb2ZpbGVTZXJ2aWNlID0gY29tcG9uZW50ICJQcm9maWxlIFNlcnZpY2UiICJNYW5hZ2VzIHByb2ZpbGUgZGF0YSBmb3IgYXV0aGVudGljYXRlZCB1c2Vycy4iICJQeXRob24gc2VydmljZSIKICAgICAgICAgICAgICAgIGF1dGhSZXBvc2l0b3J5ID0gY29tcG9uZW50ICJBdXRoIFJlcG9zaXRvcnkiICJXcmFwcyBTdXBhYmFzZSBBdXRoIG9wZXJhdGlvbnMgZm9yIHNpZ24tdXAsIHNpZ24taW4sIGFuZCB1c2VyIHJlc29sdXRpb24uIiAiU3VwYWJhc2UgQXV0aCBjbGllbnQiCiAgICAgICAgICAgICAgICBwcm9maWxlUmVwb3NpdG9yeSA9IGNvbXBvbmVudCAiUHJvZmlsZSBSZXBvc2l0b3J5IiAiUmVhZHMgYW5kIHVwZGF0ZXMgcHJvZmlsZSByb3dzLiIgIlN1cGFiYXNlIFBvc3RnUkVTVCBjbGllbnQiCiAgICAgICAgICAgICAgICBwcmVkaWN0aW9uU2VydmljZSA9IGNvbXBvbmVudCAiUHJlZGljdGlvbiBTZXJ2aWNlIiAiT3JjaGVzdHJhdGVzIGltYWdlIHZhbGlkYXRpb24sIENOTiBpbmZlcmVuY2UsIGNhbGlicmF0aW9uLCByaXNrIG1hcHBpbmcsIHN0b3JhZ2UsIGFuZCBwZXJzaXN0ZW5jZS4iICJQeXRob24gc2VydmljZSIKICAgICAgICAgICAgICAgIGltYWdlVmFsaWRhdGlvbiA9IGNvbXBvbmVudCAiSW1hZ2UgVmFsaWRhdGlvbiIgIlZhbGlkYXRlcyBpbWFnZSBzaXplLCB0eXBlLCBkZWNvZGluZywgcmVzaXppbmcsIGFuZCBiYXNpYyBmaW5nZXJuYWlsIHByZXNlbmNlLiIgIlB5dGhvbiAvIFBpbGxvdyAvIFRlbnNvckZsb3cgdXRpbGl0aWVzIgogICAgICAgICAgICAgICAgY25uUHJlZGljdG9yID0gY29tcG9uZW50ICJDTk4gUHJlZGljdG9yIiAiTG9hZHMgdGhlIGZpbmFsIEtlcmFzIG1vZGVsIGFuZCBwcm9kdWNlcyByYXcgc2lnbW9pZCBwcm9iYWJpbGl0eS4iICJUZW5zb3JGbG93IC8gS2VyYXMgLyBNb2JpbGVOZXRWMiIKICAgICAgICAgICAgICAgIGNhbGlicmF0aW9uID0gY29tcG9uZW50ICJQcm9iYWJpbGl0eSBDYWxpYnJhdGlvbiIgIkFwcGxpZXMgdGVtcGVyYXR1cmUgc2NhbGluZyBhbmQgb3BlcmF0aW9uYWwgdGhyZXNob2xkaW5nLiIgIlB5dGhvbiIKICAgICAgICAgICAgICAgIHJpc2tNYXBwaW5nID0gY29tcG9uZW50ICJSaXNrIE1hcHBpbmciICJNYXBzIGNhbGlicmF0ZWQgcHJvYmFiaWxpdHkgaW50byBwcmVkaWN0aW9uIGFuZCByaXNrIGxhYmVscy4iICJQeXRob24iCiAgICAgICAgICAgICAgICBwcmVkaWN0aW9uUmVwb3NpdG9yeSA9IGNvbXBvbmVudCAiUHJlZGljdGlvbiBSZXBvc2l0b3J5IiAiUGVyc2lzdHMgYW5kIHJldHJpZXZlcyBwcmVkaWN0aW9uIHJlY29yZHMuIiAiU3VwYWJhc2UgUG9zdGdSRVNUIGNsaWVudCIKICAgICAgICAgICAgICAgIHN0b3JhZ2VSZXBvc2l0b3J5ID0gY29tcG9uZW50ICJQcmVkaWN0aW9uIEltYWdlIFN0b3JhZ2UiICJVcGxvYWRzIHByZWRpY3Rpb24gaW1hZ2VzIHRvIG9iamVjdCBzdG9yYWdlLiIgIlN1cGFiYXNlIFN0b3JhZ2UgY2xpZW50IgogICAgICAgICAgICAgICAgbW9kZWxFdmFsdWF0aW9uID0gY29tcG9uZW50ICJNb2RlbCBFdmFsdWF0aW9uIFNlcnZpY2UiICJFeHBvc2VzIHN0YXRpYyBldmFsdWF0aW9uIG1ldHJpY3MgYW5kIGNhbGlicmF0aW9uIG1ldGFkYXRhIGZvciBtb2RlbCB2MS4wLiIgIlB5dGhvbiIKICAgICAgICAgICAgICAgIG1ldHJpY3NDb21wb25lbnQgPSBjb21wb25lbnQgIk1ldHJpY3MgLyBIZWFsdGggLyBMb2dnaW5nIiAiUHJvdmlkZXMgb3BlcmF0aW9uYWwgaGVhbHRoIHN0YXR1cywgUHJvbWV0aGV1cyBtZXRyaWNzLCBhbmQgc3RydWN0dXJlZCBsb2dzIGZvciBsb2NhbCBhbmQgZGVwbG95ZWQgbW9uaXRvcmluZy4iICJQcm9tZXRoZXVzIGNsaWVudCAvIFB5dGhvbiBsb2dnaW5nIgogICAgICAgICAgICB9CgogICAgICAgICAgICBtbFBpcGVsaW5lID0gY29udGFpbmVyICJNTCBQaXBlbGluZSIgIk9mZmxpbmUgc2NyaXB0cyBmb3IgZGF0YXNldCBwcmVwYXJhdGlvbiwgbW9kZWwgdHJhaW5pbmcsIGV2YWx1YXRpb24sIGNhbGlicmF0aW9uLCBhbmQgYXJ0aWZhY3QgZ2VuZXJhdGlvbi4iICJUZW5zb3JGbG93IC8gS2VyYXMgLyBvcHRpb25hbCBNTGZsb3cgLyBQeXRob24gc2NyaXB0cyIKCiAgICAgICAgICAgIG9ic2VydmFiaWxpdHkgPSBjb250YWluZXIgIk9ic2VydmFiaWxpdHkgU3RhY2siICJDb2xsZWN0cyBhbmQgdmlzdWFsaXplcyBiYWNrZW5kIG1ldHJpY3MgZm9yIGxvY2FsIHZhbGlkYXRpb24gYW5kIHRoZXNpcy9kZW1vIG1vbml0b3JpbmcuIiAiUHJvbWV0aGV1cyArIEdyYWZhbmEiCgogICAgICAgICAgICB0ZmxpdGVBcnRpZmFjdCA9IGNvbnRhaW5lciAiVEZMaXRlIE1vYmlsZSBBcnRpZmFjdCIgIkV4cG9ydGVkIG1vZGVsIGFydGlmYWN0IHRoYXQgY2FuIGJlIGJ1bmRsZWQgd2l0aCB0aGUgbW9iaWxlIGFwcCBmb3Igb3B0aW9uYWwgb2ZmbGluZSBpbmZlcmVuY2UuIiAiVGVuc29yRmxvdyBMaXRlIGZpbGUgKyBtZXRhZGF0YSBKU09OIgogICAgICAgIH0KCiAgICAgICAgc3VwYWJhc2UgPSBzb2Z0d2FyZVN5c3RlbSAiU3VwYWJhc2UiICJNYW5hZ2VkIGJhY2tlbmQgcGxhdGZvcm0gcHJvdmlkaW5nIEF1dGgsIFBvc3RncmVTUUwsIFN0b3JhZ2UsIGFuZCBSb3ctTGV2ZWwgU2VjdXJpdHkuIiAiRXh0ZXJuYWwiIHsKICAgICAgICAgICAgc3VwYWJhc2VBdXRoID0gY29udGFpbmVyICJTdXBhYmFzZSBBdXRoIiAiQXV0aGVudGljYXRlcyBhcHBsaWNhdGlvbiB1c2Vycy4iICJTdXBhYmFzZSBBdXRoIgogICAgICAgICAgICBzdXBhYmFzZURiID0gY29udGFpbmVyICJQb3N0Z3JlU1FMIERhdGFiYXNlIiAiU3RvcmVzIHByb2ZpbGVzIGFuZCBwcmVkaWN0aW9uIHJlY29yZHMuIiAiU3VwYWJhc2UgUG9zdGdyZVNRTCIKICAgICAgICAgICAgc3VwYWJhc2VTdG9yYWdlID0gY29udGFpbmVyICJPYmplY3QgU3RvcmFnZSIgIlN0b3JlcyB1cGxvYWRlZCBmaW5nZXJuYWlsIGltYWdlcy4iICJTdXBhYmFzZSBTdG9yYWdlIgogICAgICAgIH0KCiAgICAgICAgdXNlciAtPiBtb2JpbGVBcHAgIlVzZXMiCgogICAgICAgIG1vYmlsZUFwcCAtPiBiYWNrZW5kICJTdWJtaXRzIGltYWdlIGFuZCByZWNlaXZlcyBjYWxpYnJhdGVkIHByZWRpY3Rpb24iICJIVFRQUyAvIG11bHRpcGFydC1mb3JtLWRhdGEgLyBKU09OIgogICAgICAgIGJhY2tlbmQgLT4gc3VwYWJhc2VBdXRoICJWYWxpZGF0ZXMgYXV0aGVudGljYXRlZCB1c2VyIiAiSldUIC8gU3VwYWJhc2UgY2xpZW50IgogICAgICAgIGJhY2tlbmQgLT4gc3VwYWJhc2VEYiAiU3RvcmVzIGFuZCByZXRyaWV2ZXMgcHJlZGljdGlvbi9wcm9maWxlIGRhdGEiICJQb3N0Z1JFU1QiCiAgICAgICAgYmFja2VuZCAtPiBzdXBhYmFzZVN0b3JhZ2UgIlVwbG9hZHMgcHJlZGljdGlvbiBpbWFnZXMiICJTdXBhYmFzZSBTdG9yYWdlIEFQSSIKCiAgICAgICAgb2JzZXJ2YWJpbGl0eSAtPiBiYWNrZW5kICJTY3JhcGVzIC9tZXRyaWNzIiAiUHJvbWV0aGV1cyBzY3JhcGUiCgogICAgICAgIG1sUGlwZWxpbmUgLT4gYmFja2VuZCAiUHJvZHVjZXMgZmluYWwgS2VyYXMgbW9kZWwgYW5kIGV2YWx1YXRpb24gbWV0YWRhdGEiICIua2VyYXMgLyBKU09OIC8gTWFya2Rvd24iCiAgICAgICAgbWxQaXBlbGluZSAtPiB0ZmxpdGVBcnRpZmFjdCAiRXhwb3J0cyBtb2JpbGUgaW5mZXJlbmNlIGFydGlmYWN0IiAiLnRmbGl0ZSArIG1ldGFkYXRhIEpTT04iCgogICAgICAgIG1vYmlsZUFwcCAtPiB0ZmxpdGVBcnRpZmFjdCAiQ2FuIHVzZSBmb3Igb2ZmbGluZSBpbmZlcmVuY2UgbW9kZSIgIk9uLWRldmljZSBpbmZlcmVuY2UiCgogICAgICAgIG1vYmlsZUFwcCAtPiBhcGlSb3V0ZXMgIkNhbGxzIGJhY2tlbmQgSFRUUCBlbmRwb2ludHMiICJIVFRQUyAvIEpTT04gLyBtdWx0aXBhcnQtZm9ybS1kYXRhIgogICAgICAgIGFwaVJvdXRlcyAtPiBwcmVkaWN0aW9uU2VydmljZSAiRGVsZWdhdGVzIHByZWRpY3Rpb24gcmVxdWVzdHMiCiAgICAgICAgYXBpUm91dGVzIC0+IGF1dGhTZXJ2aWNlICJEZWxlZ2F0ZXMgYXV0aGVudGljYXRpb24gcmVxdWVzdHMiCiAgICAgICAgYXBpUm91dGVzIC0+IHByb2ZpbGVTZXJ2aWNlICJEZWxlZ2F0ZXMgcHJvZmlsZSByZXF1ZXN0cyIKICAgICAgICBhcGlSb3V0ZXMgLT4gbW9kZWxFdmFsdWF0aW9uICJSZXR1cm5zIG1vZGVsIGV2YWx1YXRpb24gbWV0YWRhdGEiCiAgICAgICAgYXBpUm91dGVzIC0+IG1ldHJpY3NDb21wb25lbnQgIkV4cG9zZXMgL2hlYWx0aCBhbmQgL21ldHJpY3MiCgogICAgICAgIGF1dGhTZXJ2aWNlIC0+IGF1dGhSZXBvc2l0b3J5ICJEZWxlZ2F0ZXMgU3VwYWJhc2UgQXV0aCBvcGVyYXRpb25zIgogICAgICAgIGF1dGhTZXJ2aWNlIC0+IHByb2ZpbGVTZXJ2aWNlICJDaGVja3MgcHJvZmlsZSBjb21wbGV0aW9uIGFmdGVyIGF1dGggZmxvd3MiCiAgICAgICAgYXV0aFNlcnZpY2UgLT4gcHJvZmlsZVJlcG9zaXRvcnkgIkVuc3VyZXMgcHJvZmlsZSByb3cgb24gcmVnaXN0cmF0aW9uIgogICAgICAgIHByb2ZpbGVTZXJ2aWNlIC0+IHByb2ZpbGVSZXBvc2l0b3J5ICJSZWFkcyBhbmQgdXBkYXRlcyBwcm9maWxlIGRhdGEiCiAgICAgICAgYXV0aFJlcG9zaXRvcnkgLT4gc3VwYWJhc2VBdXRoICJSZWdpc3RlcnMsIHNpZ25zIGluLCBhbmQgcmVzb2x2ZXMgdXNlcnMiCiAgICAgICAgcHJvZmlsZVJlcG9zaXRvcnkgLT4gc3VwYWJhc2VEYiAiUmVhZHMgYW5kIHVwZGF0ZXMgcHJvZmlsZSByb3dzIgogICAgICAgIHByZWRpY3Rpb25TZXJ2aWNlIC0+IGltYWdlVmFsaWRhdGlvbiAiVmFsaWRhdGVzIGFuZCBwcmVwYXJlcyBpbWFnZSIKICAgICAgICBwcmVkaWN0aW9uU2VydmljZSAtPiBjbm5QcmVkaWN0b3IgIkdldHMgcmF3IHNpZ21vaWQgcHJvYmFiaWxpdHkiCiAgICAgICAgcHJlZGljdGlvblNlcnZpY2UgLT4gY2FsaWJyYXRpb24gIkFwcGxpZXMgdGVtcGVyYXR1cmUgc2NhbGluZyIKICAgICAgICBwcmVkaWN0aW9uU2VydmljZSAtPiByaXNrTWFwcGluZyAiTWFwcyBjYWxpYnJhdGVkIHByb2JhYmlsaXR5IHRvIHJpc2siCiAgICAgICAgcHJlZGljdGlvblNlcnZpY2UgLT4gcHJlZGljdGlvblJlcG9zaXRvcnkgIlBlcnNpc3RzIHByZWRpY3Rpb24gcmVjb3JkIgogICAgICAgIHByZWRpY3Rpb25TZXJ2aWNlIC0+IHN0b3JhZ2VSZXBvc2l0b3J5ICJVcGxvYWRzIGltYWdlIgoKICAgICAgICBtbFBpcGVsaW5lIC0+IGNublByZWRpY3RvciAiUHJvdmlkZXMgZmluYWwgS2VyYXMgbW9kZWwgYXJ0aWZhY3QiICIua2VyYXMiCiAgICAgICAgcHJlZGljdGlvblJlcG9zaXRvcnkgLT4gc3VwYWJhc2VEYiAiSW5zZXJ0cy9zZWxlY3RzIHByZWRpY3Rpb24gcm93cyIKICAgICAgICBzdG9yYWdlUmVwb3NpdG9yeSAtPiBzdXBhYmFzZVN0b3JhZ2UgIlVwbG9hZHMgaW1hZ2Ugb2JqZWN0cyIKICAgICAgICBtZXRyaWNzQ29tcG9uZW50IC0+IGNublByZWRpY3RvciAiUmVhZHMgbW9kZWwgbG9hZGVkIHN0YXR1cyIKICAgIH0KCiAgICB2aWV3cyB7CiAgICAgICAgdGhlbWUgaHR0cHM6Ly9zdGF0aWMuc3RydWN0dXJpenIuY29tL3RoZW1lcy9kZWZhdWx0L3RoZW1lLmpzb24KCiAgICAgICAgc3lzdGVtQ29udGV4dCBhbmVtaWFTeXN0ZW0gIkMxLVN5c3RlbS1Db250ZXh0IiB7CiAgICAgICAgICAgIGluY2x1ZGUgKgogICAgICAgICAgICBhdXRvTGF5b3V0IGxyCiAgICAgICAgICAgIHRpdGxlICJDMSAtIFN5c3RlbSBDb250ZXh0OiBBbmVtaWEgUHJlZGljdGlvbiBTeXN0ZW0iCiAgICAgICAgICAgIGRlc2NyaXB0aW9uICJTeXN0ZW0gY29udGV4dCBkaWFncmFtIHNob3dpbmcgdGhlIHVzZXIsIGFuZW1pYSBwcmVkaWN0aW9uIHN5c3RlbSwgYW5kIGV4dGVybmFsIG1hbmFnZWQgcGxhdGZvcm0uIgogICAgICAgIH0KCiAgICAgICAgY29udGFpbmVyIGFuZW1pYVN5c3RlbSAiQzItQ29udGFpbmVycyIgewogICAgICAgICAgICBpbmNsdWRlICoKICAgICAgICAgICAgYXV0b0xheW91dCBscgogICAgICAgICAgICB0aXRsZSAiQzIgLSBDb250YWluZXIgRGlhZ3JhbTogQW5lbWlhIFByZWRpY3Rpb24gU3lzdGVtIgogICAgICAgICAgICBkZXNjcmlwdGlvbiAiQ29udGFpbmVyIGRpYWdyYW0gc2hvd2luZyB0aGUgbW9iaWxlIGFwcCwgYmFja2VuZCBBUEksIG9mZmxpbmUgTUwgcGlwZWxpbmUsIG9ic2VydmFiaWxpdHkgc3RhY2ssIGV4cG9ydGVkIFRGTGl0ZSBhcnRpZmFjdCwgYW5kIFN1cGFiYXNlIHNlcnZpY2VzLiIKICAgICAgICB9CgogICAgICAgIGNvbXBvbmVudCBiYWNrZW5kICJDMy1CYWNrZW5kLUNvbXBvbmVudHMiIHsKICAgICAgICAgICAgaW5jbHVkZSAqCiAgICAgICAgICAgIGF1dG9MYXlvdXQgbHIKICAgICAgICAgICAgdGl0bGUgIkMzIC0gQ29tcG9uZW50IERpYWdyYW06IEJhY2tlbmQgQVBJIgogICAgICAgICAgICBkZXNjcmlwdGlvbiAiQ29tcG9uZW50IGRpYWdyYW0gc2hvd2luZyB0aGUgbWFpbiBGYXN0QVBJIGJhY2tlbmQgbW9kdWxlcyBpbnZvbHZlZCBpbiBwcmVkaWN0aW9uLCBhdXRoZW50aWNhdGlvbi9wcm9maWxlLCByZXBvc2l0b3JpZXMsIGNhbGlicmF0aW9uLCBwZXJzaXN0ZW5jZSwgbWV0cmljcywgYW5kIG1vZGVsIGV2YWx1YXRpb24uIgogICAgICAgIH0KCiAgICAgICAgc3R5bGVzIHsKICAgICAgICAgICAgZWxlbWVudCAiUGVyc29uIiB7CiAgICAgICAgICAgICAgICBzaGFwZSBwZXJzb24KICAgICAgICAgICAgICAgIGJhY2tncm91bmQgIzA4NDI3QgogICAgICAgICAgICAgICAgY29sb3IgI0ZGRkZGRgogICAgICAgICAgICB9CgogICAgICAgICAgICBlbGVtZW50ICJTb2Z0d2FyZSBTeXN0ZW0iIHsKICAgICAgICAgICAgICAgIGJhY2tncm91bmQgIzExNjhCRAogICAgICAgICAgICAgICAgY29sb3IgI0ZGRkZGRgogICAgICAgICAgICB9CgogICAgICAgICAgICBlbGVtZW50ICJDb250YWluZXIiIHsKICAgICAgICAgICAgICAgIGJhY2tncm91bmQgIzQzOERENQogICAgICAgICAgICAgICAgY29sb3IgI0ZGRkZGRgogICAgICAgICAgICB9CgogICAgICAgICAgICBlbGVtZW50ICJDb21wb25lbnQiIHsKICAgICAgICAgICAgICAgIGJhY2tncm91bmQgIzg1QkJGMAogICAgICAgICAgICAgICAgY29sb3IgIzAwMDAwMAogICAgICAgICAgICB9CgogICAgICAgICAgICBlbGVtZW50ICJFeHRlcm5hbCIgewogICAgICAgICAgICAgICAgYmFja2dyb3VuZCAjOTk5OTk5CiAgICAgICAgICAgICAgICBjb2xvciAjRkZGRkZGCiAgICAgICAgICAgIH0KICAgICAgICB9CiAgICB9Cn0=",
+    "structurizr.inspection.error" : "38",
+    "structurizr.dsl" : "d29ya3NwYWNlICJBbmVtaWEgUHJlZGljdGlvbiBTeXN0ZW0iICJDNCBhcmNoaXRlY3R1cmUgbW9kZWwgZm9yIGEgQ05OLWJhc2VkIGNoaWxkaG9vZCBhbmVtaWEgcmlzayBwcmVkaWN0aW9uIHN5c3RlbS4iIHsKCiAgICBtb2RlbCB7CiAgICAgICAgdXNlciA9IHBlcnNvbiAiVXNlciIgIlVzZXMgdGhlIG1vYmlsZSBhcHBsaWNhdGlvbiB0byBzdWJtaXQgZmluZ2VybmFpbCBpbWFnZXMgYW5kIHJldmlldyBhbmVtaWEgcmlzayBwcmVkaWN0aW9ucy4iCgogICAgICAgIGFuZW1pYVN5c3RlbSA9IHNvZnR3YXJlU3lzdGVtICJBbmVtaWEgUHJlZGljdGlvbiBTeXN0ZW0iICJNb2JpbGUgYW5kIGJhY2tlbmQgc3lzdGVtIGZvciBlYXJseSBjaGlsZGhvb2QgYW5lbWlhIHJpc2sgcHJlZGljdGlvbiBmcm9tIGZpbmdlcm5haWwgaW1hZ2VzLiBJdCBzdXBwb3J0cyBwcmVkaWN0aW9uLCBub3QgY2xpbmljYWwgZGlhZ25vc2lzLiIgewogICAgICAgICAgICAKICAgICAgICAgICAgbW9iaWxlQXBwID0gY29udGFpbmVyICJNb2JpbGUgQXBwIiAiQ2FwdHVyZXMgb3Igc2VsZWN0cyBmaW5nZXJuYWlsIGltYWdlcywgc2VuZHMgcHJlZGljdGlvbiByZXF1ZXN0cywgYW5kIGRpc3BsYXlzIHJlc3VsdHMvaGlzdG9yeS4iICJSZWFjdCBOYXRpdmUgLyBFeHBvIgoKICAgICAgICAgICAgYmFja2VuZCA9IGNvbnRhaW5lciAiQmFja2VuZCBBUEkiICJQcm92aWRlcyBwcmVkaWN0aW9uLCBhdXRoZW50aWNhdGlvbi9wcm9maWxlLCBoZWFsdGgsIG1vZGVsIGV2YWx1YXRpb24sIGFuZCBtZXRyaWNzIGVuZHBvaW50cy4iICJGYXN0QVBJICsgVXZpY29ybiArIERvY2tlciIgewogICAgICAgICAgICAgICAgYXBpUm91dGVzID0gY29tcG9uZW50ICJBUEkgUm91dGVzIiAiSFRUUCBlbmRwb2ludHMgZm9yIGF1dGhlbnRpY2F0aW9uL3Byb2ZpbGUsIHByZWRpY3Rpb24gKFBPU1QgKyBoaXN0b3J5ICsgc2lnbmVkIGltYWdlIFVSTCksIGhlYWx0aCwgbW9kZWwgZXZhbHVhdGlvbiwgYW5kIG1ldHJpY3MuIiAiRmFzdEFQSSByb3V0ZXJzICsgbGlmZXNwYW4gaW4gYXBwLnB5IgogICAgICAgICAgICAgICAgcmF0ZUxpbWl0TWlkZGxld2FyZSA9IGNvbXBvbmVudCAiUmF0ZSBMaW1pdCBNaWRkbGV3YXJlIiAiSW4tbWVtb3J5IHNsaWRpbmctd2luZG93IHRocm90dGxlIGZvciBzZW5zaXRpdmUgUE9TVCByb3V0ZXMgKC9hdXRoL2xvZ2luLCAvYXV0aC9yZWdpc3RlciwgL3ByZWRpY3QpLiIgIlN0YXJsZXR0ZSBCYXNlSFRUUE1pZGRsZXdhcmUiCiAgICAgICAgICAgICAgICBhdXRoU2VydmljZSA9IGNvbXBvbmVudCAiQXV0aCBTZXJ2aWNlIiAiSGFuZGxlcyByZWdpc3RyYXRpb24sIGxvZ2luLCBjdXJyZW50LXVzZXIgbG9va3VwLCBhbmQgYXV0aGVudGljYXRlZCBTdXBhYmFzZSBzZXNzaW9ucy4iICJQeXRob24gc2VydmljZSIKICAgICAgICAgICAgICAgIHByb2ZpbGVTZXJ2aWNlID0gY29tcG9uZW50ICJQcm9maWxlIFNlcnZpY2UiICJNYW5hZ2VzIHByb2ZpbGUgZGF0YSBmb3IgYXV0aGVudGljYXRlZCB1c2Vycy4iICJQeXRob24gc2VydmljZSIKICAgICAgICAgICAgICAgIGF1dGhSZXBvc2l0b3J5ID0gY29tcG9uZW50ICJBdXRoIFJlcG9zaXRvcnkiICJXcmFwcyBTdXBhYmFzZSBBdXRoIG9wZXJhdGlvbnMgZm9yIHNpZ24tdXAsIHNpZ24taW4sIGFuZCB1c2VyIHJlc29sdXRpb24uIiAiU3VwYWJhc2UgQXV0aCBjbGllbnQiCiAgICAgICAgICAgICAgICBwcm9maWxlUmVwb3NpdG9yeSA9IGNvbXBvbmVudCAiUHJvZmlsZSBSZXBvc2l0b3J5IiAiUmVhZHMgYW5kIHVwZGF0ZXMgcHJvZmlsZSByb3dzLiIgIlN1cGFiYXNlIFBvc3RnUkVTVCBjbGllbnQiCiAgICAgICAgICAgICAgICBwcmVkaWN0aW9uU2VydmljZSA9IGNvbXBvbmVudCAiUHJlZGljdGlvbiBTZXJ2aWNlIiAiT3JjaGVzdHJhdGVzIGltYWdlIHZhbGlkYXRpb24sIENOTiBpbmZlcmVuY2UsIGNhbGlicmF0aW9uLCByaXNrIG1hcHBpbmcsIHN0b3JhZ2UsIGFuZCBwZXJzaXN0ZW5jZSAoUE9TVCAvcHJlZGljdCwgaGlzdG9yeSwgc2lnbmVkIFVSTCkuIiAiUHl0aG9uIHNlcnZpY2UiCiAgICAgICAgICAgICAgICBpbWFnZVZhbGlkYXRpb24gPSBjb21wb25lbnQgIkltYWdlIFZhbGlkYXRpb24iICJWYWxpZGF0ZXMgTUlNRS9zaXplIGxpbWl0cywgZGVjb2RlcyBhbmQgcmVzaXplcyB0aGUgaW1hZ2UsIGFuZCBydW5zIGEgZmluZ2VybmFpbC1wcmVzZW5jZSBoZXVyaXN0aWMgYmVmb3JlIGluZmVyZW5jZS4iICJQeXRob24gLyBQaWxsb3cgLyBUZW5zb3JGbG93IHV0aWxpdGllcyIKICAgICAgICAgICAgICAgIGluZmVyZW5jZVJ1bnRpbWUgPSBjb21wb25lbnQgIkluZmVyZW5jZSBSdW50aW1lIiAiT3ducyBtb2RlbCBsaWZlY3ljbGUgKGluaXQvc2h1dGRvd24pLCByZXNvbHZlcyB0aGUgYWN0aXZlIGltYWdlIHByZWRpY3RvciwgYW5kIHJlcG9ydHMgbW9kZWxfbG9hZGVkIC8gZGVncmFkZWQgc3RhdHVzIHRvIGhlYWx0aCBhbmQgbWV0cmljcy4iICJQeXRob24gbW9kdWxlICsgRmFzdEFQSSBsaWZlc3BhbiIKICAgICAgICAgICAgICAgIGNublByZWRpY3RvciA9IGNvbXBvbmVudCAiQ05OIFByZWRpY3RvciIgIkltYWdlUHJlZGljdG9yIHByb3RvY29sIHdpdGggS2VyYXNJbWFnZVByZWRpY3RvciBhcyB0aGUgcHJvZHVjdGlvbiBpbXBsZW1lbnRhdGlvbjsgcnVucyB0aGUgc2hhcmVkIEc5IHByZXByb2Nlc3NpbmcgcGlwZWxpbmUgYW5kIHByb2R1Y2VzIGEgcmF3IHNpZ21vaWQgcHJvYmFiaWxpdHkuIiAiVGVuc29yRmxvdyAvIEtlcmFzIC8gTW9iaWxlTmV0VjIgKyBtbC5wcmVwcm9jZXNzaW5nIgogICAgICAgICAgICAgICAgY2FsaWJyYXRpb24gPSBjb21wb25lbnQgIlByb2JhYmlsaXR5IENhbGlicmF0aW9uIiAiQXBwbGllcyB0ZW1wZXJhdHVyZSBzY2FsaW5nIGFuZCBvcGVyYXRpb25hbCB0aHJlc2hvbGRpbmcuIiAiUHl0aG9uIgogICAgICAgICAgICAgICAgcmlza01hcHBpbmcgPSBjb21wb25lbnQgIlJpc2sgTWFwcGluZyIgIk1hcHMgY2FsaWJyYXRlZCBwcm9iYWJpbGl0eSBpbnRvIHByZWRpY3Rpb24gYW5kIHJpc2sgbGFiZWxzLiIgIlB5dGhvbiIKICAgICAgICAgICAgICAgIHByZWRpY3Rpb25SZXBvc2l0b3J5ID0gY29tcG9uZW50ICJQcmVkaWN0aW9uIFJlcG9zaXRvcnkiICJQZXJzaXN0cyBhbmQgcmV0cmlldmVzIHByZWRpY3Rpb24gcmVjb3Jkcy4iICJTdXBhYmFzZSBQb3N0Z1JFU1QgY2xpZW50IgogICAgICAgICAgICAgICAgc3RvcmFnZVJlcG9zaXRvcnkgPSBjb21wb25lbnQgIlByZWRpY3Rpb24gSW1hZ2UgU3RvcmFnZSIgIlVwbG9hZHMgcHJlZGljdGlvbiBpbWFnZXMgYW5kIGlzc3VlcyBzaWduZWQgZG93bmxvYWQgVVJMcy4iICJTdXBhYmFzZSBTdG9yYWdlIGNsaWVudCIKICAgICAgICAgICAgICAgIG1vZGVsRXZhbHVhdGlvbiA9IGNvbXBvbmVudCAiTW9kZWwgRXZhbHVhdGlvbiBTZXJ2aWNlIiAiRXhwb3NlcyBzdGF0aWMgZXZhbHVhdGlvbiBtZXRyaWNzIGFuZCBjYWxpYnJhdGlvbiBtZXRhZGF0YSBmb3IgbW9kZWwgdjEuMC4iICJQeXRob24iCiAgICAgICAgICAgICAgICBtZXRyaWNzQ29tcG9uZW50ID0gY29tcG9uZW50ICJNZXRyaWNzIC8gSGVhbHRoIC8gTG9nZ2luZyIgIlByb21ldGhldXMgSFRUUCBtaWRkbGV3YXJlLCAvbWV0cmljcyBidWlsZGVyLCAvaGVhbHRoIHN0YXR1cywgYW5kIHN0cnVjdHVyZWQgbG9ncyBmb3IgbG9jYWwgYW5kIGRlcGxveWVkIG1vbml0b3JpbmcuIiAiUHJvbWV0aGV1cyBjbGllbnQgLyBTdGFybGV0dGUgbWlkZGxld2FyZSAvIFB5dGhvbiBsb2dnaW5nIgogICAgICAgICAgICB9CgogICAgICAgICAgICBtbFBpcGVsaW5lID0gY29udGFpbmVyICJNTCBQaXBlbGluZSIgIk9mZmxpbmUgc2NyaXB0cyBmb3IgZGF0YXNldCBwcmVwYXJhdGlvbiwgbW9kZWwgdHJhaW5pbmcsIGV2YWx1YXRpb24sIGNhbGlicmF0aW9uLCBhcnRpZmFjdCBnZW5lcmF0aW9uLCBzaGFyZWQgcHJlcHJvY2Vzc2luZyAoRzkpLCBURkxpdGUgb2ZmbGluZSBpbmZlcmVuY2UgKEc4KSwgYW5kIEdyYWQtQ0FNIChHMTApLiIgIlRlbnNvckZsb3cgLyBLZXJhcyAvIG9wdGlvbmFsIE1MZmxvdyAvIFB5dGhvbiBzY3JpcHRzIgoKICAgICAgICAgICAgb2JzZXJ2YWJpbGl0eSA9IGNvbnRhaW5lciAiT2JzZXJ2YWJpbGl0eSBTdGFjayIgIkNvbGxlY3RzIGFuZCB2aXN1YWxpemVzIGJhY2tlbmQgbWV0cmljcyBmb3IgbG9jYWwgdmFsaWRhdGlvbiBhbmQgdGhlc2lzL2RlbW8gbW9uaXRvcmluZy4iICJQcm9tZXRoZXVzICsgR3JhZmFuYSIKCiAgICAgICAgICAgIHRmbGl0ZUFydGlmYWN0ID0gY29udGFpbmVyICJURkxpdGUgTW9iaWxlIEFydGlmYWN0IiAiRXhwb3J0ZWQgZmxvYXQzMiBURkxpdGUgZ3JhcGggKHJhdyBzaWdtb2lkIG9ubHkpLiBUZW1wZXJhdHVyZSBzY2FsaW5nIGFuZCBvcGVyYXRpb25hbCB0aHJlc2hvbGQgZnJvbSBtZXRhZGF0YSBKU09OIGFyZSBhcHBsaWVkIG9mZi1kZXZpY2UsIG1hdGNoaW5nIGJhY2tlbmQgY2FsaWJyYXRpb24uIEJ1bmRsZWQgZm9yIG9wdGlvbmFsIG9mZmxpbmUgaW5mZXJlbmNlLiIgIlRlbnNvckZsb3cgTGl0ZSBmaWxlICsgbWV0YWRhdGEgSlNPTiIKICAgICAgICB9CgogICAgICAgIHN1cGFiYXNlID0gc29mdHdhcmVTeXN0ZW0gIlN1cGFiYXNlIiAiTWFuYWdlZCBiYWNrZW5kIHBsYXRmb3JtIHByb3ZpZGluZyBBdXRoLCBQb3N0Z3JlU1FMLCBTdG9yYWdlLCBhbmQgUm93LUxldmVsIFNlY3VyaXR5LiIgIkV4dGVybmFsIiB7CiAgICAgICAgICAgIHN1cGFiYXNlQXV0aCA9IGNvbnRhaW5lciAiU3VwYWJhc2UgQXV0aCIgIkF1dGhlbnRpY2F0ZXMgYXBwbGljYXRpb24gdXNlcnMuIiAiU3VwYWJhc2UgQXV0aCIKICAgICAgICAgICAgc3VwYWJhc2VEYiA9IGNvbnRhaW5lciAiUG9zdGdyZVNRTCBEYXRhYmFzZSIgIlN0b3JlcyBwcm9maWxlcyBhbmQgcHJlZGljdGlvbiByZWNvcmRzLiIgIlN1cGFiYXNlIFBvc3RncmVTUUwiCiAgICAgICAgICAgIHN1cGFiYXNlU3RvcmFnZSA9IGNvbnRhaW5lciAiT2JqZWN0IFN0b3JhZ2UiICJTdG9yZXMgdXBsb2FkZWQgZmluZ2VybmFpbCBpbWFnZXMuIiAiU3VwYWJhc2UgU3RvcmFnZSIKICAgICAgICB9CgogICAgICAgIHVzZXIgLT4gbW9iaWxlQXBwICJVc2VzIgoKICAgICAgICBtb2JpbGVBcHAgLT4gYmFja2VuZCAiU3VibWl0cyBpbWFnZSBhbmQgcmVjZWl2ZXMgY2FsaWJyYXRlZCBwcmVkaWN0aW9uIiAiSFRUUFMgLyBtdWx0aXBhcnQtZm9ybS1kYXRhIC8gSlNPTiIKICAgICAgICBiYWNrZW5kIC0+IHN1cGFiYXNlQXV0aCAiVmFsaWRhdGVzIGF1dGhlbnRpY2F0ZWQgdXNlciIgIkpXVCAvIFN1cGFiYXNlIGNsaWVudCIKICAgICAgICBiYWNrZW5kIC0+IHN1cGFiYXNlRGIgIlN0b3JlcyBhbmQgcmV0cmlldmVzIHByZWRpY3Rpb24vcHJvZmlsZSBkYXRhIiAiUG9zdGdSRVNUIgogICAgICAgIGJhY2tlbmQgLT4gc3VwYWJhc2VTdG9yYWdlICJVcGxvYWRzIHByZWRpY3Rpb24gaW1hZ2VzIiAiU3VwYWJhc2UgU3RvcmFnZSBBUEkiCgogICAgICAgIG9ic2VydmFiaWxpdHkgLT4gYmFja2VuZCAiU2NyYXBlcyAvbWV0cmljcyIgIlByb21ldGhldXMgc2NyYXBlIgoKICAgICAgICBtbFBpcGVsaW5lIC0+IGJhY2tlbmQgIlByb2R1Y2VzIGZpbmFsIEtlcmFzIG1vZGVsIGFuZCBldmFsdWF0aW9uIG1ldGFkYXRhIiAiLmtlcmFzIC8gSlNPTiAvIE1hcmtkb3duIgogICAgICAgIG1sUGlwZWxpbmUgLT4gdGZsaXRlQXJ0aWZhY3QgIkV4cG9ydHMgbW9iaWxlIGluZmVyZW5jZSBhcnRpZmFjdCIgIi50ZmxpdGUgKyBtZXRhZGF0YSBKU09OIgoKICAgICAgICBtb2JpbGVBcHAgLT4gdGZsaXRlQXJ0aWZhY3QgIkNhbiB1c2UgZm9yIG9mZmxpbmUgaW5mZXJlbmNlIG1vZGUiICJPbi1kZXZpY2UgaW5mZXJlbmNlIgoKICAgICAgICBtb2JpbGVBcHAgLT4gcmF0ZUxpbWl0TWlkZGxld2FyZSAiQ2FsbHMgYmFja2VuZCBIVFRQIGVuZHBvaW50cyIgIkhUVFBTIC8gSlNPTiAvIG11bHRpcGFydC1mb3JtLWRhdGEiCiAgICAgICAgcmF0ZUxpbWl0TWlkZGxld2FyZSAtPiBhcGlSb3V0ZXMgIkZvcndhcmRzIGFsbG93ZWQgcmVxdWVzdHMiCiAgICAgICAgYXBpUm91dGVzIC0+IHByZWRpY3Rpb25TZXJ2aWNlICJEZWxlZ2F0ZXMgcHJlZGljdGlvbiByZXF1ZXN0cyIKICAgICAgICBhcGlSb3V0ZXMgLT4gYXV0aFNlcnZpY2UgIkRlbGVnYXRlcyBhdXRoZW50aWNhdGlvbiByZXF1ZXN0cyIKICAgICAgICBhcGlSb3V0ZXMgLT4gcHJvZmlsZVNlcnZpY2UgIkRlbGVnYXRlcyBwcm9maWxlIHJlcXVlc3RzIgogICAgICAgIGFwaVJvdXRlcyAtPiBtb2RlbEV2YWx1YXRpb24gIlJldHVybnMgbW9kZWwgZXZhbHVhdGlvbiBtZXRhZGF0YSIKICAgICAgICBhcGlSb3V0ZXMgLT4gbWV0cmljc0NvbXBvbmVudCAiRXhwb3NlcyAvaGVhbHRoIGFuZCAvbWV0cmljcyIKCiAgICAgICAgYXV0aFNlcnZpY2UgLT4gYXV0aFJlcG9zaXRvcnkgIkRlbGVnYXRlcyBTdXBhYmFzZSBBdXRoIG9wZXJhdGlvbnMiCiAgICAgICAgYXV0aFNlcnZpY2UgLT4gcHJvZmlsZVNlcnZpY2UgIkNoZWNrcyBwcm9maWxlIGNvbXBsZXRpb24gYWZ0ZXIgYXV0aCBmbG93cyIKICAgICAgICBhdXRoU2VydmljZSAtPiBwcm9maWxlUmVwb3NpdG9yeSAiRW5zdXJlcyBwcm9maWxlIHJvdyBvbiByZWdpc3RyYXRpb24iCiAgICAgICAgcHJvZmlsZVNlcnZpY2UgLT4gcHJvZmlsZVJlcG9zaXRvcnkgIlJlYWRzIGFuZCB1cGRhdGVzIHByb2ZpbGUgZGF0YSIKICAgICAgICBhdXRoUmVwb3NpdG9yeSAtPiBzdXBhYmFzZUF1dGggIlJlZ2lzdGVycywgc2lnbnMgaW4sIGFuZCByZXNvbHZlcyB1c2VycyIKICAgICAgICBwcm9maWxlUmVwb3NpdG9yeSAtPiBzdXBhYmFzZURiICJSZWFkcyBhbmQgdXBkYXRlcyBwcm9maWxlIHJvd3MiCiAgICAgICAgcHJlZGljdGlvblNlcnZpY2UgLT4gaW1hZ2VWYWxpZGF0aW9uICJWYWxpZGF0ZXMgYW5kIHByZXBhcmVzIGltYWdlIgogICAgICAgIHByZWRpY3Rpb25TZXJ2aWNlIC0+IGluZmVyZW5jZVJ1bnRpbWUgIlJlc29sdmVzIHRoZSBhY3RpdmUgaW1hZ2UgcHJlZGljdG9yIgogICAgICAgIHByZWRpY3Rpb25TZXJ2aWNlIC0+IGNublByZWRpY3RvciAiR2V0cyByYXcgc2lnbW9pZCBwcm9iYWJpbGl0eSIKICAgICAgICBwcmVkaWN0aW9uU2VydmljZSAtPiBjYWxpYnJhdGlvbiAiQXBwbGllcyB0ZW1wZXJhdHVyZSBzY2FsaW5nIgogICAgICAgIHByZWRpY3Rpb25TZXJ2aWNlIC0+IHJpc2tNYXBwaW5nICJNYXBzIGNhbGlicmF0ZWQgcHJvYmFiaWxpdHkgdG8gcmlzayIKICAgICAgICBwcmVkaWN0aW9uU2VydmljZSAtPiBwcmVkaWN0aW9uUmVwb3NpdG9yeSAiUGVyc2lzdHMgcHJlZGljdGlvbiByZWNvcmQiCiAgICAgICAgcHJlZGljdGlvblNlcnZpY2UgLT4gc3RvcmFnZVJlcG9zaXRvcnkgIlVwbG9hZHMgaW1hZ2UgYW5kIGlzc3VlcyBzaWduZWQgVVJMcyIKCiAgICAgICAgaW5mZXJlbmNlUnVudGltZSAtPiBjbm5QcmVkaWN0b3IgIkxvYWRzIGFuZCBvd25zIHRoZSBLZXJhcyBwcmVkaWN0b3IgaW5zdGFuY2UiCiAgICAgICAgbWxQaXBlbGluZSAtPiBpbmZlcmVuY2VSdW50aW1lICJQcm92aWRlcyBmaW5hbCBLZXJhcyBtb2RlbCBhcnRpZmFjdCIgIi5rZXJhcyIKICAgICAgICBtbFBpcGVsaW5lIC0+IGNublByZWRpY3RvciAiU2hhcmVzIHByZXByb2Nlc3NpbmcgcGlwZWxpbmUgKEc5KSIgIm1sLnByZXByb2Nlc3NpbmcgbW9kdWxlIgogICAgICAgIHByZWRpY3Rpb25SZXBvc2l0b3J5IC0+IHN1cGFiYXNlRGIgIkluc2VydHMvc2VsZWN0cyBwcmVkaWN0aW9uIHJvd3MiCiAgICAgICAgc3RvcmFnZVJlcG9zaXRvcnkgLT4gc3VwYWJhc2VTdG9yYWdlICJVcGxvYWRzIGltYWdlIG9iamVjdHMiCiAgICAgICAgbWV0cmljc0NvbXBvbmVudCAtPiBpbmZlcmVuY2VSdW50aW1lICJSZWFkcyBtb2RlbF9sb2FkZWQgLyBzZXJ2aWNlIHN0YXR1cyIKICAgIH0KCiAgICB2aWV3cyB7CiAgICAgICAgdGhlbWUgaHR0cHM6Ly9zdGF0aWMuc3RydWN0dXJpenIuY29tL3RoZW1lcy9kZWZhdWx0L3RoZW1lLmpzb24KCiAgICAgICAgc3lzdGVtQ29udGV4dCBhbmVtaWFTeXN0ZW0gIkMxLVN5c3RlbS1Db250ZXh0IiB7CiAgICAgICAgICAgIGluY2x1ZGUgKgogICAgICAgICAgICBhdXRvTGF5b3V0IGxyCiAgICAgICAgICAgIHRpdGxlICJDMSAtIFN5c3RlbSBDb250ZXh0OiBBbmVtaWEgUHJlZGljdGlvbiBTeXN0ZW0iCiAgICAgICAgICAgIGRlc2NyaXB0aW9uICJTeXN0ZW0gY29udGV4dCBkaWFncmFtIHNob3dpbmcgdGhlIHVzZXIsIGFuZW1pYSBwcmVkaWN0aW9uIHN5c3RlbSwgYW5kIGV4dGVybmFsIG1hbmFnZWQgcGxhdGZvcm0uIgogICAgICAgIH0KCiAgICAgICAgY29udGFpbmVyIGFuZW1pYVN5c3RlbSAiQzItQ29udGFpbmVycyIgewogICAgICAgICAgICBpbmNsdWRlICoKICAgICAgICAgICAgYXV0b0xheW91dCBscgogICAgICAgICAgICB0aXRsZSAiQzIgLSBDb250YWluZXIgRGlhZ3JhbTogQW5lbWlhIFByZWRpY3Rpb24gU3lzdGVtIgogICAgICAgICAgICBkZXNjcmlwdGlvbiAiQ29udGFpbmVyIGRpYWdyYW0gc2hvd2luZyB0aGUgbW9iaWxlIGFwcCwgYmFja2VuZCBBUEksIG9mZmxpbmUgTUwgcGlwZWxpbmUsIG9ic2VydmFiaWxpdHkgc3RhY2ssIGV4cG9ydGVkIFRGTGl0ZSBhcnRpZmFjdCwgYW5kIFN1cGFiYXNlIHNlcnZpY2VzLiIKICAgICAgICB9CgogICAgICAgIGNvbXBvbmVudCBiYWNrZW5kICJDMy1CYWNrZW5kLUNvbXBvbmVudHMiIHsKICAgICAgICAgICAgaW5jbHVkZSAqCiAgICAgICAgICAgIGF1dG9MYXlvdXQgbHIKICAgICAgICAgICAgdGl0bGUgIkMzIC0gQ29tcG9uZW50IERpYWdyYW06IEJhY2tlbmQgQVBJIgogICAgICAgICAgICBkZXNjcmlwdGlvbiAiQ29tcG9uZW50IGRpYWdyYW0gc2hvd2luZyB0aGUgbWFpbiBGYXN0QVBJIGJhY2tlbmQgbW9kdWxlcyBpbnZvbHZlZCBpbiBwcmVkaWN0aW9uLCBhdXRoZW50aWNhdGlvbi9wcm9maWxlLCByZXBvc2l0b3JpZXMsIGluZmVyZW5jZSBydW50aW1lLCBjYWxpYnJhdGlvbiwgcGVyc2lzdGVuY2UsIHJhdGUgbGltaXRpbmcsIG1ldHJpY3MsIGFuZCBtb2RlbCBldmFsdWF0aW9uLiIKICAgICAgICB9CgogICAgICAgIHN0eWxlcyB7CiAgICAgICAgICAgIGVsZW1lbnQgIlBlcnNvbiIgewogICAgICAgICAgICAgICAgc2hhcGUgcGVyc29uCiAgICAgICAgICAgICAgICBiYWNrZ3JvdW5kICMwODQyN0IKICAgICAgICAgICAgICAgIGNvbG9yICNGRkZGRkYKICAgICAgICAgICAgfQoKICAgICAgICAgICAgZWxlbWVudCAiU29mdHdhcmUgU3lzdGVtIiB7CiAgICAgICAgICAgICAgICBiYWNrZ3JvdW5kICMxMTY4QkQKICAgICAgICAgICAgICAgIGNvbG9yICNGRkZGRkYKICAgICAgICAgICAgfQoKICAgICAgICAgICAgZWxlbWVudCAiQ29udGFpbmVyIiB7CiAgICAgICAgICAgICAgICBiYWNrZ3JvdW5kICM0MzhERDUKICAgICAgICAgICAgICAgIGNvbG9yICNGRkZGRkYKICAgICAgICAgICAgfQoKICAgICAgICAgICAgZWxlbWVudCAiQ29tcG9uZW50IiB7CiAgICAgICAgICAgICAgICBiYWNrZ3JvdW5kICM4NUJCRjAKICAgICAgICAgICAgICAgIGNvbG9yICMwMDAwMDAKICAgICAgICAgICAgfQoKICAgICAgICAgICAgZWxlbWVudCAiRXh0ZXJuYWwiIHsKICAgICAgICAgICAgICAgIGJhY2tncm91bmQgIzk5OTk5OQogICAgICAgICAgICAgICAgY29sb3IgI0ZGRkZGRgogICAgICAgICAgICB9CiAgICAgICAgfQogICAgfQp9",
     "structurizr.inspection.info" : "0",
     "structurizr.inspection.ignore" : "0",
     "structurizr.inspection.warning" : "0"
@@ -551,7 +598,7 @@
         "vertices" : true
       },
       "containerId" : "4",
-      "description" : "Component diagram showing the main FastAPI backend modules involved in prediction, authentication/profile, repositories, calibration, persistence, metrics, and model evaluation.",
+      "description" : "Component diagram showing the main FastAPI backend modules involved in prediction, authentication/profile, repositories, inference runtime, calibration, persistence, rate limiting, metrics, and model evaluation.",
       "elements" : [ {
         "id" : "3",
         "x" : 0,
@@ -617,7 +664,15 @@
         "x" : 0,
         "y" : 0
       }, {
-        "id" : "22",
+        "id" : "20",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "21",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "24",
         "x" : 0,
         "y" : 0
       } ],
@@ -626,10 +681,6 @@
       "name" : "Component View: Anemia Prediction System - Backend API",
       "order" : 3,
       "relationships" : [ {
-        "id" : "41"
-      }, {
-        "id" : "42"
-      }, {
         "id" : "43"
       }, {
         "id" : "44"
@@ -646,13 +697,13 @@
       }, {
         "id" : "50"
       }, {
+        "id" : "51"
+      }, {
         "id" : "52"
       }, {
-        "id" : "54"
+        "id" : "53"
       }, {
         "id" : "55"
-      }, {
-        "id" : "56"
       }, {
         "id" : "57"
       }, {
@@ -664,11 +715,23 @@
       }, {
         "id" : "61"
       }, {
+        "id" : "62"
+      }, {
         "id" : "63"
+      }, {
+        "id" : "64"
       }, {
         "id" : "65"
       }, {
         "id" : "66"
+      }, {
+        "id" : "67"
+      }, {
+        "id" : "69"
+      }, {
+        "id" : "71"
+      }, {
+        "id" : "72"
       } ],
       "title" : "C3 - Component Diagram: Backend API"
     } ],
@@ -722,19 +785,19 @@
         "x" : 0,
         "y" : 0
       }, {
-        "id" : "19",
-        "x" : 0,
-        "y" : 0
-      }, {
-        "id" : "20",
-        "x" : 0,
-        "y" : 0
-      }, {
         "id" : "21",
         "x" : 0,
         "y" : 0
       }, {
         "id" : "22",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "23",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "24",
         "x" : 0,
         "y" : 0
       } ],
@@ -743,19 +806,19 @@
       "name" : "Container View: Anemia Prediction System",
       "order" : 2,
       "relationships" : [ {
-        "id" : "26"
-      }, {
         "id" : "28"
       }, {
         "id" : "30"
       }, {
-        "id" : "37"
-      }, {
-        "id" : "38"
+        "id" : "32"
       }, {
         "id" : "39"
       }, {
         "id" : "40"
+      }, {
+        "id" : "41"
+      }, {
+        "id" : "42"
       } ],
       "softwareSystemId" : "2",
       "title" : "C2 - Container Diagram: Anemia Prediction System"
@@ -778,7 +841,7 @@
         "x" : 0,
         "y" : 0
       }, {
-        "id" : "22",
+        "id" : "24",
         "x" : 0,
         "y" : 0
       } ],
@@ -787,9 +850,9 @@
       "name" : "System Context View: Anemia Prediction System",
       "order" : 1,
       "relationships" : [ {
-        "id" : "27"
+        "id" : "29"
       }, {
-        "id" : "32"
+        "id" : "34"
       } ],
       "softwareSystemId" : "2",
       "title" : "C1 - System Context: Anemia Prediction System"
