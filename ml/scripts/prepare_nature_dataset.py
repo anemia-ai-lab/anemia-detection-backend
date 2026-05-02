@@ -24,6 +24,15 @@ from pathlib import Path
 from typing import Any
 
 _ML_ROOT = Path(__file__).resolve().parent.parent
+_REPO_ROOT = _ML_ROOT.parent
+
+
+def _repo_relative(p: Path) -> str:
+    """Solo para mensajes: ruta relativa al repo; evita exponer rutas absolutas de usuario."""
+    try:
+        return str(p.resolve().relative_to(_REPO_ROOT))
+    except ValueError:
+        return "<fuera-del-repo>"
 
 
 def _parse_args() -> argparse.Namespace:
@@ -82,7 +91,7 @@ def _parse_boxes_list(raw: str) -> list[list[int]]:
     try:
         data = ast.literal_eval(raw)
     except (ValueError, SyntaxError) as e:
-        print(f"Aviso: NAIL_BOUNDING_BOXES no parseable ({e!r}): {raw[:80]!r}…")
+        print(f"Aviso: NAIL_BOUNDING_BOXES no parseable ({type(e).__name__}).")
         return []
     if not isinstance(data, list):
         print("Aviso: cajas no son una lista tras parsear.")
@@ -90,13 +99,13 @@ def _parse_boxes_list(raw: str) -> list[list[int]]:
     out: list[list[int]] = []
     for i, item in enumerate(data):
         if not isinstance(item, (list, tuple)) or len(item) != 4:
-            print(f"Aviso: caja índice {i} ignorada (no tiene 4 enteros): {item!r}")
+            print(f"Aviso: caja índice {i} ignorada (no tiene 4 enteros).")
             continue
         try:
             # metadata: [y1, x1, y2, x2]
             out.append([int(item[0]), int(item[1]), int(item[2]), int(item[3])])
         except (TypeError, ValueError):
-            print(f"Aviso: caja índice {i} ignorada (enteros inválidos): {item!r}")
+            print(f"Aviso: caja índice {i} ignorada (enteros inválidos).")
     return out
 
 
@@ -173,10 +182,10 @@ def main() -> None:
         sys.exit(1)
 
     if not metadata_path.is_file():
-        print(f"Error: no existe metadata: {metadata_path}", file=sys.stderr)
+        print(f"Error: no existe metadata ({_repo_relative(metadata_path)})", file=sys.stderr)
         sys.exit(1)
     if not images_dir.is_dir():
-        print(f"Error: no existe carpeta de imágenes: {images_dir}", file=sys.stderr)
+        print(f"Error: no existe carpeta de imágenes ({_repo_relative(images_dir)})", file=sys.stderr)
         sys.exit(1)
 
     import tensorflow as tf
@@ -239,20 +248,20 @@ def main() -> None:
         try:
             hb = float(hb_raw)
         except ValueError:
-            print(f"Aviso: HB inválido para paciente {pid!r}: {hb_raw!r}")
+            print("Aviso: HB_LEVEL_GperL no numérico; fila omitida.")
             skipped += 1
             continue
 
         label = _label_from_hb(hb)
         boxes = _parse_boxes_list(row.get("NAIL_BOUNDING_BOXES", ""))
         if not boxes:
-            print(f"Aviso: sin cajas válidas para paciente {pid}")
+            print("Aviso: fila sin cajas válidas; omitida.")
             skipped += 1
             continue
 
         img_path = _find_image(images_dir, pid)
         if img_path is None:
-            print(f"Aviso: imagen no encontrada para paciente {pid} en {images_dir}")
+            print("Aviso: imagen de entrada no encontrada; fila omitida.")
             skipped += 1
             continue
 
@@ -261,7 +270,7 @@ def main() -> None:
             image_tf.set_shape([None, None, 3])
             image_u8 = tf.cast(image_tf, tf.uint8)
         except Exception as e:
-            print(f"Aviso: no se pudo cargar {img_path}: {e}")
+            print(f"Aviso: error al cargar imagen ({type(e).__name__})")
             skipped += 1
             continue
 
@@ -278,11 +287,11 @@ def main() -> None:
             try:
                 ok = _crop_resize_save(image_u8, x1, y1, x2, y2, out_path)
             except Exception as e:
-                print(f"Aviso: crop fallido paciente {pid} caja={box}: {e}")
+                print(f"Aviso: error al guardar crop ({type(e).__name__})")
                 skipped += 1
                 continue
             if not ok:
-                print(f"Aviso: crop inválido o vacío paciente {pid} caja={box}")
+                print("Aviso: crop inválido o vacío; omitido.")
                 skipped += 1
                 continue
             crops_saved += 1
@@ -293,7 +302,7 @@ def main() -> None:
     print(f"Pacientes con al menos un PNG guardado: {len(patients_with_crop)}")
     print(f"Crops guardados: {crops_saved}")
     print(f"Ítems omitidos (avisos / filas): {skipped}")
-    print(f"Salida: {output_dir}")
+    print(f"Salida (--output-dir): {_repo_relative(output_dir)}")
 
 
 if __name__ == "__main__":
