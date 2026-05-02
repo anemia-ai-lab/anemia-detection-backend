@@ -4,6 +4,9 @@
 # if the default public URL changes.
 name: Keepalive (health)
 
+permissions:
+  contents: read
+
 on:
   schedule:
     # Monday and Thursday, 15:00 UTC
