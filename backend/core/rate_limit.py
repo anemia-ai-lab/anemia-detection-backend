@@ -13,6 +13,11 @@ from starlette.responses import JSONResponse, Response
 
 from backend.core.config import settings
 
+ROUTE_AUTH_LOGIN = "/auth/login"
+ROUTE_AUTH_REGISTER = "/auth/register"
+ROUTE_PREDICT = "/predict"
+AUTH_RATE_LIMIT_ROUTES = {ROUTE_AUTH_LOGIN, ROUTE_AUTH_REGISTER}
+
 _Bucket = Deque[float]
 
 
@@ -31,9 +36,9 @@ def _route_limit(path: str, method: str) -> int | None:
     if method != "POST":
         return None
     normalized = path.rstrip("/") or "/"
-    if normalized in {"/auth/login", "/auth/register"}:
+    if normalized in AUTH_RATE_LIMIT_ROUTES:
         return int(settings.rate_limit_auth_requests)
-    if normalized == "/predict":
+    if normalized == ROUTE_PREDICT:
         return int(settings.rate_limit_predict_requests)
     return None
 

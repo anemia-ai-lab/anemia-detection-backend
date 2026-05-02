@@ -164,15 +164,19 @@ def _markdown_report(payload: dict) -> str:
         "",
         "## 1. Alcance y supuestos",
         "",
-        "Este paso **no reentrena** la red convolucional ni altera sus pesos: se reutiliza el "
-        "modelo guardado en disco y solo se aprende un parámetro escalar **T** que repesca las "
-        "probabilidades de salida (misma decisión de ranking que una sigmoide con temperatura "
-        "sobre el logit implícito).",
+        (
+            "Este paso **no reentrena** la red convolucional ni altera sus pesos: se reutiliza el "
+            "modelo guardado en disco y solo se aprende un parámetro escalar **T** que repesca las "
+            "probabilidades de salida (misma decisión de ranking que una sigmoide con temperatura "
+            "sobre el logit implícito)."
+        ),
         "",
-        "**Motivación (cribado clínico):** las probabilidades *raw* suelen estar mal calibradas "
-        "(frecuencias empíricas ≠ probabilidades predichas). Ajustar **T** en validación mejora "
-        "la **interpretabilidad** del score como grado de confianza, sin cambiar la capacidad "
-        "discriminativa global (AUC-ROC es invariante ante transformaciones monótonas del score).",
+        (
+            "**Motivación (cribado clínico):** las probabilidades *raw* suelen estar mal calibradas "
+            "(frecuencias empíricas ≠ probabilidades predichas). Ajustar **T** en validación mejora "
+            "la **interpretabilidad** del score como grado de confianza, sin cambiar la capacidad "
+            "discriminativa global (AUC-ROC es invariante ante transformaciones monótonas del score)."
+        ),
         "",
         "## 2. Modelo y trazabilidad",
         "",

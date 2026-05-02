@@ -13,6 +13,7 @@ class UploadExceedsMaxBytesError(Exception):
         super().__init__(max_bytes)
 
 
+# Tamaño de lectura por iteración; alinea con buffers habituales y limita picos de memoria por trozo.
 _CHUNK = 64 * 1024
 
 

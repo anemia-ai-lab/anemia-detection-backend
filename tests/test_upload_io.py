@@ -38,6 +38,7 @@ def test_read_upload_stops_before_accumulating_beyond_limit() -> None:
 
 
 def test_read_upload_joins_chunks_under_limit() -> None:
+    """Con límite holgado, se leen y concatenan todos los trozos sin error."""
 
     async def _run() -> None:
         fake = _FakeUpload(chunk_len=10, num_chunks=3)
