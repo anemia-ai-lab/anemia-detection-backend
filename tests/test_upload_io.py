@@ -17,8 +17,8 @@ class _FakeUpload:
         self.num_chunks = num_chunks
         self.read_count = 0
 
-    async def read(self, n: int) -> bytes:
-        _ = n
+    async def read(self, _chunk_size: int) -> bytes:
+        # Starlette pasa el tamaño solicitado; este fake usa chunk_len fijo.
         if self.read_count >= self.num_chunks:
             return b""
         self.read_count += 1

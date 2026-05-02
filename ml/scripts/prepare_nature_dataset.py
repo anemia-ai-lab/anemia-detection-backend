@@ -222,9 +222,10 @@ def main() -> None:
 
     rng.shuffle(patient_ids)
 
-    n_test = 0
     if len(patient_ids) > 1:
-        n_test = max(1, int(round(len(patient_ids) * test_size)))
+        n_test = max(1, round(len(patient_ids) * test_size))
+    else:
+        n_test = 0
     test_set = set(patient_ids[:n_test])
     train_set = set(patient_ids[n_test:])
 
