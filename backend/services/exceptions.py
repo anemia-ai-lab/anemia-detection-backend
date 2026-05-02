@@ -1,22 +1,5 @@
-class ClientHttpError(Exception):
-    """Domain error mapped to JSON HTTP responses (detail + optional code)."""
+"""Re-exportación de excepciones HTTP compartidas (:mod:`backend.core.exceptions`)."""
 
-    def __init__(
-        self,
-        message: str,
-        status_code: int = 400,
-        *,
-        code: str | None = None,
-    ) -> None:
-        self.message = message
-        self.status_code = status_code
-        self.code = code
-        super().__init__(message)
+from backend.core.exceptions import AuthServiceError, ClientHttpError, PredictionServiceError
 
-
-class AuthServiceError(ClientHttpError):
-    """Auth / token flows."""
-
-
-class PredictionServiceError(ClientHttpError):
-    """Prediction persistence or validation."""
+__all__ = ["AuthServiceError", "ClientHttpError", "PredictionServiceError"]

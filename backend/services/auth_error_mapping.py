@@ -2,7 +2,7 @@
 
 from supabase_auth.errors import AuthApiError, AuthError, AuthUnknownError, CustomAuthError
 
-from backend.services.exceptions import AuthServiceError
+from backend.core.exceptions import AuthServiceError
 
 
 def _go_true_code(exc: AuthError) -> str | None:

@@ -8,9 +8,9 @@ from backend.core.auth_token import (
     parse_bearer_token,
     require_well_formed_jwt,
 )
+from backend.core.exceptions import AuthServiceError
 from backend.schemas.auth import UserOut
 from backend.services.auth_service import AuthService
-from backend.services.exceptions import AuthServiceError
 from backend.services.model_evaluation_service import ModelEvaluationService
 from backend.services.prediction_service import PredictionService
 from backend.services.profile_service import ProfileService

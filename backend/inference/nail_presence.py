@@ -9,7 +9,7 @@ from __future__ import annotations
 import numpy as np
 
 from backend.core.config import settings
-from backend.services.exceptions import PredictionServiceError
+from backend.core.exceptions import PredictionServiceError
 
 
 def require_fingernail_presence(rgb_uint8: np.ndarray) -> None:

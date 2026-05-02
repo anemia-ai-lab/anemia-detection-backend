@@ -16,10 +16,12 @@ from backend.core.config import settings
 _Bucket = Deque[float]
 
 
-def _client_key(request: Request) -> str:
-    forwarded_for = request.headers.get("x-forwarded-for", "")
-    if forwarded_for:
-        return forwarded_for.split(",", 1)[0].strip()
+def rate_limit_client_key(request: Request) -> str:
+    """Identificador estable por petición para ventanas de rate limit (preferencia: socket)."""
+    if settings.trust_proxy_headers:
+        forwarded_for = request.headers.get("x-forwarded-for", "")
+        if forwarded_for:
+            return forwarded_for.split(",", 1)[0].strip()
     if request.client is not None:
         return request.client.host
     return "unknown"
@@ -55,7 +57,7 @@ def register_rate_limit_middleware(app: FastAPI) -> None:
 
             now = time.monotonic()
             window = float(settings.rate_limit_window_seconds)
-            key = (_client_key(request), request.url.path.rstrip("/") or "/")
+            key = (rate_limit_client_key(request), request.url.path.rstrip("/") or "/")
             bucket = buckets[key]
             while bucket and now - bucket[0] >= window:
                 bucket.popleft()

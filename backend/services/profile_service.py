@@ -2,10 +2,10 @@ import logging
 
 from postgrest import APIError
 
+from backend.core.exceptions import AuthServiceError
 from backend.repositories.profiles_repository import ProfilesRepository
 from backend.schemas.auth import UserOut
 from backend.schemas.profile import ProfileOut, ProfilePatchRequest
-from backend.services.exceptions import AuthServiceError
 
 logger = logging.getLogger(__name__)
 

@@ -69,6 +69,16 @@ def _sha256_bytes(data: bytes) -> str:
 
 
 def _decode_rgb_uint8(raw: bytes) -> np.ndarray:
+    """Decodifica bytes de imagen a RGB ``uint8`` HWC con TensorFlow.
+
+    Debe mantener **paridad conductual** con :func:`backend.inference.prediction_image_input.decode_rgb_uint8`
+    (mismo uso de ``tf.io.decode_image``, canales y flags).
+
+    .. todo::
+       Consolidar con la utilidad del backend cuando el cambio sea trivial y sin riesgo.
+
+    Salida alineada con el runtime API antes del pipeline G9 sobre RGB.
+    """
     import tensorflow as tf
 
     if not raw:
