@@ -9,13 +9,13 @@ from storage3.exceptions import StorageApiError
 from storage3.utils import StorageException
 
 from backend.core.config import settings
+from backend.core.exceptions import PredictionServiceError
 from backend.core.prediction_image_limits import (
     ALLOWED_IMAGE_CONTENT_TYPES,
     IMAGE_EXT_BY_CONTENT_TYPE,
     prediction_image_max_bytes,
 )
 from backend.integrations.supabase_client import create_supabase_user_client
-from backend.services.exceptions import PredictionServiceError
 
 logger = logging.getLogger(__name__)
 

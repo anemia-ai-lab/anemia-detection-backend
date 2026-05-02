@@ -5,6 +5,7 @@ import numpy as np
 
 from backend.core import patient_age
 from backend.core.config import settings
+from backend.core.exceptions import PredictionServiceError
 from backend.core.risk_mapping import anemia_risk_label, risk_from_probability
 from backend.inference.image_predictor import ImagePredictor
 from backend.inference.nail_presence import require_fingernail_presence
@@ -23,7 +24,6 @@ from backend.schemas.prediction import (
     PredictionImageSignedUrlOut,
     PredictionResponse,
 )
-from backend.services.exceptions import PredictionServiceError
 
 _INFERENCE_MODE = "backend"
 

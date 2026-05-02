@@ -2,21 +2,32 @@
 
 from __future__ import annotations
 
+from io import BytesIO
+
 import numpy as np
 
 from backend.core.config import settings
+from backend.core.exceptions import PredictionServiceError
 from backend.core.prediction_image_limits import (
     ALLOWED_IMAGE_CONTENT_TYPES,
     prediction_image_max_bytes,
 )
-from backend.services.exceptions import PredictionServiceError
 
 # Tras decodificar, se normaliza a PNG (uña, CNN y Storage).
 _OUTPUT_CONTENT_TYPE = "image/png"
 
 
 def decode_rgb_uint8(raw: bytes) -> np.ndarray:
-    """Decodifica a RGB uint8 HWC."""
+    """Decodifica a RGB uint8 HWC.
+
+    Debe mantener **paridad conductual** con :func:`ml.preprocessing.pipeline._decode_rgb_uint8`
+    (``tf.io.decode_image``, 3 canales, ``expand_animations=False``).
+
+    .. todo::
+       Consolidar ambos caminos en una utilidad compartida (backend + ml) cuando el refactor sea trivial y sin riesgo.
+
+    Salida: ``numpy.ndarray`` ``uint8``, forma ``(H, W, 3)``.
+    """
     try:
         import tensorflow as tf
 
@@ -45,6 +56,36 @@ def resize_rgb_max_edge(rgb: np.ndarray, max_edge: int) -> np.ndarray:
     t = tf.constant(rgb)
     out = tf.image.resize(t, [nh, nw], method=tf.image.ResizeMethod.BILINEAR)
     return tf.cast(tf.clip_by_value(tf.round(out), 0, 255), tf.uint8).numpy()
+
+
+def _pil_probe_dimensions(raw: bytes) -> tuple[int, int] | None:
+    """Dimensiones declaradas en cabecera si Pillow puede abrir el fichero sin decodificar todo el raster."""
+    try:
+        from PIL import Image
+
+        with Image.open(BytesIO(raw)) as im:
+            w, h = im.size
+        return (int(w), int(h))
+    except Exception:
+        return None
+
+
+def require_pre_decode_pixel_limit(raw: bytes, max_pixels: int) -> None:
+    """Antes de TensorFlow: rechazo por WxH si Pillow expone dimensiones y superan el cupo."""
+    dims = _pil_probe_dimensions(raw)
+    if dims is None:
+        return
+    w, h = dims
+    if w <= 0 or h <= 0:
+        return
+    pixels = w * h
+    if pixels > max_pixels:
+        mp = max_pixels / 1_000_000
+        raise PredictionServiceError(
+            f"La imagen supera la resolución máxima permitida ({mp:.1f} MP).",
+            413,
+            code="image_resolution_too_large",
+        )
 
 
 def require_rgb_pixel_limit(rgb: np.ndarray, max_pixels: int) -> None:
@@ -88,6 +129,7 @@ def prepare_prediction_image(content_type: str | None, raw: bytes) -> tuple[str,
             415,
             code="unsupported_media_type",
         )
+    require_pre_decode_pixel_limit(raw, settings.prediction_image_max_pixels)
     rgb = decode_rgb_uint8(raw)
     require_rgb_pixel_limit(rgb, settings.prediction_image_max_pixels)
     rgb = resize_rgb_max_edge(rgb, settings.prediction_image_max_edge_px)

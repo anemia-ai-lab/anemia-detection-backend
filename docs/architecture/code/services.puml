@@ -24,15 +24,21 @@ package "backend.services" {
   class ModelEvaluationService {
     +get_evaluation(): ModelEvaluationOut
   }
+}
 
+package "backend.core" {
   class ClientHttpError {
-    +message: str
+    +detail: str
     +status_code: int
     +code: str?
   }
 
   class AuthServiceError
   class PredictionServiceError
+
+  class RiskMapping <<module>>
+  class PatientAge <<module>>
+  class Settings
 }
 
 package "backend.repositories" {
@@ -47,12 +53,6 @@ package "backend.inference" {
   class ImageValidation <<module>>
   class ProbabilityCalibration <<module>>
   interface ImagePredictor
-}
-
-package "backend.core" {
-  class RiskMapping <<module>>
-  class PatientAge <<module>>
-  class Settings
 }
 
 package "backend.schemas" {

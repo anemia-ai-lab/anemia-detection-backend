@@ -53,4 +53,9 @@ ProfilesRepository --> PostgreSQLDatabase : profiles table
 PredictionsRepository --> PostgreSQLDatabase : predictions table
 PredictionImagesStorage --> ObjectStorage : prediction images bucket
 
+note bottom of repositories
+  Prediction repositories return persistence records as dicts (PostgREST rows).
+  Services assemble :mod:`backend.schemas` Pydantic models / API DTOs for responses.
+end note
+
 @enduml

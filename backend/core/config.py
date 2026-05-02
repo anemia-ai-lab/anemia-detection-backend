@@ -66,6 +66,15 @@ class Settings(BaseSettings):
         description="Máximo de POST /predict por cliente y ventana.",
     )
 
+    trust_proxy_headers: bool = Field(
+        default=False,
+        validation_alias="TRUST_PROXY_HEADERS",
+        description=(
+            "Si es True, la IP para rate limiting puede tomarse de X-Forwarded-For (primer salto). "
+            "Solo activar detrás de un proxy que sobrescriba o sanitice esa cabecera."
+        ),
+    )
+
     supabase_url: str = ""
     supabase_key: str = ""
     supabase_service_role_key: str = ""

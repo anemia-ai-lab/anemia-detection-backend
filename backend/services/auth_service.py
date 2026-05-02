@@ -1,6 +1,7 @@
 from supabase_auth import AuthResponse, User
 from supabase_auth.errors import AuthError
 
+from backend.core.exceptions import AuthServiceError
 from backend.repositories.auth_repository import AuthRepository
 from backend.repositories.profiles_repository import ProfilesRepository
 from backend.schemas.auth import (
@@ -11,7 +12,6 @@ from backend.schemas.auth import (
     WarningItem,
 )
 from backend.services.auth_error_mapping import map_supabase_auth_error
-from backend.services.exceptions import AuthServiceError
 from backend.services.profile_service import ProfileService
 
 

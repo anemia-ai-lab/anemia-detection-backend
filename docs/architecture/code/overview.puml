@@ -22,12 +22,12 @@ services --> core : risk mapping,\nsettings, age helpers
 services --> schemas : typed contracts
 
 repositories --> integrations : Supabase clients
-repositories --> schemas : user DTOs
 
 inference --> core : settings and limits
 inference --> mlpreprocessing : shared G9 preprocessing
 
 core --> schemas : health and model metrics
+core ..> inference : PrometheusMetrics / health\nread model_loaded and runtime status
 
 note right of mlpreprocessing
   Shared with the offline ML pipeline.

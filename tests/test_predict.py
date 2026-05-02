@@ -436,6 +436,48 @@ def test_predict_rejects_decoded_image_too_large(monkeypatch: pytest.MonkeyPatch
         app.dependency_overrides.clear()
 
 
+def test_predict_rejects_pre_decode_pixel_dimensions_too_large(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """PNG ligero con WxH grande: rechazo tras cabecera (Pillow) sin llegar al predictor."""
+    from PIL import Image
+
+    monkeypatch.setattr(config_module.settings, "prediction_image_max_pixels", 10_000)
+    buf = BytesIO()
+    Image.new("RGB", (1, 20_000), (0, 0, 0)).save(buf, format="PNG")
+    raw_png = buf.getvalue()
+    assert len(raw_png) < 512 * 1024
+    user = UserOut(
+        id="11111111-1111-1111-1111-111111111111",
+        email="p@example.com",
+        created_at=None,
+    )
+
+    def fake_context() -> tuple[UserOut, str]:
+        return (user, "aaa.bbb.ccc")
+
+    def fake_prediction_service() -> PredictionService:
+        return PredictionService(
+            repo=_ExplodingRepo(),
+            images=_FakeImgStore(),
+            image_predictor=StaticImagePredictor(0.99),
+            nail_checker=_skip_nail,
+        )
+
+    app.dependency_overrides[api_deps.get_predict_context] = fake_context
+    app.dependency_overrides[api_deps.get_prediction_service] = fake_prediction_service
+    try:
+        response = client.post(
+            "/predict",
+            headers={"Authorization": "Bearer aaa.bbb.ccc"},
+            files={"image": ("tall.png", raw_png, "image/png")},
+        )
+        assert response.status_code == 413
+        assert response.json()["code"] == "image_resolution_too_large"
+    finally:
+        app.dependency_overrides.clear()
+
+
 def test_predict_risk_high_when_score_meets_threshold(monkeypatch: pytest.MonkeyPatch) -> None:
     """Mock score 0.42 → high si el umbral calibrado es <= 0.42 (con T=1, score raw = calibrado)."""
     monkeypatch.setattr(config_module.settings, "inference_calibration_temperature", 1.0)

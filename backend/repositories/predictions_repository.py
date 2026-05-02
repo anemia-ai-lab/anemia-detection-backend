@@ -5,8 +5,8 @@ from typing import Any
 
 from postgrest import APIError
 
+from backend.core.exceptions import PredictionServiceError
 from backend.integrations.supabase_client import create_supabase_user_client
-from backend.services.exceptions import PredictionServiceError
 
 logger = logging.getLogger(__name__)
 

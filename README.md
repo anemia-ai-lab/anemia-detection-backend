@@ -8,6 +8,14 @@ Authored by Mateo Alejandro Vilchez Rios — Software Engineering, Backend and M
 
 This repository implements a research-oriented software system for non-invasive early anemia risk prediction using fingernail imagery. The system combines an authenticated API, calibrated model inference, offline TensorFlow Lite execution, and visual explainability support. Outputs are intended for risk screening and research workflows only; they are not medical diagnoses.
 
+## Repository scope
+
+Included here: FastAPI backend, Supabase integration (Auth, Postgres, Storage), runtime inference, ML training/export and preprocessing, published ML artifacts, SQL migrations, tests, OpenAPI, and architecture diagrams under `docs/architecture/`.
+
+The mobile app is an external API client (HTTPS, multipart, JSON). This repo does **not** ship the mobile UI or store listings; field demos belong in the thesis or another repository.
+
+Setup: [`docs/RUNBOOK.md`](docs/RUNBOOK.md). Responsibility ↔ path matrix: [`docs/TRACEABILITY.md`](docs/TRACEABILITY.md).
+
 ## System Overview
 
 The system supports a mobile-oriented screening workflow in which an authenticated user submits a fingernail image and receives a calibrated risk prediction. The backend validates input images, executes model inference when a Keras artifact is configured, applies probability calibration and an operational decision threshold, and persists prediction metadata through Supabase.
@@ -31,7 +39,7 @@ The backend uses Keras for server-side inference. Offline capability is provided
 
 ## Technical Stack
 
-- Python 3.11
+- Python 3.11 recommended / used in CI (local `make run` uses `python3` from your PATH)
 - FastAPI
 - Pydantic
 - Supabase
@@ -44,15 +52,22 @@ The backend uses Keras for server-side inference. Offline capability is provided
 
 ## Validation Strategy
 
-Backend validation focuses on API contracts, authentication boundaries, request validation, prediction response semantics, persistence error handling, operational metrics, and model-unavailable behavior. The backend suite is designed to run without importing TensorFlow, keeping API tests fast and stable.
+Backend checks: contracts, auth, validation, prediction semantics, persistence errors, metrics, and behaviour when the model is unavailable. ML checks: TensorFlow/Keras, TFLite, preprocessing, Grad-CAM (see `ml/tests/`).
 
-Machine learning validation is separated from backend validation. ML tests exercise TensorFlow/Keras behavior, TensorFlow Lite compatibility, preprocessing consistency, and Grad-CAM behavior. Docker-based execution is available for environments where host TensorFlow wheels are unstable.
+| Command | Purpose |
+|---------|---------|
+| `make test` | API suite with `DISABLE_TF=1` and empty `INFERENCE_MODEL_PATH` (no TF import for these tests). |
+| `make lint` | Ruff. |
+| `make ml-test` | `ml/tests/` — needs TensorFlow and `make ml-install`. |
+| `make ml-test-docker` | Same ML tests in Linux Docker if the host TF install fails (e.g. some macOS setups); see [`docs/RUNBOOK.md`](docs/RUNBOOK.md). |
 
-The validation strategy distinguishes software correctness from clinical validity. Passing tests confirms implementation behavior and artifact compatibility; it does not establish diagnostic performance in clinical deployment.
+`DISABLE_TF` in `.env.example` documents the same flag outside `make test`. Tests prove software behaviour and artifact wiring, not clinical performance.
 
 ## Limitations
 
-This system predicts risk and must not be used as a medical diagnosis. Clinical interpretation requires medical evaluation, laboratory confirmation, ethical oversight, and applicable regulatory review.
+**Screening and research only:** outputs support **risk screening** and **research workflows** only.
+
+**Not medical care:** this software does **not** provide **medical diagnosis**, **clinical confirmation**, **treatment recommendation**, or replacement for professional judgment. Clinical interpretation requires medical evaluation, laboratory confirmation, ethical oversight, and applicable regulatory review.
 
 Prediction quality depends on image acquisition conditions, including focus, illumination, nail visibility, camera characteristics, and adherence to the intended capture protocol. Images outside the development distribution may reduce reliability.
 
@@ -64,7 +79,9 @@ Offline inference requires strict alignment of preprocessing, calibration, thres
 
 ## Reproducibility
 
-Run backend tests without TensorFlow:
+Full setup, migrations, smoke checks: [`docs/RUNBOOK.md`](docs/RUNBOOK.md). Traceability matrix: [`docs/TRACEABILITY.md`](docs/TRACEABILITY.md).
+
+Backend tests without loading TensorFlow in that process:
 
 ```bash
 make test

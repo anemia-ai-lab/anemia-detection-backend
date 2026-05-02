@@ -4,6 +4,9 @@ from fastapi import APIRouter, File, Form, UploadFile
 from pydantic import ValidationError
 
 from backend.api.deps import PredictContextDep, PredictionServiceDep
+from backend.core.exceptions import ClientHttpError, PredictionServiceError
+from backend.core.prediction_image_limits import prediction_image_max_bytes
+from backend.core.upload_io import UploadExceedsMaxBytesError, read_upload_file_with_byte_limit
 from backend.schemas.errors import ErrorResponse
 from backend.schemas.prediction import (
     PredictionCreateBody,
@@ -11,9 +14,11 @@ from backend.schemas.prediction import (
     PredictionImageSignedUrlOut,
     PredictionResponse,
 )
-from backend.services.exceptions import ClientHttpError, PredictionServiceError
 
 router = APIRouter(tags=["predictions"])
+
+# POST /predict: la lectura acotada del multipart permanece en la ruta (Starlette/FastAPI).
+# La validación semántica de imagen y preparación previa a CNN viven en inference (prediction_image_input, nail_presence).
 
 _PREDICT_RESPONSES: dict[int | str, dict[str, object]] = {
     400: {
@@ -82,7 +87,16 @@ async def predict(
 ) -> PredictionResponse:
     upload = _require_image_file(image)
     user, access_token = ctx
-    raw = await upload.read()
+    max_b = prediction_image_max_bytes()
+    try:
+        raw = await read_upload_file_with_byte_limit(upload, max_b)
+    except UploadExceedsMaxBytesError:
+        mb = max_b / (1024 * 1024)
+        raise PredictionServiceError(
+            f"La imagen supera el tamaño máximo permitido ({mb:.0f} MB).",
+            413,
+            code="image_too_large",
+        ) from None
     if not raw:
         raise PredictionServiceError(
             "image is required for prediction",
