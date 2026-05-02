@@ -547,8 +547,10 @@ def _experiment_markdown(payload: dict) -> str:
         "",
         *(
             [
-                "Conteos en el subconjunto **train** tras el split (originales; base para "
-                "`class_weight` **si** está habilitado en `fit`, **antes** de oversampling si aplica):",
+                (
+                    "Conteos en el subconjunto **train** tras el split (originales; base para "
+                    "`class_weight` **si** está habilitado en `fit`, **antes** de oversampling si aplica):"
+                ),
                 "",
                 f"- Clase 0 ({dist['class_name_0']}): {imb['train_subset_counts']['0']}",
                 f"- Clase 1 ({dist['class_name_1']}): {imb['train_subset_counts']['1']}",
@@ -561,15 +563,19 @@ def _experiment_markdown(payload: dict) -> str:
             ]
             if imb.get("class_weight_used")
             else [
-                "Conteos en el subconjunto **train** tras el split (originales; **antes** de oversampling "
-                "si aplica). Con `--no-class-weight`, no se usaron para ponderar el loss en `fit`, "
-                "pero se documentan para trazabilidad:",
+                (
+                    "Conteos en el subconjunto **train** tras el split (originales; **antes** de oversampling "
+                    "si aplica). Con `--no-class-weight`, no se usaron para ponderar el loss en `fit`, "
+                    "pero se documentan para trazabilidad:"
+                ),
                 "",
                 f"- Clase 0 ({dist['class_name_0']}): {imb['train_subset_counts']['0']}",
                 f"- Clase 1 ({dist['class_name_1']}): {imb['train_subset_counts']['1']}",
                 "",
-                "**`class_weight` no aplicado en `fit`** (`--no-class-weight`). "
-                "Pesos balanceados de **referencia** (lo que se habría usado por defecto):",
+                (
+                    "**`class_weight` no aplicado en `fit`** (`--no-class-weight`). "
+                    "Pesos balanceados de **referencia** (lo que se habría usado por defecto):"
+                ),
                 "",
                 f"- Referencia clase 0: **{imb['computed_class_weights']['0']}**",
                 f"- Referencia clase 1: **{imb['computed_class_weights']['1']}**",
@@ -622,8 +628,10 @@ def _experiment_markdown(payload: dict) -> str:
         "",
         "### Métricas principales (umbral operacional = ROC-Youden)",
         "",
-        "Estas son las métricas **destacadas** para el contexto de tesis / uso clínico documentado; "
-        "corresponden al corte **operacional** (máximo J en ROC sobre test).",
+        (
+            "Estas son las métricas **destacadas** para el contexto de tesis / uso clínico documentado; "
+            "corresponden al corte **operacional** (máximo J en ROC sobre test)."
+        ),
         "",
         f"- **Umbral operacional τ:** `{_f(mop.get('threshold', my.get('optimal_threshold')), nd=6)}`  ",
         f"- **Índice de Youden J:** {_f(mop.get('youden_j', my.get('youden_j')))}",
