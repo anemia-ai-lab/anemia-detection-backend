@@ -10,22 +10,24 @@ class RegisterRequest(BaseModel):
     """``POST /auth/register`` body."""
 
     model_config = ConfigDict(
-        json_schema_extra={
-            "example": {"email": "user@example.com", "password": "minimum8chars"}
-        },
+        json_schema_extra={"example": {"email": "user@example.com", "password": "minimum8chars"}},
     )
 
     email: EmailStr
     password: str = Field(min_length=8, max_length=256)
 
 
+class RefreshRequest(BaseModel):
+    """``POST /auth/refresh`` body."""
+
+    refresh_token: str = Field(min_length=1, max_length=4096)
+
+
 class LoginRequest(BaseModel):
     """``POST /auth/login`` body."""
 
     model_config = ConfigDict(
-        json_schema_extra={
-            "example": {"email": "user@example.com", "password": "your-password"}
-        },
+        json_schema_extra={"example": {"email": "user@example.com", "password": "your-password"}},
     )
 
     email: EmailStr

@@ -48,11 +48,19 @@ def resize_rgb_max_edge(rgb: np.ndarray, max_edge: int) -> np.ndarray:
     m = max(h, w)
     if m <= max_edge:
         return rgb
-    import tensorflow as tf
-
     scale = max_edge / m
     nh = max(1, int(round(h * scale)))
     nw = max(1, int(round(w * scale)))
+    import os
+
+    if os.environ.get("DISABLE_TF", "").strip().lower() in ("1", "true", "yes", "on"):
+        from PIL import Image
+
+        im = Image.fromarray(rgb)
+        return np.asarray(im.resize((nw, nh), Image.Resampling.BILINEAR), dtype=np.uint8)
+
+    import tensorflow as tf
+
     t = tf.constant(rgb)
     out = tf.image.resize(t, [nh, nw], method=tf.image.ResizeMethod.BILINEAR)
     return tf.cast(tf.clip_by_value(tf.round(out), 0, 255), tf.uint8).numpy()

@@ -54,6 +54,11 @@ def _parse_args() -> argparse.Namespace:
         help="Nombre de capa convolucional (override).",
     )
     p.add_argument(
+        "--allow-degraded",
+        action="store_true",
+        help="No fallar si Grad-CAM no obtiene gradientes (mapa degradado).",
+    )
+    p.add_argument(
         "--run-id",
         type=str,
         default=None,
@@ -172,6 +177,13 @@ def main() -> int:
             pre = preprocess_image_bytes(raw)
             rgb = pre.decoded_rgb_uint8
         res, pred, risk, risk_label = gc.explain_with_decision(rgb)
+        if res.explanation_status != "gradcam" and not args.allow_degraded:
+            print(
+                f"Grad-CAM degradado ({res.explanation_status}) para {img_path}. "
+                "Use --allow-degraded para continuar.",
+                file=sys.stderr,
+            )
+            return 2
 
         stem = img_path.stem
         dest = out_root / stem

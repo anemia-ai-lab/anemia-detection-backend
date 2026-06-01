@@ -10,9 +10,7 @@ class ErrorResponse(BaseModel):
 
     model_config = ConfigDict(
         json_schema_extra={
-            "examples": [
-                {"detail": "Invalid login credentials", "code": "invalid_credentials"}
-            ]
+            "examples": [{"detail": "Invalid login credentials", "code": "invalid_credentials"}]
         },
     )
 

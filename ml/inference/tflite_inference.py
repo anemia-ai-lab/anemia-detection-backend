@@ -42,6 +42,8 @@ class TFLiteExportMetadata:
     model_version: str
     temperature: float
     operational_threshold: float
+    risk_tier_low_upper: float
+    risk_tier_high_lower: float
     raw_output_is_sigmoid_probability: bool
     temperature_scaling_applied_inside_graph: bool
 
@@ -53,6 +55,9 @@ class TFLiteExportMetadata:
             mv = str(data["model_version"])
             t = float(data["temperature"])
             th = float(data["operational_threshold"])
+            tiers = data.get("risk_tier_thresholds") or {}
+            low_upper = float(tiers.get("low_upper", th * 0.5))
+            high_lower = float(tiers.get("high_lower", th))
         except (KeyError, TypeError, ValueError) as exc:
             raise TFLiteMetadataError("JSON de metadatos incompleto o tipos inválidos") from exc
         if not raw_sig:
@@ -65,6 +70,8 @@ class TFLiteExportMetadata:
             model_version=mv,
             temperature=t,
             operational_threshold=th,
+            risk_tier_low_upper=low_upper,
+            risk_tier_high_lower=high_lower,
             raw_output_is_sigmoid_probability=raw_sig,
             temperature_scaling_applied_inside_graph=temp_inside,
         )
@@ -204,8 +211,10 @@ class TFLiteInferenceEngine:
 
             cal = apply_temperature_calibration(raw_p, self._meta.temperature)
             th = float(self._meta.operational_threshold)
-            pred = int(binary_prediction_from_threshold(cal, th))
-            risk = risk_from_probability(cal, th)
+            low_upper = float(self._meta.risk_tier_low_upper)
+            high_lower = float(self._meta.risk_tier_high_lower)
+            pred = int(binary_prediction_from_threshold(cal, high_lower))
+            risk = risk_from_probability(cal, low_upper=low_upper, high_lower=high_lower)
             label = anemia_risk_label(risk)
             ts = datetime.now(UTC).isoformat().replace("+00:00", "Z")
             h = pre.provenance.get("raw_bytes_sha256") or ""

@@ -65,13 +65,15 @@ def _replace_tensorflow_image_ops_with_pillow(monkeypatch: pytest.MonkeyPatch) -
 
 
 def _patch_identity_calibration(monkeypatch: pytest.MonkeyPatch) -> None:
-    """En tests, ``T=1`` y umbral 0.5 equivalen a usar el score raw sin cambiar el umbral de riesgo."""
+    """En tests, ``T=1`` y umbrales 0.5/0.5 reproducen comportamiento binario simple."""
     monkeypatch.setattr(config_module.settings, "inference_calibration_temperature", 1.0)
     monkeypatch.setattr(
         config_module.settings,
         "inference_calibration_operational_threshold",
         0.5,
     )
+    monkeypatch.setattr(config_module.settings, "inference_risk_tier_low_upper", 0.5)
+    monkeypatch.setattr(config_module.settings, "inference_risk_tier_high_lower", 0.5)
 
 
 def _skip_nail(_rgb: np.ndarray) -> None:
@@ -108,6 +110,9 @@ class _FakeImgStore:
     ) -> str:
         _ = file_bytes, content_type
         return f"{user_id}/test.png"
+
+    def delete_user_image(self, _access_token: str, _object_path: str) -> None:
+        return None
 
 
 class _ExplodingRepo:
@@ -478,9 +483,64 @@ def test_predict_rejects_pre_decode_pixel_dimensions_too_large(
         app.dependency_overrides.clear()
 
 
-def test_predict_risk_high_when_score_meets_threshold(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Mock score 0.42 → high si el umbral calibrado es <= 0.42 (con T=1, score raw = calibrado)."""
+def test_predict_risk_medium_between_tiers(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(config_module.settings, "inference_calibration_temperature", 1.0)
+    monkeypatch.setattr(config_module.settings, "inference_risk_tier_low_upper", 0.3)
+    monkeypatch.setattr(config_module.settings, "inference_risk_tier_high_lower", 0.6)
+    monkeypatch.setattr(
+        config_module.settings,
+        "inference_calibration_operational_threshold",
+        0.6,
+    )
+    user = UserOut(
+        id="11111111-1111-1111-1111-111111111111",
+        email="p@example.com",
+        created_at=None,
+    )
+
+    def fake_context() -> tuple[UserOut, str]:
+        return (user, "aaa.bbb.ccc")
+
+    class FakeRepo:
+        def insert_for_user(self, _access_token: str, *, user_id: str, risk: str, **kwargs) -> dict:
+            assert risk == "medium"
+            return {
+                "id": "22222222-2222-2222-2222-222222222222",
+                "risk": risk,
+                "score": kwargs["score"],
+                "model_version": kwargs["model_version"],
+                "age_months": kwargs.get("age_months"),
+                "birth_date": kwargs.get("birth_date"),
+                "notes": kwargs.get("notes"),
+                "image_storage_path": kwargs.get("image_storage_path"),
+                "created_at": "2026-05-01T10:00:00+00:00",
+            }
+
+    app.dependency_overrides[api_deps.get_predict_context] = fake_context
+    app.dependency_overrides[api_deps.get_prediction_service] = lambda: PredictionService(
+        repo=FakeRepo(),
+        images=_FakeImgStore(),
+        image_predictor=StaticImagePredictor(0.42),
+        nail_checker=_skip_nail,
+    )
+    try:
+        response = client.post(
+            "/predict",
+            headers={"Authorization": "Bearer aaa.bbb.ccc"},
+            files={"image": ("m.png", skin_patch_png(), "image/png")},
+        )
+        assert response.status_code == 200
+        assert response.json()["risk"] == "medium"
+        assert response.json()["risk_label"] == "Medium anemia risk prediction"
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_predict_risk_high_when_score_meets_threshold(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Mock score 0.42 → high si τ_alto <= 0.42 (con T=1, score raw = calibrado)."""
+    monkeypatch.setattr(config_module.settings, "inference_calibration_temperature", 1.0)
+    monkeypatch.setattr(config_module.settings, "inference_risk_tier_low_upper", 0.1)
+    monkeypatch.setattr(config_module.settings, "inference_risk_tier_high_lower", 0.41)
     monkeypatch.setattr(
         config_module.settings,
         "inference_calibration_operational_threshold",
@@ -803,6 +863,7 @@ def test_predictions_get_success_with_overrides() -> None:
         assert data[0]["age_months"] == 24
         assert data[0]["age_display"] == "2 años"
         assert data[0]["inference_mode"] == "backend"
+        assert "image_storage_path" not in data[0]
     finally:
         app.dependency_overrides.clear()
 
@@ -814,9 +875,7 @@ def test_predictions_get_postgrest_error(monkeypatch: pytest.MonkeyPatch) -> Non
         return (user, "aaa.bbb.ccc")
 
     mock_client = MagicMock()
-    chain = (
-        mock_client.from_.return_value.select.return_value.order.return_value.order.return_value
-    )
+    chain = mock_client.from_.return_value.select.return_value.order.return_value.order.return_value
     chain.execute.side_effect = APIError({"message": "table missing", "code": "42P01"})
 
     monkeypatch.setattr(

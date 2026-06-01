@@ -1,15 +1,10 @@
 from typing import Annotated
 
 from fastapi import APIRouter, File, Form, UploadFile
-from pydantic import ValidationError
 
 from backend.api.deps import PredictContextDep, PredictionServiceDep
-from backend.core.exceptions import ClientHttpError, PredictionServiceError
-from backend.core.prediction_image_limits import prediction_image_max_bytes
-from backend.core.upload_io import UploadExceedsMaxBytesError, read_upload_file_with_byte_limit
 from backend.schemas.errors import ErrorResponse
 from backend.schemas.prediction import (
-    PredictionCreateBody,
     PredictionHistoryItem,
     PredictionImageSignedUrlOut,
     PredictionResponse,
@@ -17,8 +12,7 @@ from backend.schemas.prediction import (
 
 router = APIRouter(tags=["predictions"])
 
-# POST /predict: la lectura acotada del multipart permanece en la ruta (Starlette/FastAPI).
-# La validación semántica de imagen y preparación previa a CNN viven en inference (prediction_image_input, nail_presence).
+# POST /predict: lectura multipart en el servicio; la ruta solo enlaza Starlette/FastAPI.
 
 _PREDICT_RESPONSES: dict[int | str, dict[str, object]] = {
     400: {
@@ -54,16 +48,6 @@ _PREDICT_RESPONSES: dict[int | str, dict[str, object]] = {
 }
 
 
-def _require_image_file(image: UploadFile | None) -> UploadFile:
-    if image is None or not (image.filename and str(image.filename).strip()):
-        raise PredictionServiceError(
-            "image is required for prediction",
-            400,
-            code="image_required",
-        )
-    return image
-
-
 @router.post(
     "/predict",
     response_model=PredictionResponse,
@@ -85,41 +69,13 @@ async def predict(
     birth_date: Annotated[str | None, Form()] = None,
     notes: Annotated[str | None, Form()] = None,
 ) -> PredictionResponse:
-    upload = _require_image_file(image)
     user, access_token = ctx
-    max_b = prediction_image_max_bytes()
-    try:
-        raw = await read_upload_file_with_byte_limit(upload, max_b)
-    except UploadExceedsMaxBytesError:
-        mb = max_b / (1024 * 1024)
-        raise PredictionServiceError(
-            f"La imagen supera el tamaño máximo permitido ({mb:.0f} MB).",
-            413,
-            code="image_too_large",
-        ) from None
-    if not raw:
-        raise PredictionServiceError(
-            "image is required for prediction",
-            400,
-            code="image_required",
-        )
-    fields: dict = {"notes": notes}
-    if birth_date not in (None, ""):
-        fields["birth_date"] = birth_date
-    try:
-        bd = PredictionCreateBody.model_validate(fields)
-    except ValidationError as exc:
-        raise ClientHttpError(
-            "Validation error",
-            422,
-            code="validation_error",
-        ) from exc
-    return svc.run_predict(
+    return await svc.run_predict_from_upload(
         user,
         access_token,
-        bd,
-        raw,
-        upload.content_type,
+        image=image,
+        birth_date=birth_date,
+        notes=notes,
     )
 
 

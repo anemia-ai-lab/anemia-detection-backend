@@ -77,7 +77,9 @@ def main() -> None:
 
     test_ds_pred = load_test_dataset(args.test_dir)
     y_true, y_prob = collect_binary_predictions(model, test_ds_pred)
-    out = build_threshold_evaluation_results(loss=loss_v, auc_val=auc_v, y_true=y_true, y_prob=y_prob)
+    out = build_threshold_evaluation_results(
+        loss=loss_v, auc_val=auc_v, y_true=y_true, y_prob=y_prob
+    )
 
     write_json(args.output_json, out)
     mop = out.get("at_operational_threshold") or {}

@@ -42,7 +42,6 @@ class PredictionHistoryItem(BaseModel):
                 "age_months": 111,
                 "age_display": "9 años 3 meses",
                 "notes": None,
-                "image_storage_path": "uuid/abc.jpg",
                 "created_at": "2026-04-01T12:00:00Z",
                 "inference_mode": "backend",
             }
@@ -64,10 +63,6 @@ class PredictionHistoryItem(BaseModel):
         description="Edad legible desde age_months (es), p. ej. 9 años 3 meses.",
     )
     notes: Optional[str] = None
-    image_storage_path: Optional[str] = Field(
-        default=None,
-        description="Ruta del objeto en el bucket de Storage (prefijo = user id).",
-    )
     created_at: datetime
     inference_mode: Literal["backend", "tflite_offline"] = Field(
         default="backend",
@@ -136,7 +131,19 @@ class PredictionResponse(BaseModel):
     threshold_used: float = Field(
         ge=0.0,
         le=1.0,
-        description="Umbral operacional aplicado sobre ``calibrated_probability`` (ROC-Youden en evaluación).",
+        description="Umbral alto (τ_alto / high_lower) para decisión binaria y riesgo ``high``.",
+    )
+    risk_tier_low_upper: Optional[float] = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="Umbral bajo: probabilidad calibrada ≤ valor → riesgo ``low``.",
+    )
+    risk_tier_high_lower: Optional[float] = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="Umbral alto: probabilidad calibrada ≥ valor → riesgo ``high``.",
     )
     prediction: Literal[0, 1] = Field(
         description="Decisión binaria: 1 si ``calibrated_probability >= threshold_used``, si no 0.",

@@ -178,6 +178,12 @@ def _parse_args() -> argparse.Namespace:
         default=None,
         help="Ruta del .keras (por defecto artifacts/models/baseline_mobilenetv2.keras).",
     )
+    p.add_argument(
+        "--init-model",
+        type=Path,
+        default=None,
+        help="Pesos .keras iniciales (p. ej. fine-tune Ghana sobre modelo Nature).",
+    )
     p.add_argument("--head-epochs", type=int, default=HEAD_EPOCHS)
     p.add_argument("--fine-tune-epochs", type=int, default=FINE_TUNE_EPOCHS)
     p.add_argument(
@@ -237,12 +243,35 @@ def _parse_args() -> argparse.Namespace:
         ),
     )
     p.add_argument(
+        "--experiment-tag",
+        type=str,
+        default=None,
+        metavar="TAG",
+        help="Etiqueta lógica del experimento (p. ej. ghana_scratch) para informes y conferencia.",
+    )
+    p.add_argument(
         "--mlflow",
         action="store_true",
         help=(
             "Registrar parámetros y métricas en MLflow (URI local ``file:<ml>/mlruns`` por defecto; "
             "sobrescribible con MLFLOW_TRACKING_URI / MLFLOW_EXPERIMENT_NAME)."
         ),
+    )
+    p.add_argument(
+        "--focal-loss",
+        action="store_true",
+        help="Usar focal loss (γ=2) en lugar de binary cross-entropy.",
+    )
+    p.add_argument(
+        "--focal-gamma",
+        type=float,
+        default=2.0,
+        help="Exponente γ de focal loss (solo con --focal-loss).",
+    )
+    p.add_argument(
+        "--mobile-capture-augment",
+        action="store_true",
+        help="Augmentación online tipo captura móvil (brillo/contraste/traslación suave).",
     )
     return p.parse_args()
 
@@ -279,6 +308,48 @@ def _delta_numeric(
     return out
 
 
+def _is_ghana_train_dir(train_dir: Path) -> bool:
+    parts = {p.lower() for p in train_dir.parts}
+    return "ghana" in parts or train_dir.as_posix().lower().endswith("/ghana/train")
+
+
+def _dataset_preparation_metadata(train_dir: Path) -> dict[str, str]:
+    if _is_ghana_train_dir(train_dir):
+        return {
+            "dataset_name": "Ghana (Mendeley, pediátrico ≤5 años)",
+            "description": (
+                "Imágenes ROI de uña redimensionadas a 224×224 desde el dataset Ghana "
+                "(Mendeley 10.17632/2xx4j3kjg2.1; niños). Script "
+                "`ml/scripts/prepare_ghana_dataset.py` (--original-only por defecto: "
+                "un PNG por sujeto). Etiqueta: prefijos Anemic-FN / Non-Anrmic-FN "
+                "(Hb < 11 g/dL → positive)."
+            ),
+            "patient_count_label": "Sujetos únicos (Ghana)",
+            "train_test_split_strategy": (
+                "Train vs test por **sujeto** (`ghana_fn_{label}_{id}`): "
+                "`prepare_ghana_dataset.py` asigna cada sujeto solo a train o test (80/20, seed=42). "
+                "La validación durante `fit` es un subconjunto interno de `data/ghana/train` "
+                "con split **por paciente** (`patient_id_from_crop_path`)."
+            ),
+        }
+    return {
+        "dataset_name": "Nature (Scientific Data 2024)",
+        "description": (
+            "Imágenes recortadas a 224×224 a partir del dataset Nature, usando las regiones "
+            "definidas en la columna NAIL_BOUNDING_BOXES del CSV de metadatos (script "
+            "`ml/scripts/prepare_nature_dataset.py`). Cada PNG corresponde a un crop de uña."
+        ),
+        "patient_count_label": "Pacientes (Nature, únicos)",
+        "train_test_split_strategy": (
+            "Train vs test a nivel de **paciente** en la preparación del dataset: "
+            "`prepare_nature_dataset.py` asigna todos los crops de un PATIENT_ID solo a train "
+            "o solo a test (80/20 por defecto). Las carpetas `data/train` y `data/test` "
+            "reflejan ese reparto; la validación durante `fit` es un subconjunto interno de "
+            "`data/train`."
+        ),
+    }
+
+
 def _fmt_counts(class_names: list[str], counts: dict[int, int]) -> str:
     parts = []
     for i, name in enumerate(class_names):
@@ -291,9 +362,15 @@ def _experiment_markdown(payload: dict) -> str:
     dist = payload["class_distribution"]
     imb = payload["class_imbalance"]
     cfg = payload["training_configuration"]
-    bft = cfg.get("backbone_fine_tuning") if isinstance(cfg.get("backbone_fine_tuning"), dict) else {}
+    bft = (
+        cfg.get("backbone_fine_tuning") if isinstance(cfg.get("backbone_fine_tuning"), dict) else {}
+    )
     p1 = bft.get("phase_1_head") if isinstance(bft.get("phase_1_head"), dict) else {}
-    p2 = bft.get("phase_2_partial_backbone") if isinstance(bft.get("phase_2_partial_backbone"), dict) else {}
+    p2 = (
+        bft.get("phase_2_partial_backbone")
+        if isinstance(bft.get("phase_2_partial_backbone"), dict)
+        else {}
+    )
     if bft.get("enabled") and p2:
         fi = p2.get("first_trainable_layer_index")
         if fi is not None:
@@ -344,7 +421,9 @@ def _experiment_markdown(payload: dict) -> str:
         c1 = block.get("1", "N/A")
         return f"- **{label}** — clase 0 ({dist.get('class_name_0', '?')}): {c0}; clase 1 ({dist.get('class_name_1', '?')}): {c1}"
 
-    cb_lines = "\n".join(f"  - `{c.get('class')}`: {c}" for c in cb) if cb else "  - (no registrado)"
+    cb_lines = (
+        "\n".join(f"  - `{c.get('class')}`: {c}" for c in cb) if cb else "  - (no registrado)"
+    )
     osb = payload.get("oversampling") or {}
     bc = payload.get("baseline_comparison") or {}
 
@@ -478,6 +557,11 @@ def _experiment_markdown(payload: dict) -> str:
         f"**Run ID:** `{payload['run_id']}`  ",
         f"**Marca de tiempo (UTC):** `{payload['timestamp_utc']}`  ",
         f"**model_version:** `{payload.get('model_version', 'N/A')}`  ",
+        *(
+            [f"**experiment_tag:** `{payload['experiment_tag']}`  "]
+            if payload.get("experiment_tag")
+            else []
+        ),
         f"**Semilla aleatoria (reproducibilidad):** `{payload.get('random_seed', 'N/A')}`",
         "",
         "**Versiones de software:**",
@@ -521,8 +605,9 @@ def _experiment_markdown(payload: dict) -> str:
         "",
         d["description"],
         "",
-        f"- **Pacientes (estudio Nature, únicos):** {d['total_patients']}",
+        f"- **{d.get('patient_count_label', 'Pacientes únicos')}:** {d['total_patients']}",
         f"  - Fuente del conteo: {d['patient_count_source']}",
+        f"- **Dataset:** {d.get('dataset_name', 'N/A')}",
         f"- **Total de muestras (crops) en disco:** {d['total_crops_all_splits']}",
         f"  - Train (carpeta): {d['crops_train_folder']}",
         f"  - Test (carpeta): {d['crops_test_folder']}",
@@ -617,42 +702,47 @@ def _experiment_markdown(payload: dict) -> str:
             ],
         )
     else:
-        lines.extend(["- *(Sin evaluación en test, p. ej. modo `--demo`.)*", "",])
+        lines.extend(
+            [
+                "- *(Sin evaluación en test, p. ej. modo `--demo`.)*",
+                "",
+            ]
+        )
 
     lines.extend(
         [
-        "| Métrica global | Valor |",
-        "|----------------|-------|",
-        f"| Loss (test) | {_f(res.get('loss'))} |",
-        f"| **AUC (ROC, independiente del umbral)** | {_f(res.get('auc'))} |",
-        "",
-        "### Métricas principales (umbral operacional = ROC-Youden)",
-        "",
-        (
-            "Estas son las métricas **destacadas** para el contexto de tesis / uso clínico documentado; "
-            "corresponden al corte **operacional** (máximo J en ROC sobre test)."
-        ),
-        "",
-        f"- **Umbral operacional τ:** `{_f(mop.get('threshold', my.get('optimal_threshold')), nd=6)}`  ",
-        f"- **Índice de Youden J:** {_f(mop.get('youden_j', my.get('youden_j')))}",
-        "",
-        "| **Precision** | **Recall (sensibilidad)** | Accuracy |",
-        "|---------------|---------------------------|----------|",
-        f"| **{_f(mop.get('precision', my.get('precision')))}** | **{_f(mop.get('recall', my.get('recall')))}** | {_f(mop.get('accuracy', my.get('accuracy')))} |",
-        "",
-        "### Referencia: umbral teórico 0.5 (sigmoid)",
-        "",
-        "Solo comparación bibliográfica; **no** se recomienda como decisión principal con datos desbalanceados.",
-        "",
-        "| Accuracy | Precision | Recall (sensibilidad) |",
-        "|----------|-----------|------------------------|",
-        f"| {_f(m05.get('accuracy'))} | {_f(m05.get('precision'))} | {_f(m05.get('recall'))} |",
-        "",
-        *_baseline_md_block(),
-        "## f) Artefacto del modelo",
-        "",
-        f"- **Ruta .keras:** `{res['model_path']}`",
-        "",
+            "| Métrica global | Valor |",
+            "|----------------|-------|",
+            f"| Loss (test) | {_f(res.get('loss'))} |",
+            f"| **AUC (ROC, independiente del umbral)** | {_f(res.get('auc'))} |",
+            "",
+            "### Métricas principales (umbral operacional = ROC-Youden)",
+            "",
+            (
+                "Estas son las métricas **destacadas** para el contexto de tesis / uso clínico documentado; "
+                "corresponden al corte **operacional** (máximo J en ROC sobre test)."
+            ),
+            "",
+            f"- **Umbral operacional τ:** `{_f(mop.get('threshold', my.get('optimal_threshold')), nd=6)}`  ",
+            f"- **Índice de Youden J:** {_f(mop.get('youden_j', my.get('youden_j')))}",
+            "",
+            "| **Precision** | **Recall (sensibilidad)** | Accuracy |",
+            "|---------------|---------------------------|----------|",
+            f"| **{_f(mop.get('precision', my.get('precision')))}** | **{_f(mop.get('recall', my.get('recall')))}** | {_f(mop.get('accuracy', my.get('accuracy')))} |",
+            "",
+            "### Referencia: umbral teórico 0.5 (sigmoid)",
+            "",
+            "Solo comparación bibliográfica; **no** se recomienda como decisión principal con datos desbalanceados.",
+            "",
+            "| Accuracy | Precision | Recall (sensibilidad) |",
+            "|----------|-----------|------------------------|",
+            f"| {_f(m05.get('accuracy'))} | {_f(m05.get('precision'))} | {_f(m05.get('recall'))} |",
+            "",
+            *_baseline_md_block(),
+            "## f) Artefacto del modelo",
+            "",
+            f"- **Ruta .keras:** `{res['model_path']}`",
+            "",
         ],
     )
     return "\n".join(lines)
@@ -673,6 +763,8 @@ def main() -> None:
     metadata_path = args.metadata_path.expanduser().resolve() if args.metadata_path else None
 
     augment_train = not args.no_augment
+    augment_style = "mobile_capture" if args.mobile_capture_augment else "medical_light"
+    use_focal = bool(args.focal_loss)
 
     oversampling_info: dict[str, object] = {
         "applied": False,
@@ -715,6 +807,7 @@ def main() -> None:
             validation_split=args.validation_split,
             seed=args.seed,
             augment_train=augment_train,
+            augment_style=augment_style,
             oversample_positive=args.oversample_positive,
         )
 
@@ -736,7 +829,14 @@ def main() -> None:
             f"después n₀={aft.get('0')}, n₁={aft.get('1')} (+{oversampling_info.get('duplicates_added', 0)} duplicados) ---",
         )
 
-    model = build_model(backbone_trainable=False)
+    if args.init_model is not None:
+        init_path = args.init_model.expanduser().resolve()
+        if not init_path.is_file():
+            raise SystemExit(f"No existe --init-model: {init_path}")
+        model = keras.models.load_model(init_path, compile=False)
+        print(f"Modelo inicial cargado desde: {init_path}")
+    else:
+        model = build_model(backbone_trainable=False)
     n_bb = len(model.get_layer(BACKBONE_LAYER_NAME).layers)
     backbone_ft_meta: dict[str, object] = {
         "enabled": bool(args.fine_tune_epochs > 0),
@@ -763,16 +863,29 @@ def main() -> None:
             "first_trainable_layer_index": int(co) if co is not None else None,
         }
 
-    compile_for_binary(model, HEAD_LEARNING_RATE)
-
-    history_head = model.fit(
-        train_ds,
-        validation_data=val_ds,
-        epochs=args.head_epochs,
-        verbose=1,
-        class_weight=class_weight_for_fit,
-        callbacks=_training_callbacks(best_checkpoint_path),
-    )
+    history_head = None
+    if args.head_epochs > 0:
+        compile_for_binary(
+            model,
+            HEAD_LEARNING_RATE,
+            use_focal_loss=use_focal,
+            focal_gamma=args.focal_gamma,
+        )
+        history_head = model.fit(
+            train_ds,
+            validation_data=val_ds,
+            epochs=args.head_epochs,
+            verbose=1,
+            class_weight=class_weight_for_fit,
+            callbacks=_training_callbacks(best_checkpoint_path),
+        )
+    elif args.init_model is None:
+        compile_for_binary(
+            model,
+            HEAD_LEARNING_RATE,
+            use_focal_loss=use_focal,
+            focal_gamma=args.focal_gamma,
+        )
 
     history_ft = None
     if args.fine_tune_epochs > 0:
@@ -784,7 +897,12 @@ def main() -> None:
             f"entrenables={p2.get('backbone_layers_unfrozen')}",
         )
         set_backbone_trainable(model, int(args.fine_tune_freeze_up_to_layer))
-        compile_for_binary(model, float(args.fine_tune_learning_rate))
+        compile_for_binary(
+            model,
+            float(args.fine_tune_learning_rate),
+            use_focal_loss=use_focal,
+            focal_gamma=args.focal_gamma,
+        )
         history_ft = model.fit(
             train_ds,
             validation_data=val_ds,
@@ -832,7 +950,9 @@ def main() -> None:
         m5 = test_results["at_threshold_0_5"]
         print(
             "  [referencia 0.5] — precision: {:.6f}, recall: {:.6f}, accuracy: {:.6f}".format(
-                m5["precision"], m5["recall"], m5["accuracy"],
+                m5["precision"],
+                m5["recall"],
+                m5["accuracy"],
             ),
         )
     else:
@@ -851,7 +971,11 @@ def main() -> None:
         imb_b = base_exp.get("class_imbalance") or {}
         cur_sl = _metrics_for_compare(test_results)
         base_sl = _metrics_for_compare(br)
-        bft_b = btc.get("backbone_fine_tuning") if isinstance(btc.get("backbone_fine_tuning"), dict) else {}
+        bft_b = (
+            btc.get("backbone_fine_tuning")
+            if isinstance(btc.get("backbone_fine_tuning"), dict)
+            else {}
+        )
         baseline_comparison = {
             "baseline_experiment_path": str(baseline_path),
             "baseline_run_id": base_exp.get("run_id"),
@@ -896,10 +1020,14 @@ def main() -> None:
     crops_train = sum(train_folder_counts.values()) if train_folder_counts else 0
     crops_test = sum(test_folder_counts.values()) if test_folder_counts else 0
 
-    aug_summary = "ninguna (--no-augment o demo)" if (args.demo or not augment_train) else (
-        f"RandomRotation (±≤15°, factor={AUG_MAX_ROTATION_FACTOR:.4f} respecto a 2π), "
-        f"RandomZoom {AUG_ZOOM_RANGE}, RandomBrightness (max_delta={AUG_BRIGHTNESS_MAX_DELTA}), "
-        f"RandomContrast (factor={AUG_CONTRAST_FACTOR}); solo en train, sin augment en val/test."
+    aug_summary = (
+        "ninguna (--no-augment o demo)"
+        if (args.demo or not augment_train)
+        else (
+            f"RandomRotation (±≤15°, factor={AUG_MAX_ROTATION_FACTOR:.4f} respecto a 2π), "
+            f"RandomZoom {AUG_ZOOM_RANGE}, RandomBrightness (max_delta={AUG_BRIGHTNESS_MAX_DELTA}), "
+            f"RandomContrast (factor={AUG_CONTRAST_FACTOR}); solo en train, sin augment en val/test."
+        )
     )
 
     cw_serializable = {str(k): float(v) for k, v in class_weight.items()}
@@ -941,7 +1069,9 @@ def main() -> None:
     elif not os_on and cw_on:
         sampling_note = "Sin oversampling; `class_weight` **habilitado** en `model.fit`."
     else:
-        sampling_note = "Sin oversampling; `class_weight` **desactivado** en `fit` (`--no-class-weight`)."
+        sampling_note = (
+            "Sin oversampling; `class_weight` **desactivado** en `fit` (`--no-class-weight`)."
+        )
 
     fit_phases_wording = (
         "las fases de cabezal y fine-tuning del backbone"
@@ -964,35 +1094,32 @@ def main() -> None:
     oversampling_report = dict(oversampling_info)
     oversampling_report["oversampling_requested"] = bool(args.oversample_positive)
 
+    ds_meta = _dataset_preparation_metadata(train_dir)
+
     experiment: dict = {
         "run_id": run_id,
         "timestamp_utc": timestamp_utc_iso,
+        "experiment_tag": args.experiment_tag,
         "model_version": EXPERIMENT_MODEL_VERSION,
         "random_seed": args.seed,
         "software_versions": _software_versions(),
         "dataset_preparation": {
-            "description": (
-                "Imágenes recortadas a 224×224 a partir del dataset Nature, usando las regiones "
-                "definidas en la columna NAIL_BOUNDING_BOXES del CSV de metadatos (script "
-                "`ml/scripts/prepare_nature_dataset.py`). Cada PNG corresponde a un crop de uña."
-            ),
+            "description": ds_meta["description"],
+            "dataset_name": ds_meta["dataset_name"],
+            "patient_count_label": ds_meta["patient_count_label"],
             "total_patients": meta_patients,
             "patient_count_source": patient_source,
-            "total_crops_all_splits": count_total_crops(train_dir, test_dir) if not args.demo else None,
+            "total_crops_all_splits": count_total_crops(train_dir, test_dir)
+            if not args.demo
+            else None,
             "crops_train_folder": crops_train,
             "crops_test_folder": crops_test,
             "train_val_split_strategy": (
-                "Partición estratificada aleatoria sobre las imágenes de `train/` "
+                "Partición estratificada por **paciente** sobre las imágenes de `train/` "
                 f"(validation_split={args.validation_split}, semilla={args.seed}); "
-                "las mismas carpetas de clase que usa Keras, orden alfabético de subcarpetas."
+                "mismas carpetas de clase que Keras (orden alfabético)."
             ),
-            "train_test_split_strategy": (
-                "Train vs test a nivel de **paciente** en la preparación del dataset: "
-                "`prepare_nature_dataset.py` asigna todos los crops de un PATIENT_ID solo a train "
-                "o solo a test (80/20 por defecto). Las carpetas `data/train` y `data/test` "
-                "reflejan ese reparto; la validación durante `fit` es un subconjunto interno de "
-                "`data/train`."
-            ),
+            "train_test_split_strategy": ds_meta["train_test_split_strategy"],
         },
         "class_distribution": {
             "class_name_0": neg_name,
@@ -1029,7 +1156,13 @@ def main() -> None:
             "demo": args.demo,
             "oversample_positive": bool(args.oversample_positive),
             "no_class_weight": bool(args.no_class_weight),
-            "baseline_experiment_json": str(baseline_path) if args.baseline_experiment_json else None,
+            "baseline_experiment_json": str(baseline_path)
+            if args.baseline_experiment_json
+            else None,
+            "init_model": str(args.init_model.expanduser().resolve())
+            if args.init_model
+            else None,
+            "experiment_tag": args.experiment_tag,
             "callbacks_configuration": _callbacks_configuration(best_checkpoint_path),
         },
         "oversampling": oversampling_report,
@@ -1053,7 +1186,11 @@ def main() -> None:
             ),
         },
         "keras_histories": {
-            "head": {k: [float(x) for x in v] for k, v in history_head.history.items()},
+            "head": (
+                {k: [float(x) for x in v] for k, v in history_head.history.items()}
+                if history_head is not None
+                else None
+            ),
             "fine_tune": (
                 {k: [float(x) for x in v] for k, v in history_ft.history.items()}
                 if history_ft

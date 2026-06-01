@@ -43,5 +43,8 @@ Local development:
 	•	`make lint` / `make format` — ruff.
 
 Supabase keys (security):
-	•	`SUPABASE_KEY` with `get_supabase_client()`: subject to RLS; still a server secret — do not ship to browsers.
+	•	`SUPABASE_KEY` (anon): use `create_supabase_anon_client()` for GoTrue and `create_supabase_user_client(jwt)` for PostgREST/Storage with RLS. Do not use a shared singleton for concurrent auth.
 	•	`SUPABASE_SERVICE_ROLE_KEY` with `get_supabase_service_client()`: bypasses RLS — trusted server only, never expose to clients.
+	•	`PREDICTIONS_STORAGE_BUCKET` must stay `prediction-images` unless Storage RLS migrations are updated.
+	•	`RISK_THRESHOLD` is legacy; `POST /predict` uses `INFERENCE_CALIBRATION_OPERATIONAL_THRESHOLD` on calibrated probabilities.
+	•	`APP_ENV=production` requires `SUPABASE_*`, `METRICS_BEARER_TOKEN`, and forbids `DEBUG=true`.

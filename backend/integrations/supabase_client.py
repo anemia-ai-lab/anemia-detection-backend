@@ -17,11 +17,11 @@ def _require_setting(name: str, value: str) -> str:
 
 @lru_cache(maxsize=1)
 def get_supabase_client() -> Client:
-    """Singleton client using the publishable/anon key (`SUPABASE_KEY`).
+    """Singleton anon client (`SUPABASE_KEY`). Prefer :func:`create_supabase_anon_client`
+    or :func:`create_supabase_user_client` in HTTP handlers.
 
-    Do not use this for GoTrue ``auth.*`` flows in concurrent HTTP handlers:
-    the SDK stores the session in process memory. Use
-    :func:`create_supabase_anon_client` for sign-in / sign-up / ``get_user``.
+    Unused in application code today; kept for scripts or future PostgREST-only reads.
+    Do not use for GoTrue ``auth.*`` in concurrent requests (in-memory session).
     """
     url = _require_setting("SUPABASE_URL", settings.supabase_url)
     key = _require_setting("SUPABASE_KEY", settings.supabase_key)

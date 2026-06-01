@@ -49,6 +49,19 @@ def _make_train_augmentation() -> keras.Sequential:
     )
 
 
+def _make_mobile_capture_augmentation() -> keras.Sequential:
+    """Variaciones suaves tipo captura móvil (sin rotaciones fuertes)."""
+    return keras.Sequential(
+        [
+            layers.RandomBrightness(0.12),
+            layers.RandomContrast(0.12),
+            layers.RandomTranslation(0.04, 0.04, fill_mode="reflect"),
+            layers.RandomZoom(0.06, 0.06, fill_mode="reflect"),
+        ],
+        name="train_augmentation_mobile_capture",
+    )
+
+
 def list_labeled_image_paths(train_dir: Path) -> tuple[np.ndarray, np.ndarray, list[str]]:
     """
     Lista rutas y etiquetas enteras en el mismo orden que ``image_dataset_from_directory``
@@ -70,6 +83,80 @@ def list_labeled_image_paths(train_dir: Path) -> tuple[np.ndarray, np.ndarray, l
     return np.array(paths, dtype=object), np.array(labels, dtype=np.int32), class_names
 
 
+def patient_id_from_crop_path(path: str | Path) -> str:
+    """
+    Agrupa crops del mismo paciente (p. ej. ``P123_0.png`` → ``P123``).
+    Si no hay sufijo numérico, usa el stem completo.
+    """
+    stem = Path(path).stem
+    if "_" in stem:
+        head, tail = stem.rsplit("_", 1)
+        if tail.isdigit():
+            return head
+    return stem
+
+
+def stratified_train_val_paths_by_patient(
+    paths: np.ndarray,
+    labels: np.ndarray,
+    *,
+    validation_split: float,
+    seed: int,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Partición estratificada por **paciente** (evita filtración crop train/val)."""
+    if not 0.0 <= validation_split < 1.0:
+        raise ValueError("validation_split debe estar en [0, 1).")
+    from collections import defaultdict
+
+    by_patient: dict[str, list[tuple[str, int]]] = defaultdict(list)
+    for p, lab in zip(paths, labels, strict=True):
+        pid = patient_id_from_crop_path(str(p))
+        by_patient[pid].append((str(p), int(lab)))
+
+    patients_by_class: dict[int, list[str]] = {0: [], 1: []}
+    for pid, items in by_patient.items():
+        labs = {lab for _, lab in items}
+        if len(labs) != 1:
+            raise ValueError(f"Paciente {pid!r} tiene etiquetas contradictorias en crops: {labs}")
+        patients_by_class[labs.pop()].append(pid)
+
+    rng = np.random.default_rng(seed)
+    train_paths: list[str] = []
+    train_labels: list[int] = []
+    val_paths: list[str] = []
+    val_labels: list[int] = []
+    for c in (0, 1):
+        pids = patients_by_class[c]
+        if not pids:
+            continue
+        rng.shuffle(pids)
+        n = len(pids)
+        n_val = int(round(n * validation_split))
+        if validation_split > 0.0 and n > 1:
+            n_val = min(max(n_val, 1), n - 1)
+        else:
+            n_val = 0
+        for pid in pids[:n_val]:
+            for path, lab in by_patient[pid]:
+                val_paths.append(path)
+                val_labels.append(lab)
+        for pid in pids[n_val:]:
+            for path, lab in by_patient[pid]:
+                train_paths.append(path)
+                train_labels.append(lab)
+    if validation_split > 0 and len(val_labels) == 0:
+        raise ValueError(
+            "El conjunto de validación quedó vacío (muy pocos pacientes por clase o "
+            "validation_split demasiado bajo)."
+        )
+    return (
+        np.array(train_paths, dtype=object),
+        np.array(train_labels, dtype=np.int32),
+        np.array(val_paths, dtype=object),
+        np.array(val_labels, dtype=np.int32),
+    )
+
+
 def stratified_train_val_paths(
     paths: np.ndarray,
     labels: np.ndarray,
@@ -77,7 +164,7 @@ def stratified_train_val_paths(
     validation_split: float,
     seed: int,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Partición estratificada por clase (etiquetas 0/1)."""
+    """Partición estratificada por clase (etiquetas 0/1) a nivel **crop** (legacy)."""
     if not 0.0 <= validation_split < 1.0:
         raise ValueError("validation_split debe estar en [0, 1).")
     rng = np.random.default_rng(seed)
@@ -138,23 +225,31 @@ def oversample_positive_train_balance(
     n_neg = int(np.sum(y != positive_label))
     before = {"0": int(np.sum(y == 0)), "1": int(np.sum(y == 1))}
     if n_pos == 0:
-        return p, y, {
-            "applied": False,
-            "reason": "no_positive_samples",
-            "before_train_by_class": dict(before),
-            "after_train_by_class": dict(before),
-            "duplicates_added": 0,
-            "positive_label": positive_label,
-        }
+        return (
+            p,
+            y,
+            {
+                "applied": False,
+                "reason": "no_positive_samples",
+                "before_train_by_class": dict(before),
+                "after_train_by_class": dict(before),
+                "duplicates_added": 0,
+                "positive_label": positive_label,
+            },
+        )
     if n_pos >= n_neg:
-        return p, y, {
-            "applied": False,
-            "reason": "already_balanced_or_majority_positive",
-            "before_train_by_class": dict(before),
-            "after_train_by_class": dict(before),
-            "duplicates_added": 0,
-            "positive_label": positive_label,
-        }
+        return (
+            p,
+            y,
+            {
+                "applied": False,
+                "reason": "already_balanced_or_majority_positive",
+                "before_train_by_class": dict(before),
+                "after_train_by_class": dict(before),
+                "duplicates_added": 0,
+                "positive_label": positive_label,
+            },
+        )
     n_add = n_neg - n_pos
     rng = np.random.default_rng(seed)
     idx_pos = np.flatnonzero(y == positive_label)
@@ -166,17 +261,21 @@ def oversample_positive_train_balance(
     perm = rng.permutation(new_y.size)
     new_p, new_y = new_p[perm], new_y[perm]
     after = {"0": int(np.sum(new_y == 0)), "1": int(np.sum(new_y == 1))}
-    return new_p, new_y, {
-        "applied": True,
-        "strategy": (
-            "Oversampling aleatorio con reemplazo de la clase positiva (label=1) hasta "
-            "aproximadamente 1:1 con negativos; solo en el subconjunto train del split interno."
-        ),
-        "before_train_by_class": dict(before),
-        "after_train_by_class": dict(after),
-        "duplicates_added": int(n_add),
-        "positive_label": positive_label,
-    }
+    return (
+        new_p,
+        new_y,
+        {
+            "applied": True,
+            "strategy": (
+                "Oversampling aleatorio con reemplazo de la clase positiva (label=1) hasta "
+                "aproximadamente 1:1 con negativos; solo en el subconjunto train del split interno."
+            ),
+            "before_train_by_class": dict(before),
+            "after_train_by_class": dict(after),
+            "duplicates_added": int(n_add),
+            "positive_label": positive_label,
+        },
+    )
 
 
 def compute_binary_class_weights(counts: dict[int, int]) -> dict[int, float]:
@@ -209,7 +308,9 @@ def count_total_crops(*dirs: Path) -> int:
         for sub in d.iterdir():
             if sub.is_dir():
                 t += sum(
-                    1 for f in sub.iterdir() if f.is_file() and f.suffix.lower() in ALLOWED_IMAGE_EXT
+                    1
+                    for f in sub.iterdir()
+                    if f.is_file() and f.suffix.lower() in ALLOWED_IMAGE_EXT
                 )
     return t
 
@@ -259,7 +360,9 @@ def load_train_val_datasets(
     img_size: tuple[int, int] = IMG_SIZE,
     seed: int = SEED,
     augment_train: bool = True,
+    augment_style: str = "medical_light",
     oversample_positive: bool = False,
+    split_by_patient: bool = True,
 ) -> tuple[
     tf.data.Dataset,
     tf.data.Dataset,
@@ -279,7 +382,10 @@ def load_train_val_datasets(
     - Augmentación solo en train si ``augment_train`` es True.
     """
     paths, labels, class_names = list_labeled_image_paths(train_dir)
-    train_paths, train_labels, val_paths, val_labels = stratified_train_val_paths(
+    split_fn = (
+        stratified_train_val_paths_by_patient if split_by_patient else stratified_train_val_paths
+    )
+    train_paths, train_labels, val_paths, val_labels = split_fn(
         paths,
         labels,
         validation_split=validation_split,
@@ -303,7 +409,18 @@ def load_train_val_datasets(
             "after_train_by_class": {str(k): int(v) for k, v in train_counts.items()},
             "duplicates_added": 0,
         }
-    aug = _make_train_augmentation() if augment_train else None
+    if augment_train:
+        if augment_style == "mobile_capture":
+            aug = _make_mobile_capture_augmentation()
+        elif augment_style in ("medical_light", "default"):
+            aug = _make_train_augmentation()
+        else:
+            raise ValueError(
+                f"augment_style desconocido: {augment_style!r} "
+                "(use 'medical_light' o 'mobile_capture')",
+            )
+    else:
+        aug = None
 
     def _decode(path: tf.Tensor, label: tf.Tensor) -> tuple[tf.Tensor, tf.Tensor]:
         data = tf.io.read_file(path)
@@ -366,6 +483,7 @@ def load_validation_dataset(
     batch_size: int = BATCH_SIZE,
     img_size: tuple[int, int] = IMG_SIZE,
     seed: int = SEED,
+    split_by_patient: bool = True,
 ) -> tuple[tf.data.Dataset, dict[int, int], list[str]]:
     """
     Subconjunto de **validación** reproducible (mismo split estratificado que
@@ -374,7 +492,10 @@ def load_validation_dataset(
     Útil para calibración post-hoc (p. ej. *temperature scaling*) sin reconstruir train.
     """
     paths, labels, class_names = list_labeled_image_paths(train_dir)
-    _, _, val_paths, val_labels = stratified_train_val_paths(
+    split_fn = (
+        stratified_train_val_paths_by_patient if split_by_patient else stratified_train_val_paths
+    )
+    _, _, val_paths, val_labels = split_fn(
         paths,
         labels,
         validation_split=validation_split,

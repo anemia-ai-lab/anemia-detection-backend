@@ -68,6 +68,13 @@ class AuthService:
             raise map_supabase_auth_error(e, prefer_unauthorized=True) from e
         return self._login_session_response(raw, warnings=[])
 
+    def refresh(self, refresh_token: str) -> LoginAuthResponse:
+        try:
+            raw = self._repo.refresh_session(refresh_token)
+        except AuthError as e:
+            raise map_supabase_auth_error(e, prefer_unauthorized=True) from e
+        return self._login_session_response(raw, warnings=[])
+
     def me(self, access_token: str) -> UserOut:
         """Resolve current user; ``access_token`` must already pass bearer + shape checks."""
         try:

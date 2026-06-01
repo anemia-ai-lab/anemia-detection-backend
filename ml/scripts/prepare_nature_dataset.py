@@ -109,7 +109,9 @@ def _parse_boxes_list(raw: str) -> list[list[int]]:
     return out
 
 
-def _clamp_box(x1: int, y1: int, x2: int, y2: int, w_img: int, h_img: int) -> tuple[int, int, int, int] | None:
+def _clamp_box(
+    x1: int, y1: int, x2: int, y2: int, w_img: int, h_img: int
+) -> tuple[int, int, int, int] | None:
     if x2 < x1:
         x1, x2 = x2, x1
     if y2 < y1:
@@ -185,7 +187,9 @@ def main() -> None:
         print(f"Error: no existe metadata ({_repo_relative(metadata_path)})", file=sys.stderr)
         sys.exit(1)
     if not images_dir.is_dir():
-        print(f"Error: no existe carpeta de imágenes ({_repo_relative(images_dir)})", file=sys.stderr)
+        print(
+            f"Error: no existe carpeta de imágenes ({_repo_relative(images_dir)})", file=sys.stderr
+        )
         sys.exit(1)
 
     import tensorflow as tf

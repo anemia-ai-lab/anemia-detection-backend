@@ -46,10 +46,12 @@ from baseline.config import (  # noqa: E402
     DEFAULT_MODEL_NAME,
     DEFAULT_TEST_DIR,
     DEFAULT_TRAIN_DIR,
+    HEAD_LEARNING_RATE,
     MODEL_DIR,
     RUNS_DIR,
     SEED,
 )
+from baseline.model import compile_for_binary  # noqa: E402
 from baseline.dataops import (  # noqa: E402
     load_test_dataset,
     load_validation_dataset,
@@ -59,7 +61,9 @@ from baseline.dataops import (  # noqa: E402
 from baseline.evaluation import (  # noqa: E402
     build_threshold_evaluation_results,
     collect_binary_predictions,
+    youden_optimal_threshold,
 )
+from baseline.risk_tiers import risk_tier_thresholds_from_validation  # noqa: E402
 from tensorflow import keras  # noqa: E402
 
 
@@ -67,7 +71,9 @@ def _software_versions() -> dict[str, str]:
     import tensorflow as tf
 
     k_ver = getattr(keras, "__version__", None) or getattr(
-        getattr(tf, "keras", None), "__version__", "unknown",
+        getattr(tf, "keras", None),
+        "__version__",
+        "unknown",
     )
     return {"tensorflow": str(tf.__version__), "keras": str(k_ver)}
 
@@ -292,6 +298,7 @@ def main() -> None:
         raise SystemExit(f"No existe --test-dir: {test_dir}")
 
     model = keras.models.load_model(model_path, compile=False)
+    compile_for_binary(model, HEAD_LEARNING_RATE)
 
     val_ds, val_counts, _class_names = load_validation_dataset(
         train_dir,
@@ -308,6 +315,11 @@ def main() -> None:
         fit_diag["warning_validation_single_class"] = (
             "El subconjunto de validación no tiene ambas clases; el ajuste de T puede ser poco informativo."
         )
+
+    p_val_cal = apply_temperature_scaling(p_val, T)
+    tau_cal, tau_j_val = youden_optimal_threshold(y_val, p_val_cal)
+    tau_source = "roc_youden_max_j_on_validation_calibrated"
+    risk_tiers = risk_tier_thresholds_from_validation(y_val, p_val_cal)
 
     test_ds_eval = load_test_dataset(test_dir)
     raw_eval = model.evaluate(test_ds_eval, return_dict=True, verbose=1)
@@ -326,12 +338,16 @@ def main() -> None:
         auc_val=auc_unc_keras,
         y_true=y_test,
         y_prob=p_test,
+        operational_threshold=tau_cal,
+        operational_threshold_source="roc_youden_on_validation_calibrated_applied_to_test",
     )
     cal_base = build_threshold_evaluation_results(
         loss=loss_cal,
         auc_val=auc_cal_keras,
         y_true=y_test,
         y_prob=p_cal,
+        operational_threshold=tau_cal,
+        operational_threshold_source="roc_youden_on_validation_calibrated_applied_to_test",
     )
     unc = enrich_binary_eval_with_calibration_metrics(
         unc_base,
@@ -382,11 +398,27 @@ def main() -> None:
             "validation_class_counts": {str(k): int(v) for k, v in val_counts.items()},
             "mean_nll_validation_before_T": float(fit_diag["mean_nll_validation_before_T"]),
             "mean_nll_validation_after_T": float(fit_diag["mean_nll_validation_after_T"]),
-            "fit_diagnostics": {k: v for k, v in fit_diag.items() if k not in (
-                "mean_nll_validation_before_T",
-                "mean_nll_validation_after_T",
-            )},
+            "fit_diagnostics": {
+                k: v
+                for k, v in fit_diag.items()
+                if k
+                not in (
+                    "mean_nll_validation_before_T",
+                    "mean_nll_validation_after_T",
+                )
+            },
             "ece_bins": int(args.ece_bins),
+            "operational_threshold_selection": {
+                "threshold": float(tau_cal),
+                "youden_j_on_validation_calibrated": float(tau_j_val),
+                "source": tau_source,
+                "applied_to_test_metrics": True,
+                "note": (
+                    "τ se estima en validación (probabilidades calibradas) y se aplica al "
+                    "reporte en test; no se optimiza τ directamente en test."
+                ),
+            },
+            "risk_tier_thresholds": risk_tiers,
         },
         "test_uncalibrated": unc,
         "test_calibrated": cali,
@@ -413,9 +445,7 @@ def main() -> None:
         else (RUNS_DIR / f"{run_id}.json")
     )
     out_md = (
-        args.output_md.expanduser().resolve()
-        if args.output_md
-        else out_json.with_suffix(".md")
+        args.output_md.expanduser().resolve() if args.output_md else out_json.with_suffix(".md")
     )
 
     write_json(out_json, payload)

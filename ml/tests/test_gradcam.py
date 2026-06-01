@@ -29,6 +29,7 @@ def test_gradcam_shapes_and_nonzero_heatmap(keras_model_path) -> None:
     assert res.saliency.shape == (224, 224)
     assert res.preprocessed.shape == (1, 224, 224, 3)
     assert float(np.max(res.heatmap)) > 1e-6
+    assert res.explanation_status == "gradcam"
 
 
 def test_gradcam_deterministic(keras_model_path) -> None:
@@ -47,11 +48,7 @@ def test_gradcam_deterministic(keras_model_path) -> None:
 def test_explicit_layer_override(keras_model_path) -> None:
     model = keras.models.load_model(keras_model_path, compile=False)
     backbone = model.get_layer("mobilenet_backbone")
-    first_dw = next(
-        lyr
-        for lyr in backbone.layers
-        if isinstance(lyr, keras.layers.DepthwiseConv2D)
-    )
+    first_dw = next(lyr for lyr in backbone.layers if isinstance(lyr, keras.layers.DepthwiseConv2D))
     gc = GradCAM(model, layer_name=first_dw.name)
     assert gc.selected_layer == first_dw.name
     res = gc.explain(_rgb_noise(3))

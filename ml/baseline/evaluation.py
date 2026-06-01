@@ -108,13 +108,24 @@ def build_threshold_evaluation_results(
     auc_val: float,
     y_true: np.ndarray,
     y_prob: np.ndarray,
+    operational_threshold: float | None = None,
+    operational_threshold_source: str | None = None,
 ) -> dict[str, Any]:
     """
-    Construye el bloque ``results`` de evaluación en test: AUC, umbral teórico 0.5 (referencia),
+    Construye el bloque ``results`` de evaluación: AUC, umbral teórico 0.5 (referencia),
     umbral operacional ROC-Youden (métricas principales) y texto de interpretación clínica.
+
+    Si ``operational_threshold`` se proporciona (p. ej. estimado en validación), las métricas
+    @τ usan ese valor en ``y_true``/``y_prob`` del conjunto evaluado (p. ej. test).
     """
     at_05 = binary_metrics_at_threshold(y_true, y_prob, 0.5)
-    t_star, j_max = youden_optimal_threshold(y_true, y_prob)
+    if operational_threshold is not None:
+        t_star = float(operational_threshold)
+        j_max = youden_optimal_threshold(y_true, y_prob)[1]
+        src = operational_threshold_source or "fixed_external"
+    else:
+        t_star, j_max = youden_optimal_threshold(y_true, y_prob)
+        src = "roc_youden_max_j"
     at_op = binary_metrics_at_threshold(y_true, y_prob, t_star)
     return {
         "loss": float(loss),
@@ -128,9 +139,11 @@ def build_threshold_evaluation_results(
                 "no como umbral operacional en este estudio."
             ),
             "operational_threshold": float(t_star),
-            "operational_threshold_source": "roc_youden_max_j",
+            "operational_threshold_source": src,
             "youden_j_at_operational_threshold": float(j_max),
-            "operational_for_predictions_note": CLINICAL_INTERPRETATION["operational_threshold_use"],
+            "operational_for_predictions_note": CLINICAL_INTERPRETATION[
+                "operational_threshold_use"
+            ],
             "fixed_decision_threshold": 0.5,
             "roc_youden_optimal_threshold": float(t_star),
             "youden_j_max": float(j_max),
@@ -141,7 +154,7 @@ def build_threshold_evaluation_results(
             "recall": at_op["recall"],
             "accuracy": at_op["accuracy"],
             "youden_j": float(j_max),
-            "source": "roc_youden_max_j",
+            "source": src,
             "is_primary_reporting_metrics": True,
         },
         "at_threshold_0_5": {

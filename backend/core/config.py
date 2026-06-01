@@ -17,8 +17,10 @@ MODEL_VERSION = "v1.0"
 RISK_THRESHOLD = 0.5
 
 # Calibración alineada con el experimento de tesis (*temperature scaling* en validación).
-INFERENCE_CALIBRATION_TEMPERATURE_DEFAULT = 0.7510018331928743
-INFERENCE_CALIBRATION_OPERATIONAL_THRESHOLD_DEFAULT = 0.1680544387290045
+INFERENCE_CALIBRATION_TEMPERATURE_DEFAULT = 1.405026093389256
+INFERENCE_CALIBRATION_OPERATIONAL_THRESHOLD_DEFAULT = 0.3815443834698594
+INFERENCE_RISK_TIER_LOW_UPPER_DEFAULT = 0.3243127259493805
+INFERENCE_RISK_TIER_HIGH_LOWER_DEFAULT = 0.3815443834698594
 
 
 class Settings(BaseSettings):
@@ -81,6 +83,10 @@ class Settings(BaseSettings):
     predictions_storage_bucket: str = Field(
         default="prediction-images",
         validation_alias="PREDICTIONS_STORAGE_BUCKET",
+        description=(
+            "Bucket de Storage para imágenes de predicción. Debe coincidir con el nombre "
+            "creado en supabase/migrations (prediction-images). Cambiar solo con migración SQL."
+        ),
     )
 
     model_version: str = Field(
@@ -113,9 +119,40 @@ class Settings(BaseSettings):
         le=1.0,
         validation_alias="INFERENCE_CALIBRATION_OPERATIONAL_THRESHOLD",
         description=(
-            "Umbral operacional (ROC-Youden en test con probabilidades calibradas) para "
-            "``prediction`` y mapeo de riesgo."
+            "Umbral alto (τ_alto / high_lower): probabilidad calibrada ≥ umbral → riesgo ``high``. "
+            "Coincide con Youden en validación cuando se sincroniza desde calibración."
         ),
+    )
+
+    inference_risk_tier_low_upper: float = Field(
+        default=INFERENCE_RISK_TIER_LOW_UPPER_DEFAULT,
+        ge=0.0,
+        le=1.0,
+        validation_alias="INFERENCE_RISK_TIER_LOW_UPPER",
+        description="Umbral bajo (τ_bajo): probabilidad calibrada ≤ umbral → riesgo ``low``.",
+    )
+
+    inference_risk_tier_high_lower: float = Field(
+        default=INFERENCE_RISK_TIER_HIGH_LOWER_DEFAULT,
+        ge=0.0,
+        le=1.0,
+        validation_alias="INFERENCE_RISK_TIER_HIGH_LOWER",
+        description="Umbral alto (τ_alto): probabilidad calibrada ≥ umbral → riesgo ``high``.",
+    )
+
+    inference_model_paths: str = Field(
+        default="",
+        validation_alias="INFERENCE_MODEL_PATHS",
+        description=(
+            "Rutas .keras separadas por coma para ensemble (promedio de raw_prob). "
+            "Vacío: usar solo ``inference_model_path``."
+        ),
+    )
+
+    inference_tta_enabled: bool = Field(
+        default=False,
+        validation_alias="INFERENCE_TTA_ENABLED",
+        description="Si True, promedia raw_prob con flip horizontal (solo API).",
     )
 
     prediction_image_max_bytes: int = Field(
@@ -176,9 +213,29 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def _production_safety_checks(self) -> "Settings":
         env = self.environment.strip().lower()
-        if env in ("production", "prod") and self.debug:
-            msg = "DEBUG=true is not allowed when APP_ENV=production"
-            raise ValueError(msg)
+        if env in ("production", "prod"):
+            if self.debug:
+                msg = "DEBUG=true is not allowed when APP_ENV=production"
+                raise ValueError(msg)
+            missing: list[str] = []
+            if not self.supabase_url.strip():
+                missing.append("SUPABASE_URL")
+            if not self.supabase_key.strip():
+                missing.append("SUPABASE_KEY")
+            if not self.supabase_service_role_key.strip():
+                missing.append("SUPABASE_SERVICE_ROLE_KEY")
+            if not self.metrics_bearer_token.strip():
+                missing.append("METRICS_BEARER_TOKEN")
+            if missing:
+                msg = "Production requires non-empty configuration: " + ", ".join(missing)
+                raise ValueError(msg)
+            bucket = self.predictions_storage_bucket.strip() or "prediction-images"
+            if bucket != "prediction-images":
+                msg = (
+                    "PREDICTIONS_STORAGE_BUCKET must remain 'prediction-images' in production "
+                    "unless Storage RLS migrations are updated."
+                )
+                raise ValueError(msg)
         return self
 
     def effective_cors_origins(self) -> list[str]:

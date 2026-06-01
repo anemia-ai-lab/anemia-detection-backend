@@ -73,10 +73,30 @@ def set_backbone_trainable(model: keras.Model, freeze_up_to_layer: int) -> None:
         layer.trainable = i >= co
 
 
-def compile_for_binary(model: keras.Model, learning_rate: float) -> None:
+def compile_for_binary(
+    model: keras.Model,
+    learning_rate: float,
+    *,
+    use_focal_loss: bool = False,
+    focal_gamma: float = 2.0,
+) -> None:
+    loss: keras.losses.Loss
+    if use_focal_loss:
+        gamma = float(focal_gamma)
+
+        def focal_binary(y_true: tf.Tensor, y_pred: tf.Tensor) -> tf.Tensor:
+            y_true = tf.reshape(tf.cast(y_true, tf.float32), (-1, 1))
+            y_pred = tf.clip_by_value(tf.cast(y_pred, tf.float32), 1e-7, 1.0 - 1e-7)
+            pt = tf.where(tf.equal(y_true, 1.0), y_pred, 1.0 - y_pred)
+            return tf.reduce_mean(-tf.pow(1.0 - pt, gamma) * tf.math.log(pt))
+
+        loss = focal_binary
+    else:
+        loss = keras.losses.BinaryCrossentropy(from_logits=False)
+
     model.compile(
         optimizer=keras.optimizers.Adam(learning_rate),
-        loss=keras.losses.BinaryCrossentropy(from_logits=False),
+        loss=loss,
         metrics=[
             "accuracy",
             keras.metrics.AUC(name="auc"),

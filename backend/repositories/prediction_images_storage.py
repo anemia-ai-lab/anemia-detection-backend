@@ -75,6 +75,20 @@ class PredictionImagesStorage:
             ) from e
         return object_path
 
+    def delete_user_image(self, access_token: str, object_path: str) -> None:
+        """Best-effort delete after a failed DB insert (compensating action)."""
+        bucket = settings.predictions_storage_bucket.strip() or "prediction-images"
+        client = create_supabase_user_client(access_token)
+        try:
+            client.storage.from_(bucket).remove([object_path])
+        except (StorageApiError, StorageException) as e:
+            logger.warning(
+                "prediction_storage_error op=delete code=%s message=%s path=%s",
+                getattr(e, "code", "delete_failed"),
+                getattr(e, "message", str(e)) or "delete_failed",
+                object_path,
+            )
+
     def create_signed_url(self, access_token: str, object_path: str) -> str:
         """URL firmada temporal para un objeto ya existente (mismo JWT que posee el prefijo)."""
         bucket = settings.predictions_storage_bucket.strip() or "prediction-images"

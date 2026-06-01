@@ -97,9 +97,8 @@ def _same_named_conv_in_backbone(backbone: Any, ref: Any) -> Any:
 
     target = ref.name
     for sub in backbone.layers:
-        if (
-            sub.name == target
-            and isinstance(sub, (keras.layers.Conv2D, keras.layers.DepthwiseConv2D))
+        if sub.name == target and isinstance(
+            sub, (keras.layers.Conv2D, keras.layers.DepthwiseConv2D)
         ):
             return sub
     return ref
@@ -171,9 +170,7 @@ class GradCAM:
             msg = f"capa seleccionada no es convolucional: {self._selected}"
             raise GradCAMError(msg)
         try:
-            if backbone is not None and any(
-                sub is conv_layer for sub in backbone.layers
-            ):
+            if backbone is not None and any(sub is conv_layer for sub in backbone.layers):
                 # Keras 3: ``model.input`` y ``backbone.input`` son tensores distintos.
                 bb_conv = keras.Model(
                     inputs=backbone.input,
@@ -252,13 +249,10 @@ class GradCAM:
         h224 = tf.image.resize(np.expand_dims(heat_small, -1), [224, 224], method="bilinear")
         heatmap = tf.squeeze(h224, axis=-1).numpy().astype(np.float32)
 
-        rgb224 = (
-            tf.cast(
-                tf.image.resize(pre.decoded_rgb_uint8, [224, 224]),
-                tf.float32,
-            )
-            .numpy()
-        )
+        rgb224 = tf.cast(
+            tf.image.resize(pre.decoded_rgb_uint8, [224, 224]),
+            tf.float32,
+        ).numpy()
         heat_rgb = _heatmap_to_rgb(heatmap)
         alpha = 0.45
         blend = alpha * heat_rgb + (1.0 - alpha) * (rgb224 / 255.0)
@@ -290,6 +284,10 @@ class GradCAM:
         """``(result, prediction, risk, risk_label)`` con umbral operacional del backend."""
         r = self.explain(rgb_uint8, cfg=cfg)
         pred = binary_prediction_from_threshold(r.calibrated_probability, self._threshold)
-        risk = risk_from_probability(r.calibrated_probability, self._threshold)
+        risk = risk_from_probability(
+            r.calibrated_probability,
+            low_upper=float(settings.inference_risk_tier_low_upper),
+            high_lower=self._threshold,
+        )
         label = anemia_risk_label(risk)
         return r, pred, risk, label

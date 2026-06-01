@@ -14,8 +14,13 @@ class AuthRepository:
         client = create_supabase_anon_client()
         return client.auth.sign_in_with_password({"email": email, "password": password})
 
+    def refresh_session(self, refresh_token: str) -> AuthResponse:
+        client = create_supabase_anon_client()
+        return client.auth.refresh_session(refresh_token)
+
     def get_user(self, access_token: str) -> UserResponse:
         client = create_supabase_anon_client()
         result = client.auth.get_user(access_token)
-        assert result is not None  # jwt provided: GoTrue returns user or raises
+        if result is None:
+            raise RuntimeError("Unexpected empty response from auth.get_user")
         return result

@@ -63,9 +63,7 @@ def _parse_args() -> argparse.Namespace:
         "--artifacts-dir",
         type=Path,
         default=None,
-        help=(
-            "Opcional: escribe ml/artifacts/tflite_runs/<run_id>/outputs.json y manifest.json."
-        ),
+        help=("Opcional: escribe ml/artifacts/tflite_runs/<run_id>/outputs.json y manifest.json."),
     )
     p.add_argument(
         "--run-id",

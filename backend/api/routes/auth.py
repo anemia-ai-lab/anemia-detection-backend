@@ -9,6 +9,7 @@ from backend.api.deps import (
 from backend.schemas.auth import (
     LoginAuthResponse,
     LoginRequest,
+    RefreshRequest,
     RegisterAuthResponse,
     RegisterRequest,
     UserOut,
@@ -47,6 +48,16 @@ def register(body: RegisterRequest, auth: AuthServiceDep) -> RegisterAuthRespons
 )
 def login(body: LoginRequest, auth: AuthServiceDep) -> LoginAuthResponse:
     return auth.login(body.email, body.password)
+
+
+@router.post(
+    "/refresh",
+    response_model=LoginAuthResponse,
+    responses=_AUTH_ERROR_RESPONSES,
+    summary="Refresh session (Supabase refresh token)",
+)
+def refresh(body: RefreshRequest, auth: AuthServiceDep) -> LoginAuthResponse:
+    return auth.refresh(body.refresh_token)
 
 
 @router.get(

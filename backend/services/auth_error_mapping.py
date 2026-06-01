@@ -43,10 +43,7 @@ def map_supabase_auth_error(
         source_message = exc.message or ""
         if prefer_unauthorized and status in (400, 401, 403, 422):
             lower = f"{code or ''} {source_message}".lower()
-            if any(
-                part in lower
-                for part in ("invalid", "credential", "wrong", "password", "jwt")
-            ):
+            if any(part in lower for part in ("invalid", "credential", "wrong", "password", "jwt")):
                 status = 401
         message = _safe_auth_message(
             code=code,

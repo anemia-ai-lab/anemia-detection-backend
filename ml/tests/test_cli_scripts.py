@@ -18,6 +18,8 @@ ML_ROOT = REPO_ROOT / "ml"
     [
         ("scripts/run_tflite_inference.py", "tflite"),
         ("scripts/generate_gradcam.py", "mobilenet"),
+        ("scripts/prepare_ghana_dataset.py", "ghana"),
+        ("scripts/evaluate_dir.py", "calibration"),
     ],
 )
 def test_cli_help_exits_zero(script: str, needle: str) -> None:

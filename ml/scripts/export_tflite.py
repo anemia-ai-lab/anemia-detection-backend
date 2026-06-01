@@ -103,7 +103,32 @@ def _parse_args() -> argparse.Namespace:
         action="store_true",
         help="Sobrescribe salidas si ya existen (sin este flag, falla si hay conflicto).",
     )
+    p.add_argument(
+        "--calibration-json",
+        type=Path,
+        default=None,
+        help="Informe calibration_*.json: sobrescribe TEMPERATURE y OPERATIONAL_THRESHOLD.",
+    )
     return p.parse_args()
+
+
+def _load_calibration_constants(path: Path) -> tuple[float, float, dict[str, float]]:
+    data = json.loads(path.read_text(encoding="utf-8"))
+    cal = data.get("calibration") or {}
+    T = float(cal.get("temperature_T", 0))
+    if T <= 0:
+        raise ValueError(f"temperature_T inválido en {path}")
+    sel = cal.get("operational_threshold_selection") or {}
+    thr_block = (data.get("test_calibrated") or {}).get("thresholds_used") or {}
+    tau = float(sel.get("threshold") or thr_block.get("operational_threshold") or 0)
+    if not 0.0 <= tau <= 1.0:
+        raise ValueError(f"operational_threshold inválido en {path}")
+    tiers = cal.get("risk_tier_thresholds") or {}
+    risk_tiers = {
+        "low_upper": float(tiers.get("low_upper", tau * 0.5)),
+        "high_lower": float(tiers.get("high_lower", tau)),
+    }
+    return T, tau, risk_tiers
 
 
 def _resolved_models_root() -> Path:
@@ -116,9 +141,7 @@ def _assert_path_under_models_dir(path: Path, *, label: str) -> Path:
     try:
         resolved.relative_to(root)
     except ValueError as e:
-        raise ValueError(
-            f"{label} debe escribirse bajo {root}; recibido: {resolved}"
-        ) from e
+        raise ValueError(f"{label} debe escribirse bajo {root}; recibido: {resolved}") from e
     return resolved
 
 
@@ -220,12 +243,24 @@ def _convert_keras_to_tflite(model: keras.Model) -> bytes:
         ) from e
 
 
-def _build_metadata() -> dict[str, object]:
-    return {
+def _build_metadata(
+    *,
+    temperature: float,
+    operational_threshold: float,
+    risk_tier_thresholds: dict[str, float] | None = None,
+) -> dict[str, object]:
+    tiers = risk_tier_thresholds or {}
+    low_upper = float(tiers.get("low_upper", operational_threshold * 0.5))
+    high_lower = float(tiers.get("high_lower", operational_threshold))
+    meta: dict[str, object] = {
         "model_version": MODEL_VERSION,
         "input_size": f"{IMG_SIZE[0]}x{IMG_SIZE[1]}",
-        "temperature": TEMPERATURE,
-        "operational_threshold": OPERATIONAL_THRESHOLD,
+        "temperature": temperature,
+        "operational_threshold": operational_threshold,
+        "risk_tier_thresholds": {
+            "low_upper": low_upper,
+            "high_lower": high_lower,
+        },
         "preprocessing": PREPROCESSING,
         "output_type": "probability",
         "calibration_required": True,
@@ -321,7 +356,27 @@ def main() -> int:
     else:
         print("Aviso: verificación omitida (--no-verify).", file=sys.stderr)
 
-    metadata = _build_metadata()
+    temperature = TEMPERATURE
+    operational_threshold = OPERATIONAL_THRESHOLD
+    risk_tier_thresholds: dict[str, float] | None = None
+    if args.calibration_json is not None:
+        try:
+            temperature, operational_threshold, risk_tier_thresholds = _load_calibration_constants(
+                args.calibration_json.resolve(),
+            )
+            print(
+                f"Calibración desde {args.calibration_json}: T={temperature}, "
+                f"τ={operational_threshold}, tiers={risk_tier_thresholds}",
+            )
+        except (OSError, ValueError, json.JSONDecodeError) as e:
+            print(f"Error leyendo --calibration-json: {e}", file=sys.stderr)
+            return 1
+
+    metadata = _build_metadata(
+        temperature=temperature,
+        operational_threshold=operational_threshold,
+        risk_tier_thresholds=risk_tier_thresholds,
+    )
 
     try:
         out_tflite.parent.mkdir(parents=True, exist_ok=True)

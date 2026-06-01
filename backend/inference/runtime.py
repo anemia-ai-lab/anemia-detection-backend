@@ -30,6 +30,22 @@ def _resolved_model_path() -> Path | None:
     return p
 
 
+def _resolved_ensemble_model_paths() -> list[Path]:
+    raw = settings.inference_model_paths.strip()
+    if not raw:
+        return []
+    paths: list[Path] = []
+    for part in raw.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        p = Path(part)
+        if not p.is_absolute():
+            p = repo_root() / p
+        paths.append(p)
+    return paths
+
+
 def init_inference_model() -> None:
     """Invocado desde el lifespan de FastAPI."""
     global _builtin_predictor
@@ -38,6 +54,29 @@ def init_inference_model() -> None:
     if _tf_disabled():
         logger.info("inference_model_skip reason=DISABLE_TF")
         return
+    ensemble_paths = _resolved_ensemble_model_paths()
+    if ensemble_paths:
+        missing = [p for p in ensemble_paths if not p.is_file()]
+        if missing:
+            logger.warning(
+                "inference_model_load_failed reason=ensemble_file_not_found paths=%s",
+                missing,
+            )
+            return
+        from backend.inference.ensemble_keras_predictor import EnsembleKerasImagePredictor
+
+        try:
+            _builtin_predictor = EnsembleKerasImagePredictor(ensemble_paths)
+        except Exception:
+            logger.exception(
+                "inference_model_load_failed reason=ensemble_keras_load_error paths=%s",
+                ensemble_paths,
+            )
+            _builtin_predictor = None
+            return
+        logger.info("inference_ensemble_loaded n=%s paths=%s", len(ensemble_paths), ensemble_paths)
+        return
+
     path = _resolved_model_path()
     if path is None:
         logger.info("inference_model_skip reason=no_path_configured")
@@ -45,7 +84,6 @@ def init_inference_model() -> None:
     if not path.is_file():
         logger.warning("inference_model_load_failed reason=file_not_found path=%s", path)
         return
-    # Import diferido: evita cargar TensorFlow al importar ``backend.inference.runtime``.
     from backend.inference.keras_image_predictor import KerasImagePredictor
 
     try:

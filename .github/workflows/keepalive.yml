@@ -34,6 +34,13 @@ jobs:
       - name: Test backend without TensorFlow
         run: make test
 
+  ml-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: ML tests in Docker (TensorFlow 2.19.1 / Linux)
+        run: make ml-test-docker
+
   health:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest

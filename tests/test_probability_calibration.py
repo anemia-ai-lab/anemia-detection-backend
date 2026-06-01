@@ -22,9 +22,9 @@ def test_binary_prediction_inclusive_threshold() -> None:
     assert binary_prediction_from_threshold(0.16799, 0.168) == 0
 
 
-def test_default_constants_are_thesis_values() -> None:
-    assert INFERENCE_CALIBRATION_TEMPERATURE_DEFAULT == 0.7510018331928743
-    assert INFERENCE_CALIBRATION_OPERATIONAL_THRESHOLD_DEFAULT == 0.1680544387290045
+def test_default_constants_are_v2_ensemble_values() -> None:
+    assert INFERENCE_CALIBRATION_TEMPERATURE_DEFAULT == 1.405026093389256
+    assert INFERENCE_CALIBRATION_OPERATIONAL_THRESHOLD_DEFAULT == 0.3815443834698594
 
 
 def test_midpoint_stays_half_with_thesis_temperature() -> None:

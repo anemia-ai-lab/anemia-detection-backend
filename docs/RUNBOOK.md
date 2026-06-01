@@ -70,6 +70,18 @@ make ml-test-docker
 
 (`Dockerfile.ml-test`, Linux reproducible.)
 
+## Pipeline Nature + Ghana
+
+1. **Nature:** `python ml/scripts/prepare_nature_dataset.py` → `ml/data/train|test`.
+2. **Ghana:** copiar PNG a `ml/data_raw/ghana/` → `python ml/scripts/prepare_ghana_dataset.py` → `ml/data/ghana/`.
+3. **Entrenar** (Nature): `cd ml && python scripts/train.py --fine-tune-epochs 10 --metadata-path data_raw/nature/metadata.csv`.
+4. **Calibrar:** `python scripts/calibrate_eval.py --experiment-json artifacts/runs/experiment_<último>.json`.
+5. **Sync API:** `python ml/scripts/sync_calibration_constants.py --calibration-json artifacts/runs/calibration_<último>.json`.
+6. **Eval Ghana:** `python scripts/evaluate_dir.py --test-dir data/ghana/test --calibration-json artifacts/runs/calibration_*.json --dataset-label ghana_external`.
+7. **Fine-tune pediatría (Fase 4):** `make ml-docker-finetune-ghana` (carga modelo Nature, `data/ghana/train`, 10 épocas backbone). Re-calibrar con `--train-dir data/ghana/train --test-dir data/ghana/test`.
+
+Entrenamiento, calibración y `evaluate_dir` requieren TensorFlow; si `make ml-tf-check` aborta en macOS, usar `make ml-test-docker` o Linux. `prepare_ghana_dataset.py` puede usar `sips` en macOS sin TF.
+
 ## Validación (resumen)
 
 | Comando | Uso |
@@ -108,7 +120,7 @@ Con `.env` válido y `make run`: `GET /health`, `GET /docs`, `POST /auth/registe
 | `SUPABASE_URL` | URL del proyecto. |
 | `SUPABASE_KEY` | Clave anon/public. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Solo servidor (bypass RLS en bootstrap). |
-| `APP_ENV` / `DEBUG` | Entorno; `APP_ENV=production` no admite `DEBUG=true` en `Settings`. |
+| `APP_ENV` / `DEBUG` | Entorno; `APP_ENV=production` exige `SUPABASE_*`, `METRICS_BEARER_TOKEN`, prohíbe `DEBUG=true` y bucket distinto de `prediction-images`. |
 | `MODEL_VERSION` | Versión persistida y expuesta en API. |
 | `INFERENCE_MODEL_PATH` | `.keras`; vacío = sin modelo cargado en runtime integrado. |
 | `INFERENCE_CALIBRATION_*` | Calibración y umbral operacional. |
@@ -116,6 +128,6 @@ Con `.env` válido y `make run`: `GET /health`, `GET /docs`, `POST /auth/registe
 | `METRICS_BEARER_TOKEN` | Protege `/metrics` fuera de entornos locales si está definido. |
 | `PREDICTION_IMAGE_*` | Límites de imagen. |
 | `RATE_LIMIT_*`, `TRUST_PROXY_HEADERS` | Rate limit y confianza en proxy. |
-| `PREDICTIONS_STORAGE_BUCKET` | Bucket de imágenes. |
+| `PREDICTIONS_STORAGE_BUCKET` | Bucket de imágenes (debe coincidir con migraciones SQL; no cambiar sin nueva migración). |
 
 Lista ampliada en `.env.example`.
