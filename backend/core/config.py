@@ -13,7 +13,7 @@ def repo_root() -> Path:
     return _REPO_ROOT
 
 
-MODEL_VERSION = "v1.0"
+MODEL_VERSION = "v2.0"
 RISK_THRESHOLD = 0.5
 
 # Calibración alineada con el experimento de tesis (*temperature scaling* en validación).

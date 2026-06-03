@@ -1,5 +1,4 @@
 import numpy as np
-
 from baseline.risk_tiers import risk_tier_from_probability, risk_tier_thresholds_from_validation
 
 

@@ -81,6 +81,8 @@ Offline inference requires strict alignment of preprocessing, calibration, thres
 
 Full setup, migrations, smoke checks: [`docs/RUNBOOK.md`](docs/RUNBOOK.md). Traceability matrix: [`docs/TRACEABILITY.md`](docs/TRACEABILITY.md).
 
+Pediatric model **v1 vs v2** (AUC, ensemble, risk tiers): [`docs/V1_VS_V2.md`](docs/V1_VS_V2.md).
+
 Backend tests without loading TensorFlow in that process:
 
 ```bash

@@ -38,13 +38,12 @@ from baseline.config import (  # noqa: E402
     MODEL_DIR,
     RUNS_DIR,
 )
-from baseline.model import compile_for_binary  # noqa: E402
 from baseline.dataops import load_test_dataset, write_json  # noqa: E402
 from baseline.evaluation import (  # noqa: E402
     build_threshold_evaluation_results,
     collect_binary_predictions,
 )
-from tensorflow import keras  # noqa: E402
+from baseline.model import compile_for_binary  # noqa: E402
 
 
 def _load_calibration(path: Path) -> tuple[float, float]:
@@ -78,6 +77,8 @@ def _parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    from tensorflow import keras
+
     args = _parse_args()
     model_path = args.model_path.expanduser().resolve()
     test_dir = args.test_dir.expanduser().resolve()

@@ -12,7 +12,7 @@ class ModelEvalMetrics(BaseModel):
 
     Origen: ``experiment_20260420T043804Z`` (train/val/test) y
     ``calibration_20260420T045056Z`` (temperature scaling + métricas en probabilidades calibradas).
-    La versión de despliegue del API va en ``model_version`` (p. ej. ``v1.0``).
+    La versión de despliegue del API va en ``model_version`` (p. ej. ``v2.0``).
     """
 
     auc: float = Field(
@@ -94,7 +94,7 @@ class ModelEvaluationOut(ModelEvalMetrics):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "model_version": "v1.0",
+                "model_version": "v2.0",
                 "auc": 0.795092,
                 "precision_operational": 0.454545,
                 "recall_operational": 0.740741,
@@ -112,4 +112,4 @@ class ModelEvaluationOut(ModelEvalMetrics):
         },
     )
 
-    model_version: str = Field(examples=["v1.0"])
+    model_version: str = Field(examples=["v2.0"])

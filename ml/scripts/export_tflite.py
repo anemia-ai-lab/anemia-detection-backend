@@ -47,9 +47,9 @@ from tensorflow import keras  # noqa: E402
 DEFAULT_TFLITE_NAME = "baseline_mobilenetv2_v1.tflite"
 DEFAULT_METADATA_NAME = "baseline_mobilenetv2_v1.metadata.json"
 
-MODEL_VERSION = "v1.0"
-TEMPERATURE = 0.7510018331928743
-OPERATIONAL_THRESHOLD = 0.1680544387290045
+MODEL_VERSION = "v2.0"
+TEMPERATURE = 1.405026093389256
+OPERATIONAL_THRESHOLD = 0.3815443834698594
 PREPROCESSING = "mobilenet_v2.preprocess_input"
 
 EXPECTED_BATCH = 1
@@ -280,6 +280,7 @@ def _build_metadata(
             "probabilidad ya calibrada, no sobre la salida cruda."
         ),
     }
+    return meta
 
 
 def _print_summary(

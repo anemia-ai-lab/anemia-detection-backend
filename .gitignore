@@ -249,8 +249,16 @@ ml/data/
 ml/artifacts/models/*
 !ml/artifacts/models/.gitkeep
 !ml/artifacts/models/baseline_mobilenetv2.keras
+!ml/artifacts/models/baseline_mobilenetv2_ghana_augmented_seed42.keras
 !ml/artifacts/models/baseline_mobilenetv2_v1.tflite
 !ml/artifacts/models/baseline_mobilenetv2_v1.metadata.json
+!ml/artifacts/models/baseline_mobilenetv2_ghana_augmented_seed42.tflite
+!ml/artifacts/models/baseline_mobilenetv2_ghana_augmented_seed42.metadata.json
+!ml/artifacts/models/baseline_mobilenetv2_ghana_augmented_seed123.tflite
+!ml/artifacts/models/baseline_mobilenetv2_ghana_augmented_seed123.metadata.json
+!ml/artifacts/models/baseline_mobilenetv2_ghana_augmented_seed456.tflite
+!ml/artifacts/models/baseline_mobilenetv2_ghana_augmented_seed456.metadata.json
+!ml/artifacts/models/baseline_mobilenetv2_ghana_ensemble.metadata.json
 
 # MÉTRICAS (NO VERSIONAR)
 ml/artifacts/metrics/*
@@ -274,3 +282,5 @@ ml/artifacts/runs/*
 # Calibración final
 !ml/artifacts/runs/calibration_20260420T045056Z.md
 !ml/artifacts/runs/calibration_20260420T045056Z.json
+!ml/artifacts/runs/calibration_ensemble_ghana_v2.json
+!ml/artifacts/runs/calibration_ensemble_ghana_v2.md

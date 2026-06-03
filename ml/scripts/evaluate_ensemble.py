@@ -29,13 +29,12 @@ from baseline.calibration import (  # noqa: E402
     enrich_binary_eval_with_calibration_metrics,
     mean_binary_cross_entropy,
 )
-from baseline.config import DEFAULT_TEST_DIR, HEAD_LEARNING_RATE, RUNS_DIR, SEED  # noqa: E402
+from baseline.config import DEFAULT_TEST_DIR, HEAD_LEARNING_RATE, RUNS_DIR  # noqa: E402
 from baseline.dataops import load_test_dataset, write_json  # noqa: E402
 from baseline.ensemble import ensemble_raw_probabilities, load_ensemble_models  # noqa: E402
 from baseline.evaluation import build_threshold_evaluation_results  # noqa: E402
 from baseline.model import compile_for_binary  # noqa: E402
 from baseline.risk_tiers import risk_tier_from_probability  # noqa: E402
-from tensorflow import keras  # noqa: E402
 
 
 def _parse_args() -> argparse.Namespace:

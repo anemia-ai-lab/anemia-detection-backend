@@ -52,7 +52,7 @@ def test_predict_returns_429_when_rate_limit_exceeded(monkeypatch: pytest.Monkey
                     "threshold_used": 0.168,
                     "prediction": 0,
                     "risk_label": "Low anemia risk prediction",
-                    "model_version": "v1.0",
+                    "model_version": "v2.0",
                     "created_at": "2026-04-01T12:00:00Z",
                     "inference_mode": "backend",
                 },

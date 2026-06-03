@@ -13,7 +13,7 @@ def test_model_evaluation_returns_config_metrics() -> None:
     response = client.get("/model/evaluation")
     assert response.status_code == 200
     data = response.json()
-    assert data["model_version"] == "v1.0"
+    assert data["model_version"] == "v2.0"
     assert data["auc"] == pytest.approx(0.795092)
     assert data["precision_operational"] == pytest.approx(0.454545)
     assert data["recall_operational"] == pytest.approx(0.740741)

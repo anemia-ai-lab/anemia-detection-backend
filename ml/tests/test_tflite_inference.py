@@ -23,7 +23,7 @@ def test_metadata_parse(tflite_paths: tuple[Path, Path]) -> None:
     _, meta = tflite_paths
     data = json.loads(meta.read_text(encoding="utf-8"))
     m = TFLiteExportMetadata.from_json_dict(data)
-    assert m.model_version == "v1.0"
+    assert m.model_version == "v2.0"
     assert m.temperature > 0
 
 

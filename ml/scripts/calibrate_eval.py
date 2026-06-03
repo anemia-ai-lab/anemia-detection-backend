@@ -51,7 +51,6 @@ from baseline.config import (  # noqa: E402
     RUNS_DIR,
     SEED,
 )
-from baseline.model import compile_for_binary  # noqa: E402
 from baseline.dataops import (  # noqa: E402
     load_test_dataset,
     load_validation_dataset,
@@ -63,6 +62,7 @@ from baseline.evaluation import (  # noqa: E402
     collect_binary_predictions,
     youden_optimal_threshold,
 )
+from baseline.model import compile_for_binary  # noqa: E402
 from baseline.risk_tiers import risk_tier_thresholds_from_validation  # noqa: E402
 from tensorflow import keras  # noqa: E402
 

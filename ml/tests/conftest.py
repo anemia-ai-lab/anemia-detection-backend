@@ -22,9 +22,11 @@ import tensorflow as tf  # noqa: E402
 tf.keras.utils.set_random_seed(42)
 np.random.seed(42)
 
-MODEL_KERAS = ML_ROOT / "artifacts" / "models" / "baseline_mobilenetv2.keras"
-MODEL_TFLITE = ML_ROOT / "artifacts" / "models" / "baseline_mobilenetv2_v1.tflite"
-TFLITE_METADATA = ML_ROOT / "artifacts" / "models" / "baseline_mobilenetv2_v1.metadata.json"
+# Paridad G8: seed42.keras coincide con baseline_mobilenetv2.keras versionado en git.
+MODEL_KERAS = ML_ROOT / "artifacts" / "models" / "baseline_mobilenetv2_ghana_augmented_seed42.keras"
+MODEL_TFLITE = ML_ROOT / "artifacts" / "models" / "baseline_mobilenetv2_ghana_augmented_seed42.tflite"
+TFLITE_METADATA = ML_ROOT / "artifacts" / "models" / "baseline_mobilenetv2_ghana_augmented_seed42.metadata.json"
+ENSEMBLE_METADATA = ML_ROOT / "artifacts" / "models" / "baseline_mobilenetv2_ghana_ensemble.metadata.json"
 
 
 @pytest.fixture

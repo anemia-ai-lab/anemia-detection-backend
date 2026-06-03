@@ -16,7 +16,13 @@ _REPO_ROOT = _ML_ROOT.parent
 
 def _parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Eval Ghana test original-only.")
-    p.add_argument("--model-path", type=Path, default=None)
+    p.add_argument(
+        "--model-path",
+        type=Path,
+        action="append",
+        default=None,
+        help="Ruta .keras (repetir para ensemble).",
+    )
     p.add_argument("--ensemble", action="store_true")
     p.add_argument("--calibration-json", type=Path, required=True)
     p.add_argument("--ghana-raw", type=Path, default=_ML_ROOT / "data_raw" / "ghana")
@@ -41,7 +47,7 @@ def main() -> int:
         test_dir = out / "test"
         if args.ensemble:
             if not args.model_path:
-                print("ensemble requiere --model-path repetido vía evaluate_ensemble", file=sys.stderr)
+                print("ensemble requiere al menos un --model-path", file=sys.stderr)
                 return 1
             cmd = [
                 sys.executable,
@@ -53,8 +59,8 @@ def main() -> int:
                 "--dataset-label",
                 "ghana_test_original_only",
             ]
-            for mp in [args.model_path] if isinstance(args.model_path, Path) else []:
-                cmd.extend(["--model-path", str(mp)])
+            for mp in args.model_path:
+                cmd.extend(["--model-path", str(mp.resolve())])
         else:
             cmd = [
                 sys.executable,
@@ -67,7 +73,7 @@ def main() -> int:
                 "ghana_test_original_only",
             ]
             if args.model_path:
-                cmd.extend(["--model-path", str(args.model_path.resolve())])
+                cmd.extend(["--model-path", str(args.model_path[0].resolve())])
         rc = subprocess.run(cmd, cwd=_ML_ROOT, check=False)
         if args.output_json and rc.returncode == 0:
             runs = sorted((_ML_ROOT / "artifacts" / "runs").glob("eval_*original_only*.json"))

@@ -18,7 +18,7 @@ class HealthOut(BaseModel):
             "example": {
                 "status": "ok",
                 "model_loaded": True,
-                "model_version": "v1.0",
+                "model_version": "v2.0",
                 "calibration_enabled": True,
             }
         },

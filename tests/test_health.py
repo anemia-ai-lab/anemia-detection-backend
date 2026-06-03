@@ -12,7 +12,7 @@ def test_health_check() -> None:
     data = response.json()
     assert data["status"] in ("ok", "degraded")
     assert "model_loaded" in data
-    assert data["model_version"] == "v1.0"
+    assert data["model_version"] == "v2.0"
     assert "calibration_enabled" in data
     assert isinstance(data["calibration_enabled"], bool)
     if data.get("inference_model_path"):

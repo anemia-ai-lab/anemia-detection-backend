@@ -202,7 +202,7 @@ def test_predict_success_with_overrides(monkeypatch: pytest.MonkeyPatch) -> None
         assert data["prediction"] == 0
         assert data["risk_label"] == "Low anemia risk prediction"
         assert data["message"] == data["risk_label"]
-        assert data["model_version"] == "v1.0"
+        assert data["model_version"] == "v2.0"
         assert data["created_at"].startswith("2026-05-01T10:00:00")
         assert data["birth_date"] is None
         assert data["age_months"] is None
@@ -835,7 +835,7 @@ def test_predictions_get_success_with_overrides() -> None:
                     "id": "33333333-3333-3333-3333-333333333333",
                     "risk": "low",
                     "score": 0.1,
-                    "model_version": "v1.0",
+                    "model_version": "v2.0",
                     "age_months": 24,
                     "birth_date": "2024-05-01",
                     "notes": None,

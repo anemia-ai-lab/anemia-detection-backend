@@ -199,6 +199,7 @@ class GradCAM:
             if operational_threshold is not None
             else settings.inference_calibration_operational_threshold,
         )
+        self._risk_tier_low_upper = float(settings.inference_risk_tier_low_upper)
 
     @property
     def selected_layer(self) -> str:
@@ -286,7 +287,7 @@ class GradCAM:
         pred = binary_prediction_from_threshold(r.calibrated_probability, self._threshold)
         risk = risk_from_probability(
             r.calibrated_probability,
-            low_upper=float(settings.inference_risk_tier_low_upper),
+            low_upper=self._risk_tier_low_upper,
             high_lower=self._threshold,
         )
         label = anemia_risk_label(risk)

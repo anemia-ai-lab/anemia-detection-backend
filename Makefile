@@ -5,7 +5,8 @@
 	ml-docker-prepare-ghana-augmented ml-docker-train-ghana-augmented \
 	ml-docker-train-ghana-augmented-seed ml-docker-train-ghana-ensemble-seeds \
 	ml-docker-calibrate-ghana-augmented-tiers ml-docker-calibrate-ensemble-ghana \
-	ml-docker-export-ensemble-tflite ml-docker-train-ghana-focal ml-docker-train-ghana-mobile-aug \
+	ml-docker-export-ensemble-tflite 	ml-docker-train-ghana-focal ml-docker-train-ghana-mobile-aug \
+	ml-docker-eval-ghana-original-only-v1 ml-docker-eval-ghana-original-only-v2 \
 	ml-shell
 
 ML_DOCKER_RUN = docker run --rm -v "$(PWD):/workspace" -w /workspace/ml -e PYTHONPATH=/workspace $(ML_TEST_IMAGE)
@@ -205,6 +206,21 @@ ml-docker-train-ghana-mobile-aug:
 		--experiment-tag ghana_scratch_augmented_mobile_capture \
 		--baseline-experiment-json $(GHANA_AUG_BASELINE_JSON) \
 		--output-model artifacts/models/baseline_mobilenetv2_ghana_augmented_mobile_capture.keras
+
+ml-docker-eval-ghana-original-only-v1:
+	docker build -f Dockerfile.ml-test -t $(ML_TEST_IMAGE) .
+	$(ML_DOCKER_RUN) python scripts/evaluate_ghana_original_only.py \
+		--model-path artifacts/models/baseline_mobilenetv2_ghana_augmented.keras \
+		--calibration-json artifacts/runs/calibration_20260601T052254Z.json
+
+ml-docker-eval-ghana-original-only-v2:
+	docker build -f Dockerfile.ml-test -t $(ML_TEST_IMAGE) .
+	$(ML_DOCKER_RUN) python scripts/evaluate_ghana_original_only.py \
+		--ensemble \
+		--model-path artifacts/models/baseline_mobilenetv2_ghana_augmented_seed42.keras \
+		--model-path artifacts/models/baseline_mobilenetv2_ghana_augmented_seed123.keras \
+		--model-path artifacts/models/baseline_mobilenetv2_ghana_augmented_seed456.keras \
+		--calibration-json artifacts/runs/calibration_ensemble_ghana_v2.json
 
 ml-shell:
 	cd $(ML_DIR) && zsh

@@ -6,9 +6,8 @@ from pathlib import Path
 
 import numpy as np
 import tensorflow as tf
-from tensorflow import keras
-
 from baseline.evaluation import collect_binary_predictions
+from tensorflow import keras
 
 
 def load_ensemble_models(paths: list[Path]) -> list[keras.Model]:

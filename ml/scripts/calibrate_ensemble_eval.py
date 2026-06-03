@@ -15,7 +15,6 @@ Uso::
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -31,13 +30,23 @@ from baseline.calibration import (  # noqa: E402
     fit_temperature_scaling_on_probabilities,
     mean_binary_cross_entropy,
 )
-from baseline.config import DEFAULT_TEST_DIR, DEFAULT_TRAIN_DIR, HEAD_LEARNING_RATE, RUNS_DIR, SEED  # noqa: E402
-from baseline.dataops import load_test_dataset, load_validation_dataset, write_json, write_text  # noqa: E402
+from baseline.config import (  # noqa: E402
+    DEFAULT_TEST_DIR,
+    DEFAULT_TRAIN_DIR,
+    HEAD_LEARNING_RATE,
+    RUNS_DIR,
+    SEED,
+)
+from baseline.dataops import (  # noqa: E402
+    load_test_dataset,
+    load_validation_dataset,
+    write_json,
+    write_text,
+)
 from baseline.ensemble import ensemble_raw_probabilities, load_ensemble_models  # noqa: E402
 from baseline.evaluation import build_threshold_evaluation_results  # noqa: E402
 from baseline.model import compile_for_binary  # noqa: E402
 from baseline.risk_tiers import risk_tier_thresholds_from_validation  # noqa: E402
-from tensorflow import keras  # noqa: E402
 
 
 def _parse_args() -> argparse.Namespace:
