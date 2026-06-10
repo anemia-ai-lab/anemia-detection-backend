@@ -159,6 +159,7 @@ def test_predict_success_with_overrides(monkeypatch: pytest.MonkeyPatch) -> None
             birth_date: str | None = None,
             notes: str | None = None,
             image_storage_path: str | None = None,
+            **_,
         ) -> dict:
             assert user_id == user.id
             assert risk == "low"
@@ -172,7 +173,9 @@ def test_predict_success_with_overrides(monkeypatch: pytest.MonkeyPatch) -> None
                 "birth_date": birth_date,
                 "notes": notes,
                 "image_storage_path": image_storage_path,
+                "inference_mode": "backend",
                 "created_at": "2026-05-01T10:00:00+00:00",
+                "effective_created_at": "2026-05-01T10:00:00+00:00",
             }
 
     def fake_prediction_service() -> PredictionService:
@@ -568,6 +571,7 @@ def test_predict_risk_high_when_score_meets_threshold(monkeypatch: pytest.Monkey
             birth_date: str | None = None,
             notes: str | None = None,
             image_storage_path: str | None = None,
+            **_,
         ) -> dict:
             assert risk == "high"
             return {
@@ -579,7 +583,9 @@ def test_predict_risk_high_when_score_meets_threshold(monkeypatch: pytest.Monkey
                 "birth_date": birth_date,
                 "notes": notes,
                 "image_storage_path": image_storage_path,
+                "inference_mode": "backend",
                 "created_at": "2026-05-01T10:00:00+00:00",
+                "effective_created_at": "2026-05-01T10:00:00+00:00",
             }
 
     def fake_prediction_service() -> PredictionService:
@@ -638,6 +644,7 @@ def test_predict_with_birth_date_sets_age_display(monkeypatch: pytest.MonkeyPatc
             birth_date: str | None = None,
             notes: str | None = None,
             image_storage_path: str | None = None,
+            **_,
         ) -> dict:
             assert birth_date == "2016-01-15"
             assert age_months == 111
@@ -650,7 +657,9 @@ def test_predict_with_birth_date_sets_age_display(monkeypatch: pytest.MonkeyPatc
                 "birth_date": birth_date,
                 "notes": notes,
                 "image_storage_path": image_storage_path,
+                "inference_mode": "backend",
                 "created_at": "2026-05-01T10:00:00+00:00",
+                "effective_created_at": "2026-05-01T10:00:00+00:00",
             }
 
     def fake_prediction_service() -> PredictionService:
@@ -829,7 +838,10 @@ def test_predictions_get_success_with_overrides() -> None:
         return (user, "aaa.bbb.ccc")
 
     class FakeRepo:
-        def list_for_user(self, _access_token: str) -> list:
+        def list_for_user_paginated(
+            self, _access_token: str, *, limit: int, cursor: str | None = None
+        ) -> list:
+            _ = limit, cursor
             return [
                 {
                     "id": "33333333-3333-3333-3333-333333333333",
@@ -840,7 +852,9 @@ def test_predictions_get_success_with_overrides() -> None:
                     "birth_date": "2024-05-01",
                     "notes": None,
                     "image_storage_path": None,
+                    "inference_mode": "backend",
                     "created_at": created.isoformat(),
+                    "effective_created_at": created.isoformat(),
                 },
             ]
 
@@ -856,14 +870,17 @@ def test_predictions_get_success_with_overrides() -> None:
         )
         assert response.status_code == 200
         data = response.json()
-        assert len(data) == 1
-        assert data[0]["id"] == "33333333-3333-3333-3333-333333333333"
-        assert data[0]["risk"] == "low"
-        assert data[0]["score"] == 0.1
-        assert data[0]["age_months"] == 24
-        assert data[0]["age_display"] == "2 años"
-        assert data[0]["inference_mode"] == "backend"
-        assert "image_storage_path" not in data[0]
+        assert data["next_cursor"] is None
+        assert len(data["items"]) == 1
+        item = data["items"][0]
+        assert item["id"] == "33333333-3333-3333-3333-333333333333"
+        assert item["risk"] == "low"
+        assert item["score"] == 0.1
+        assert item["age_months"] == 24
+        assert item["age_display"] == "2 años"
+        assert item["inference_mode"] == "backend"
+        assert item["has_image"] is False
+        assert "image_storage_path" not in item
     finally:
         app.dependency_overrides.clear()
 
@@ -875,7 +892,7 @@ def test_predictions_get_postgrest_error(monkeypatch: pytest.MonkeyPatch) -> Non
         return (user, "aaa.bbb.ccc")
 
     mock_client = MagicMock()
-    chain = mock_client.from_.return_value.select.return_value.order.return_value.order.return_value
+    chain = mock_client.from_.return_value.select.return_value.order.return_value.order.return_value.limit.return_value
     chain.execute.side_effect = APIError({"message": "table missing", "code": "42P01"})
 
     monkeypatch.setattr(
@@ -907,7 +924,7 @@ def test_predict_with_image_multipart(monkeypatch: pytest.MonkeyPatch) -> None:
     def fake_context() -> tuple[UserOut, str]:
         return (user, "aaa.bbb.ccc")
 
-    class FakeImgStore:
+    class FakeImgStore(_FakeImgStore):
         def upload_user_image(
             self,
             access_token: str,
@@ -933,6 +950,7 @@ def test_predict_with_image_multipart(monkeypatch: pytest.MonkeyPatch) -> None:
             birth_date: str | None = None,
             notes: str | None = None,
             image_storage_path: str | None = None,
+            **_,
         ) -> dict:
             assert image_storage_path == f"{user.id}/test.png"
             return {
@@ -944,7 +962,9 @@ def test_predict_with_image_multipart(monkeypatch: pytest.MonkeyPatch) -> None:
                 "birth_date": birth_date,
                 "notes": notes,
                 "image_storage_path": image_storage_path,
+                "inference_mode": "backend",
                 "created_at": "2026-05-01T10:00:00+00:00",
+                "effective_created_at": "2026-05-01T10:00:00+00:00",
             }
 
     def fake_svc() -> PredictionService:

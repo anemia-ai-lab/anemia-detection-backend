@@ -56,7 +56,9 @@ def _tier_counts(
 ) -> dict[str, int]:
     counts = {"low": 0, "medium": 0, "high": 0}
     for p in p_cal:
-        counts[risk_tier_from_probability(float(p), low_upper=low_upper, high_lower=high_lower)] += 1
+        counts[
+            risk_tier_from_probability(float(p), low_upper=low_upper, high_lower=high_lower)
+        ] += 1
     return counts
 
 

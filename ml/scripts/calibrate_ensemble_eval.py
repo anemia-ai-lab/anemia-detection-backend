@@ -145,7 +145,9 @@ def main() -> None:
         if args.output_json
         else (RUNS_DIR / f"{run_id}.json")
     )
-    out_md = args.output_md.expanduser().resolve() if args.output_md else out_json.with_suffix(".md")
+    out_md = (
+        args.output_md.expanduser().resolve() if args.output_md else out_json.with_suffix(".md")
+    )
     write_json(out_json, payload)
     lines = [
         f"# Calibración ensemble — `{run_id}`",

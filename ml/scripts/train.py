@@ -1159,9 +1159,7 @@ def main() -> None:
             "baseline_experiment_json": str(baseline_path)
             if args.baseline_experiment_json
             else None,
-            "init_model": str(args.init_model.expanduser().resolve())
-            if args.init_model
-            else None,
+            "init_model": str(args.init_model.expanduser().resolve()) if args.init_model else None,
             "experiment_tag": args.experiment_tag,
             "callbacks_configuration": _callbacks_configuration(best_checkpoint_path),
         },
