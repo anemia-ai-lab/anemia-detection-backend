@@ -154,6 +154,10 @@ class PredictionsRepository:
         limit: int,
         cursor: str | None = None,
     ) -> list[dict[str, Any]]:
+        cursor_ts = None
+        cursor_id: str | None = None
+        if cursor:
+            cursor_ts, cursor_id = decode_prediction_cursor(cursor)
         client = create_supabase_user_client(access_token)
         query = (
             client.from_("predictions")
@@ -162,8 +166,7 @@ class PredictionsRepository:
             .order("id", desc=True)
             .limit(limit + 1)
         )
-        if cursor:
-            cursor_ts, cursor_id = decode_prediction_cursor(cursor)
+        if cursor_ts is not None and cursor_id is not None:
             ts_iso = cursor_ts.astimezone(UTC).isoformat()
             query = query.or_(
                 f"effective_created_at.lt.{ts_iso},"

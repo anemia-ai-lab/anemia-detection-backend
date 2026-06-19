@@ -27,16 +27,14 @@ def test_raw_and_calibrated_parity(
     tf.keras.utils.set_random_seed(2026)
     rng = np.random.default_rng(2026)
     arr = rng.integers(0, 256, size=(120, 140, 3), dtype=np.uint8)
-    raw_bytes = tf.io.encode_png(tf.constant(arr)).numpy()
-    raw_bytes = bytes(raw_bytes)
 
     pre_cfg = PreprocessingConfig()
     keras_p = KerasImagePredictor(keras_model_path)
-    raw_k = float(keras_p.predict_score(raw_bytes))
+    raw_k = float(keras_p.predict_from_rgb(arr))
 
     tfl, meta = tflite_paths
     eng = TFLiteInferenceEngine(tfl, meta, preprocess_cfg=pre_cfg)
-    r = eng.predict(raw_bytes)
+    r = eng.predict_rgb(arr)
 
     raw_delta = abs(raw_k - r.raw_probability)
     assert raw_delta < 1e-5, (
