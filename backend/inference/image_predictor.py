@@ -10,11 +10,11 @@ if TYPE_CHECKING:
 class ImagePredictor(Protocol):
     def predict_score(self, image_bytes: bytes) -> float:
         """Probabilidad en [0, 1] (clase positiva)."""
-        ...
+        pass
 
     def predict_from_rgb(self, rgb_uint8: "np.ndarray") -> float:
         """Probabilidad desde RGB uint8 HWC (sin re-decodificar PNG tras preparación)."""
-        ...
+        pass
 
 
 class StaticImagePredictor:

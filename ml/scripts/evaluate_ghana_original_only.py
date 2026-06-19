@@ -11,7 +11,6 @@ import tempfile
 from pathlib import Path
 
 _ML_ROOT = Path(__file__).resolve().parent.parent
-_REPO_ROOT = _ML_ROOT.parent
 
 
 def _parse_args() -> argparse.Namespace:

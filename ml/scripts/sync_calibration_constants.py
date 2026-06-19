@@ -15,9 +15,6 @@ import json
 import sys
 from pathlib import Path
 
-_ML_ROOT = Path(__file__).resolve().parent.parent
-_REPO_ROOT = _ML_ROOT.parent
-
 
 def _parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Sincronizar T y τ desde informe de calibración.")

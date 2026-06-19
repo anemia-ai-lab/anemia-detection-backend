@@ -84,8 +84,6 @@ def main() -> None:
         tiers = cal_block.get("risk_tier_thresholds") or {}
         low_upper = float(tiers.get("low_upper", 0.0))
         high_lower = float(tiers.get("high_lower", 0.5))
-        sel = cal_block.get("operational_threshold_selection") or {}
-        tau = float(sel.get("threshold", high_lower))
 
     p_cal = apply_temperature_scaling(p_raw, T)
     loss = mean_binary_cross_entropy(y_test, p_cal)

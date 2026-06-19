@@ -118,8 +118,10 @@ def shutdown_inference_model() -> None:
     try:
         tf = __import__("tensorflow")
         tf.keras.backend.clear_session()
+    except ImportError:
+        logger.debug("tensorflow not available during shutdown")
     except Exception:
-        pass
+        logger.warning("failed to clear tensorflow session during shutdown", exc_info=True)
 
 
 def get_builtin_image_predictor() -> Any:
