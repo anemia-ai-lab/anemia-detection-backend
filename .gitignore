@@ -216,6 +216,10 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
+# Agent skills (instalar localmente con `npx skills add`; no versionar)
+.agents/
+skills-lock.json
+
 # Marimo
 marimo/_static/
 marimo/_lsp/
