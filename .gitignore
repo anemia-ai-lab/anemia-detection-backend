@@ -244,6 +244,7 @@ Thumbs.db
 # ML: artefactos generados (se versionan solo los .gitkeep)
 # DATASETS (NO VERSIONAR)
 ml/data_raw/
+ml/data-raw/    # alias histórico (no usar este nombre)
 ml/data/
 
 # MODELOS (NO VERSIONAR)
