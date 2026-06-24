@@ -19,7 +19,7 @@ Documento de referencia para tesis y producto (proxy Perú). Dataset de evaluaci
 
 ## Tabla comparativa (test augmented)
 
-Fuentes: [experiment_20260601T051158Z](../ml/artifacts/runs/experiment_20260601T051158Z.json) (v1 train), [calibration_20260601T052254Z](../ml/artifacts/runs/calibration_20260601T052254Z.json) (v1 cal.), [calibration_ensemble_ghana_v2](../ml/artifacts/runs/calibration_ensemble_ghana_v2.json) (v2).
+Fuentes: `experiment_20260601T051158Z` (v1 train, local), `calibration_20260601T052254Z` (v1 cal., local), [calibration_ensemble_ghana_v2](../ml/artifacts/runs/calibration_ensemble_ghana_v2.json) (v2).
 
 | Dimensión | v1 | v2 |
 |-----------|----|----|
@@ -40,7 +40,7 @@ Fuentes: [experiment_20260601T051158Z](../ml/artifacts/runs/experiment_20260601T
 
 Las métricas @τ usan **Youden en validación** aplicado a test, con **T y τ distintos** entre v1 y v2. No son comparables como “v2 detecta más” sin recalibrar v1 con el mismo protocolo. El AUC sí es comparable (invariante a escalado monótono del score).
 
-El informe de entrenamiento v1 ([051158Z](../ml/artifacts/runs/experiment_20260601T051158Z.json)) reporta recall **0,764** con τ optimizado en ese mismo paso de evaluación (score sin calibrar en test); la fila de arriba usa el flujo **de producción** (calibrado + τ de val).
+El informe de entrenamiento v1 (`experiment_20260601T051158Z`, local) reporta recall **0,764** con τ optimizado en ese mismo paso de evaluación (score sin calibrar en test); la fila de arriba usa el flujo **de producción** (calibrado + τ de val).
 
 ## Flujo de inferencia
 
@@ -73,7 +73,7 @@ Detalle móvil (anular, medio, índice; agregación por mano): [MOBILE_INFERENCE
 | Focal loss (γ=2) | 0,675 | No (solo tesis) |
 | Augment online tipo móvil | 0,668 | No (solo tesis) |
 
-Runs: [experiment_20260601T064911Z](../ml/artifacts/runs/experiment_20260601T064911Z.json), [experiment_20260601T065733Z](../ml/artifacts/runs/experiment_20260601T065733Z.json).
+Runs: `experiment_20260601T064911Z`, `experiment_20260601T065733Z` (locales; no versionados en git).
 
 ## Evaluación original-only
 
@@ -86,7 +86,7 @@ Comando:
 docker run --rm -v "$(pwd):/workspace" -w /workspace/ml -e PYTHONPATH=/workspace anemia-ml-test \
   python scripts/evaluate_ghana_original_only.py \
   --model-path artifacts/models/baseline_mobilenetv2_ghana_augmented.keras \
-  --calibration-json artifacts/runs/calibration_20260601T052254Z.json
+  --calibration-json artifacts/runs/calibration_20260601T052254Z.json  # local; reproducir con make ml-docker-calibrate-ghana
 
 # v2 ensemble (ver script; requiere --ensemble y varias --model-path)
 ```
