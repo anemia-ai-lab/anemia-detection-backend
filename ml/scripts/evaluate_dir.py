@@ -1,17 +1,16 @@
 #!/usr/bin/env python3
 """
-Evaluación en un directorio test externo (p. ej. Ghana pediátrico) con calibración fija.
+Evaluación en un directorio test (p. ej. Ghana pediátrico) con calibración fija del ensemble v2.
 
-Aplica ``T`` y τ operacional desde un JSON de ``calibrate_eval.py`` (entrenado en Nature)
-sin reoptimizar en el conjunto externo.
+Aplica ``T`` y τ operacional desde ``calibration_ensemble_ghana_v2.json``.
 
 Uso::
 
     cd ml
     python scripts/evaluate_dir.py \\
         --test-dir data/ghana/test \\
-        --calibration-json artifacts/runs/calibration_20260420T045056Z.json \\
-        --dataset-label ghana_external
+        --calibration-json artifacts/runs/calibration_ensemble_ghana_v2.json \\
+        --dataset-label ghana_ensemble_v2
 """
 
 from __future__ import annotations

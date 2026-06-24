@@ -13,10 +13,12 @@ Uso::
     python scripts/export_tflite.py
 
     python scripts/export_tflite.py \\
-        --keras-path artifacts/models/baseline_mobilenetv2.keras \\
-        --output-tflite artifacts/models/baseline_mobilenetv2_v1.tflite \\
-        --output-metadata artifacts/models/baseline_mobilenetv2_v1.metadata.json \\
+        --keras-path artifacts/models/baseline_mobilenetv2_ghana_augmented_seed42.keras \\
+        --output-tflite artifacts/models/baseline_mobilenetv2_ghana_augmented_seed42.tflite \\
+        --output-metadata artifacts/models/baseline_mobilenetv2_ghana_augmented_seed42.metadata.json \\
         --overwrite
+
+Para el ensemble 3× ver ``scripts/export_ensemble_tflite.py``.
 
 Flags::
     --verify              Validación post-conversión (predeterminado).
@@ -44,8 +46,8 @@ import tensorflow as tf  # noqa: E402
 from baseline.config import DEFAULT_MODEL_NAME, IMG_SIZE, MODEL_DIR, SEED  # noqa: E402
 from tensorflow import keras  # noqa: E402
 
-DEFAULT_TFLITE_NAME = "baseline_mobilenetv2_v1.tflite"
-DEFAULT_METADATA_NAME = "baseline_mobilenetv2_v1.metadata.json"
+DEFAULT_TFLITE_NAME = "baseline_mobilenetv2_ghana_augmented_seed42.tflite"
+DEFAULT_METADATA_NAME = "baseline_mobilenetv2_ghana_augmented_seed42.metadata.json"
 
 MODEL_VERSION = "v2.0"
 TEMPERATURE = 1.405026093389256

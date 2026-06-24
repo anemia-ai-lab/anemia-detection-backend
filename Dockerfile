@@ -21,8 +21,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Application; `repo_root()` in config.py is the working directory (/app)
 COPY backend/ /app/backend/
+RUN mkdir -p /app/ml/artifacts/models
 COPY ml/artifacts/models/baseline_mobilenetv2_ghana_augmented_seed42.keras \
-    /app/ml/artifacts/models/baseline_mobilenetv2_ghana_augmented_seed42.keras
+    ml/artifacts/models/baseline_mobilenetv2_ghana_augmented_seed123.keras \
+    ml/artifacts/models/baseline_mobilenetv2_ghana_augmented_seed456.keras \
+    /app/ml/artifacts/models/
 
 # Non-root process
 RUN useradd --create-home --uid 10001 app \

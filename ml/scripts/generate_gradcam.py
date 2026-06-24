@@ -45,7 +45,7 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument(
         "--model-path",
         type=Path,
-        default=ML_ROOT / "artifacts" / "models" / "baseline_mobilenetv2.keras",
+        default=ML_ROOT / "artifacts" / "models" / "baseline_mobilenetv2_ghana_augmented_seed42.keras",
     )
     p.add_argument(
         "--layer",

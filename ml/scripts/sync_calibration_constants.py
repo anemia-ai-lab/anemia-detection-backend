@@ -5,7 +5,7 @@ Lee un informe ``calibration_*.json`` y emite T / τ operacional para backend y 
 Uso::
 
     python ml/scripts/sync_calibration_constants.py \\
-        --calibration-json ml/artifacts/runs/calibration_20260420T045056Z.json
+        --calibration-json ml/artifacts/runs/calibration_ensemble_ghana_v2.json
 """
 
 from __future__ import annotations

@@ -10,10 +10,10 @@ MODEL_DIR: Path = ARTIFACTS_ROOT / "models"
 METRICS_DIR: Path = ARTIFACTS_ROOT / "metrics"
 RUNS_DIR: Path = ARTIFACTS_ROOT / "runs"
 
-DEFAULT_MODEL_NAME: str = "baseline_mobilenetv2.keras"
-DEFAULT_BEST_MODEL_NAME: str = "baseline_mobilenetv2_best.keras"
+DEFAULT_MODEL_NAME: str = "baseline_mobilenetv2_ghana_augmented_seed42.keras"
+DEFAULT_BEST_MODEL_NAME: str = "baseline_mobilenetv2_ghana_augmented_seed42_best.keras"
 # Versión lógica del experimento / artefacto (informes y trazabilidad).
-EXPERIMENT_MODEL_VERSION: str = "baseline-mobilenetv2-v1"
+EXPERIMENT_MODEL_VERSION: str = "v2.0-ensemble"
 DEFAULT_METRICS_NAME: str = "latest_eval.json"
 
 DATA_ROOT: Path = ML_ROOT / "data"

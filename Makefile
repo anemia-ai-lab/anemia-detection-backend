@@ -77,13 +77,15 @@ ml-prepare-ghana:
 	cd $(ML_DIR) && .venv/bin/python scripts/prepare_ghana_dataset.py
 
 ml-eval:
-	cd $(ML_DIR) && .venv/bin/python scripts/evaluate.py --model-path artifacts/models/baseline_mobilenetv2.keras --test-dir data/test
+	cd $(ML_DIR) && .venv/bin/python scripts/evaluate.py \
+		--model-path artifacts/models/baseline_mobilenetv2_ghana_augmented_seed42.keras \
+		--test-dir data/ghana/test
 
 ml-eval-ghana:
 	cd $(ML_DIR) && .venv/bin/python scripts/evaluate_dir.py \
 		--test-dir data/ghana/test \
-		--calibration-json artifacts/runs/calibration_20260420T045056Z.json \
-		--dataset-label ghana_external
+		--calibration-json artifacts/runs/calibration_ensemble_ghana_v2.json \
+		--dataset-label ghana_ensemble_v2
 
 # TensorFlow en Docker (monta repo: incluye ml/data y ml/data_raw gitignored en imagen).
 ml-docker-eval-ghana:
@@ -91,8 +93,8 @@ ml-docker-eval-ghana:
 	docker run --rm -v "$(PWD):/workspace" -w /workspace/ml -e PYTHONPATH=/workspace \
 		$(ML_TEST_IMAGE) python scripts/evaluate_dir.py \
 		--test-dir data/ghana/test \
-		--calibration-json artifacts/runs/calibration_20260420T045056Z.json \
-		--dataset-label ghana_external
+		--calibration-json artifacts/runs/calibration_ensemble_ghana_v2.json \
+		--dataset-label ghana_ensemble_v2
 
 ml-docker-train-finetune:
 	docker build -f Dockerfile.ml-test -t $(ML_TEST_IMAGE) .
@@ -102,6 +104,7 @@ ml-docker-train-finetune:
 		--metadata-path data_raw/nature/metadata.csv \
 		--fine-tune-epochs 10
 
+# Ablation legacy: transfer Nature→Ghana (requiere modelo Nature local, no versionado en git).
 ml-docker-finetune-ghana:
 	docker build -f Dockerfile.ml-test -t $(ML_TEST_IMAGE) .
 	docker run --rm -v "$(PWD):/workspace" -w /workspace/ml -e PYTHONPATH=/workspace \

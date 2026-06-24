@@ -6,8 +6,8 @@ Ejemplo::
 
     cd ml && PYTHONPATH=.. .venv/bin/python scripts/run_tflite_inference.py \\
         --image ../path/to/a.png \\
-        --tflite-path artifacts/models/baseline_mobilenetv2_v1.tflite \\
-        --metadata-path artifacts/models/baseline_mobilenetv2_v1.metadata.json
+        --tflite-path artifacts/models/baseline_mobilenetv2_ghana_augmented_seed42.tflite \\
+        --metadata-path artifacts/models/baseline_mobilenetv2_ghana_augmented_seed42.metadata.json
 """
 
 from __future__ import annotations
@@ -51,12 +51,12 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument(
         "--tflite-path",
         type=Path,
-        default=ML_ROOT / "artifacts" / "models" / "baseline_mobilenetv2_v1.tflite",
+        default=ML_ROOT / "artifacts" / "models" / "baseline_mobilenetv2_ghana_augmented_seed42.tflite",
     )
     p.add_argument(
         "--metadata-path",
         type=Path,
-        default=ML_ROOT / "artifacts" / "models" / "baseline_mobilenetv2_v1.metadata.json",
+        default=ML_ROOT / "artifacts" / "models" / "baseline_mobilenetv2_ghana_augmented_seed42.metadata.json",
     )
     p.add_argument("--output-json", type=Path, default=None, help="Escribir JSON además de stdout.")
     p.add_argument(

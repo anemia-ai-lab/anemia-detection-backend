@@ -10,8 +10,8 @@ Uso (desde ``ml/``)::
 
     cd ml && pip install -r requirements.txt
     python scripts/calibrate_eval.py \\
-        --model-path artifacts/models/baseline_mobilenetv2.keras \\
-        --experiment-json artifacts/runs/experiment_20260420T043804Z.json
+        --model-path artifacts/models/baseline_mobilenetv2_ghana_augmented_seed42.keras \\
+        --train-dir data/ghana/train --test-dir data/ghana/test
 
 Si no se pasa ``--experiment-json``, usar ``--train-dir``, ``--validation-split`` y ``--seed``
 coherentes con el entrenamiento original.

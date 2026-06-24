@@ -176,7 +176,7 @@ def _parse_args() -> argparse.Namespace:
         "--output-model",
         type=Path,
         default=None,
-        help="Ruta del .keras (por defecto artifacts/models/baseline_mobilenetv2.keras).",
+        help="Ruta del .keras (por defecto artifacts/models/baseline_mobilenetv2_ghana_augmented_seed42.keras).",
     )
     p.add_argument(
         "--init-model",

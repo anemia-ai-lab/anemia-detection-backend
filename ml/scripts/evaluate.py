@@ -8,8 +8,8 @@ Mismas convenciones que ``train.py`` en test: AUC, umbral teórico 0.5 (referenc
 Uso::
 
     cd ml && pip install -r requirements.txt
-    python scripts/evaluate.py --model-path artifacts/models/baseline_mobilenetv2.keras \\
-        --test-dir data/test
+    python scripts/evaluate.py --model-path artifacts/models/baseline_mobilenetv2_ghana_augmented_seed42.keras \\
+        --test-dir data/ghana/test
 
 Calibración post-hoc (*temperature scaling*, sin reentrenar): ver ``scripts/calibrate_eval.py``.
 """
