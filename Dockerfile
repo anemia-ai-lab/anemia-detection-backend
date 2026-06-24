@@ -6,6 +6,7 @@ WORKDIR /app
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
+    PYTHONPATH=/app \
     MODEL_VERSION=v2.0 \
     INFERENCE_MODEL_PATH=ml/artifacts/models/baseline_mobilenetv2_ghana_augmented_seed42.keras \
     INFERENCE_MODEL_PATHS=ml/artifacts/models/baseline_mobilenetv2_ghana_augmented_seed42.keras,ml/artifacts/models/baseline_mobilenetv2_ghana_augmented_seed123.keras,ml/artifacts/models/baseline_mobilenetv2_ghana_augmented_seed456.keras
@@ -21,6 +22,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Application; `repo_root()` in config.py is the working directory (/app)
 COPY backend/ /app/backend/
+COPY ml/__init__.py /app/ml/__init__.py
+COPY ml/preprocessing/ /app/ml/preprocessing/
+COPY ml/baseline/ /app/ml/baseline/
 RUN mkdir -p /app/ml/artifacts/models
 COPY ml/artifacts/models/baseline_mobilenetv2_ghana_augmented_seed42.keras \
     ml/artifacts/models/baseline_mobilenetv2_ghana_augmented_seed123.keras \

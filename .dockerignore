@@ -7,6 +7,8 @@ venv/
 ml/data/
 ml/data_raw/
 ml/artifacts/runs/
+!ml/artifacts/runs/calibration_ensemble_ghana_v2.json
+!ml/artifacts/runs/calibration_ensemble_ghana_v2.md
 ml/artifacts/metrics/
 ml/artifacts/tflite_runs/
 ml/artifacts/explainability/

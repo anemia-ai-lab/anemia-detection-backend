@@ -393,3 +393,28 @@ def test_login_invalid_credentials_from_supabase(monkeypatch: pytest.MonkeyPatch
     assert response.status_code == 401
     assert response.json()["detail"] == "Invalid email or password"
     assert response.json()["code"] == "invalid_credentials"
+
+
+def test_refresh_success_via_repository(monkeypatch: pytest.MonkeyPatch) -> None:
+    mock_client = MagicMock()
+    mock_client.auth.refresh_session.return_value = sample_auth_response(
+        email="refresh@example.com",
+    )
+
+    monkeypatch.setattr(config_module.settings, "debug", False)
+    monkeypatch.setattr(
+        auth_repository_module,
+        "create_supabase_anon_client",
+        lambda: mock_client,
+    )
+    monkeypatch.setattr(auth_service_module, "ProfileService", StubProfileService)
+
+    response = client.post(
+        "/auth/refresh",
+        json={"refresh_token": "refresh-token-value"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["user"]["email"] == "refresh@example.com"
+    assert data["tokens"]["access_token"] == "aaa.bbb.ccc"
+    mock_client.auth.refresh_session.assert_called_once()
