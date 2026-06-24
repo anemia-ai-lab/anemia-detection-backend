@@ -70,9 +70,6 @@ Single-seed v1 (referencia): AUC **0.690** — `experiment_20260601T051158Z` / `
 - Focal y aug móvil **no superan** v1 en test augmented (0.675 / 0.668).
 - Evaluación en Nature con modelo pediátrico confirma **no** optimización para adultos (AUC cal. ~0.47).
 
-## Referencia histórica
+## Referencia histórica (no versionada en git)
 
-| run_id | Notas |
-|--------|--------|
-| `experiment_20260420T043804Z` | Nature oversampling publicado en README | [JSON](../artifacts/runs/experiment_20260420T043804Z.json) |
-| `calibration_20260420T045056Z` | Calibración Nature publicada | [JSON](../artifacts/runs/calibration_20260420T045056Z.json) |
+Runs Nature (abril 2026) y experimentos intermedios de junio se conservan solo en local al reproducir con Makefile. En git queda únicamente `calibration_ensemble_ghana_v2`.

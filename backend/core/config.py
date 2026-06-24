@@ -187,7 +187,7 @@ class Settings(BaseSettings):
     )
 
     inference_model_path: str = Field(
-        default="ml/artifacts/models/baseline_mobilenetv2.keras",
+        default="ml/artifacts/models/baseline_mobilenetv2_ghana_augmented_seed42.keras",
         validation_alias="INFERENCE_MODEL_PATH",
         description=(
             "Ruta al .keras entrenado (absoluta o relativa al repo). "

@@ -2,75 +2,74 @@ from datetime import UTC, datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-# Última evaluación documentada: calibración post-hoc (test) alineada con la tesis.
-_DEFAULT_EVAL_AT = datetime(2026, 4, 20, 4, 50, 56, 897574, tzinfo=UTC)
+# Última evaluación documentada: calibración ensemble v2 Ghana (test augmented).
+_DEFAULT_EVAL_AT = datetime(2026, 6, 1, 6, 41, 19, 708993, tzinfo=UTC)
 
 
 class ModelEvalMetrics(BaseModel):
     """
-    Métricas offline del mejor pipeline (entrenamiento + calibración en test).
+    Métricas offline del pipeline pediátrico v2 (ensemble 3 semillas + calibración en test).
 
-    Origen: ``experiment_20260420T043804Z`` (train/val/test) y
-    ``calibration_20260420T045056Z`` (temperature scaling + métricas en probabilidades calibradas).
+    Origen: ``calibration_ensemble_ghana_v2`` (temperature scaling + métricas calibradas).
     La versión de despliegue del API va en ``model_version`` (p. ej. ``v2.0``).
     """
 
     auc: float = Field(
-        default=0.795092,
+        default=0.681532,
         ge=0.0,
         le=1.0,
         description="AUC-ROC en test (Keras; invariante ante escalado monótono del score).",
     )
     precision_operational: float = Field(
-        default=0.454545,
+        default=0.634888,
         ge=0.0,
         le=1.0,
         description="Precisión en test al umbral operacional (Youden) sobre **probabilidad calibrada**.",
     )
     recall_operational: float = Field(
-        default=0.740741,
+        default=0.716247,
         ge=0.0,
         le=1.0,
         description="Recall (sensibilidad) en test al umbral operacional sobre probabilidad calibrada.",
     )
     accuracy_operational: float = Field(
-        default=0.793333,
+        default=0.648555,
         ge=0.0,
         le=1.0,
         description="Exactitud en test al umbral operacional sobre probabilidad calibrada.",
     )
     operational_threshold: float = Field(
-        default=0.1680544387290045,
+        default=0.3815443834698594,
         ge=0.0,
         le=1.0,
         description="Umbral τ de Youden (ROC) aplicado sobre la probabilidad **calibrada** en test.",
     )
     temperature: float = Field(
-        default=0.7510018331928743,
+        default=1.405026093389256,
         gt=0.0,
         description="Parámetro T de *temperature scaling* ajustado en validación (inferencia: ``sigmoid(logit(p)/T)``).",
     )
     brier_score: float = Field(
-        default=0.11766287029947034,
+        default=0.236869,
         ge=0.0,
         description="Brier score en test con probabilidades calibradas.",
     )
     expected_calibration_error: float = Field(
-        default=0.060344067420365466,
+        default=0.119065,
         ge=0.0,
         le=1.0,
         description="ECE (error esperado de calibración) en test, probabilidades calibradas (15 bins).",
     )
     oversampling_used: bool = Field(
-        default=True,
+        default=False,
         description="Oversampling de positivos en el train del ``fit`` (~1:1 en subconjunto interno).",
     )
     class_weight_used: bool = Field(
         default=False,
-        description="Si ``class_weight`` se aplicó en ``model.fit`` (este modelo: no, ``--no-class-weight``).",
+        description="Si ``class_weight`` se aplicó en ``model.fit``.",
     )
     fine_tuning_used: bool = Field(
-        default=True,
+        default=False,
         description="Si hubo segunda fase de fine-tuning parcial del backbone MobileNetV2.",
     )
     evaluated_at: datetime = Field(
@@ -78,8 +77,8 @@ class ModelEvalMetrics(BaseModel):
         description="Marca temporal de la evaluación/calibración documentada (UTC).",
     )
     dataset_version: str = Field(
-        default="experiment_20260420T043804Z; calibration_20260420T045056Z",
-        description="Trazabilidad de los artefactos JSON de entrenamiento y calibración.",
+        default="calibration_ensemble_ghana_v2",
+        description="Trazabilidad del artefacto JSON de calibración final.",
     )
 
 
@@ -95,19 +94,19 @@ class ModelEvaluationOut(ModelEvalMetrics):
         json_schema_extra={
             "example": {
                 "model_version": "v2.0",
-                "auc": 0.795092,
-                "precision_operational": 0.454545,
-                "recall_operational": 0.740741,
-                "accuracy_operational": 0.793333,
-                "operational_threshold": 0.1680544387290045,
-                "temperature": 0.7510018331928743,
-                "brier_score": 0.11766287029947034,
-                "expected_calibration_error": 0.060344067420365466,
-                "oversampling_used": True,
+                "auc": 0.681532,
+                "precision_operational": 0.634888,
+                "recall_operational": 0.716247,
+                "accuracy_operational": 0.648555,
+                "operational_threshold": 0.3815443834698594,
+                "temperature": 1.405026093389256,
+                "brier_score": 0.236869,
+                "expected_calibration_error": 0.119065,
+                "oversampling_used": False,
                 "class_weight_used": False,
-                "fine_tuning_used": True,
-                "evaluated_at": "2026-04-20T04:50:56.897574Z",
-                "dataset_version": "experiment_20260420T043804Z; calibration_20260420T045056Z",
+                "fine_tuning_used": False,
+                "evaluated_at": "2026-06-01T06:41:19.708993Z",
+                "dataset_version": "calibration_ensemble_ghana_v2",
             }
         },
     )

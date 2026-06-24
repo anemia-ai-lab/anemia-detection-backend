@@ -251,13 +251,12 @@ ml/data_raw/
 ml/data-raw/    # alias histórico (no usar este nombre)
 ml/data/
 
-# MODELOS (NO VERSIONAR)
+# MODELOS (NO VERSIONAR) — solo artefactos finales v2 Ghana (ensemble)
 ml/artifacts/models/*
 !ml/artifacts/models/.gitkeep
-!ml/artifacts/models/baseline_mobilenetv2.keras
 !ml/artifacts/models/baseline_mobilenetv2_ghana_augmented_seed42.keras
-!ml/artifacts/models/baseline_mobilenetv2_v1.tflite
-!ml/artifacts/models/baseline_mobilenetv2_v1.metadata.json
+!ml/artifacts/models/baseline_mobilenetv2_ghana_augmented_seed123.keras
+!ml/artifacts/models/baseline_mobilenetv2_ghana_augmented_seed456.keras
 !ml/artifacts/models/baseline_mobilenetv2_ghana_augmented_seed42.tflite
 !ml/artifacts/models/baseline_mobilenetv2_ghana_augmented_seed42.metadata.json
 !ml/artifacts/models/baseline_mobilenetv2_ghana_augmented_seed123.tflite
@@ -277,16 +276,8 @@ ml/artifacts/explainability/
 # MLflow (almacenamiento local file:…/ml/mlruns)
 ml/mlruns/
 
-# RUNS (SOLO LOS IMPORTANTES)
+# RUNS (SOLO CALIBRACIÓN FINAL v2)
 ml/artifacts/runs/*
 !ml/artifacts/runs/.gitkeep
-
-# Experimentos finales (tesis)
-!ml/artifacts/runs/experiment_20260420T043804Z.md
-!ml/artifacts/runs/experiment_20260420T043804Z.json
-
-# Calibración final
-!ml/artifacts/runs/calibration_20260420T045056Z.md
-!ml/artifacts/runs/calibration_20260420T045056Z.json
 !ml/artifacts/runs/calibration_ensemble_ghana_v2.json
 !ml/artifacts/runs/calibration_ensemble_ghana_v2.md

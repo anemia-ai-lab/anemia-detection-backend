@@ -24,7 +24,7 @@ def test_health_omits_model_path_outside_local(monkeypatch) -> None:
     monkeypatch.setattr(
         config_module.settings,
         "inference_model_path",
-        "ml/artifacts/models/baseline_mobilenetv2.keras",
+        "ml/artifacts/models/baseline_mobilenetv2_ghana_augmented_seed42.keras",
     )
     response = client.get("/health")
     assert response.status_code == 200

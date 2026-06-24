@@ -132,7 +132,7 @@ class PredictionService:
         if builtin is None:
             raise PredictionServiceError(
                 "No hay modelo de inferencia cargado. Configure INFERENCE_MODEL_PATH "
-                + "con un .keras válido (p. ej. ml/artifacts/models/baseline_mobilenetv2.keras).",
+                + "con un .keras válido (p. ej. ml/artifacts/models/baseline_mobilenetv2_ghana_augmented_seed42.keras).",
                 503,
                 code="inference_model_unavailable",
             )

@@ -22,7 +22,7 @@ import tensorflow as tf  # noqa: E402
 tf.keras.utils.set_random_seed(42)
 np.random.seed(42)
 
-# Paridad G8: seed42.keras coincide con baseline_mobilenetv2.keras versionado en git.
+# Paridad G8: artefactos finales v2 Ghana (seed42.keras + TFLite homólogo).
 MODEL_KERAS = ML_ROOT / "artifacts" / "models" / "baseline_mobilenetv2_ghana_augmented_seed42.keras"
 MODEL_TFLITE = (
     ML_ROOT / "artifacts" / "models" / "baseline_mobilenetv2_ghana_augmented_seed42.tflite"
