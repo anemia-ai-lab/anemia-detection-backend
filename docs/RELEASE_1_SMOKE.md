@@ -1,34 +1,47 @@
-# Release 1 — smoke checklist (manual)
-
-Fecha: _rellenar tras deploy v2_
+# Release 1 — smoke (prod)
 
 Base URL prod: `https://anemia-detection-backend.onrender.com`
 
-## Pre-deploy
+## Automático
 
-- [ ] `make lint && make test && make ml-test-docker` verde
-- [ ] `docker build -f Dockerfile .` exitoso (3× `.keras` en imagen)
-- [ ] `supabase db push` — remoto al día
-- [ ] Variables en Render según [`render.env.example`](../render.env.example)
+```bash
+export SMOKE_EMAIL=smoke@example.com
+export SMOKE_PASSWORD=minimum8chars
+export METRICS_BEARER_TOKEN=<mismo que Render>
+# opcional: export SMOKE_BASE_URL=https://anemia-detection-backend.onrender.com
+make smoke-prod
+```
 
-## Smoke HTTP
+**GitHub Actions** (workflow [`.github/workflows/keepalive.yml`](../.github/workflows/keepalive.yml), job `smoke-prod`):
+
+- Triggers: `schedule` (lun/jue 15:00 UTC) y `workflow_dispatch`
+- Secrets del repo: `SMOKE_EMAIL`, `SMOKE_PASSWORD`, `METRICS_BEARER_TOKEN`
+- Variable opcional: `SMOKE_BASE_URL` (sin barra final)
+
+El script registra el usuario en el primer run si `login` devuelve 401.
+
+## Pasos que ejecuta `scripts/smoke_prod.py`
 
 | # | Request | Esperado |
 |---|---------|----------|
 | 1 | `GET /health` | `status=ok`, `model_loaded=true`, `model_version=v2.0` |
-| 2 | `POST /auth/register` | 201/200 + tokens |
-| 3 | `POST /auth/login` | 200 + JWT |
-| 4 | `GET /auth/me/profile` | 200 con JWT |
-| 5 | `POST /predict` | 200, `risk_tier` en low/medium/high |
-| 6 | `GET /predictions` | 200 lista paginada |
-| 7 | `POST /predictions/sync/metadata` | 200 batch offline |
-| 8 | `GET /metrics` + `Authorization: Bearer $METRICS_BEARER_TOKEN` | 200 Prometheus |
+| 2 | `POST /auth/login` (o `register` + `login`) | 200 + JWT |
+| 3 | `GET /auth/me/profile` | 200 con JWT |
+| 4 | `POST /predict` | 200, `risk` en low/medium/high |
+| 5 | `GET /predictions` | 200, incluye la predicción del paso 4 |
+| 6 | `GET /metrics` + `Authorization: Bearer $METRICS_BEARER_TOKEN` | 200 Prometheus |
 
-## Estado pre-R1 (2026-06-24)
+## Pre-deploy (CI local)
 
-- **Imagen local** (`docker build -f Dockerfile .`): `GET /health` → `status=ok`, `model_loaded=true`, `model_version=v2.0`, ensemble `n=3`.
-- **Render prod** (pre-deploy v2): `/health` → `degraded`, `model_loaded=false`, `model_version=v1.0` — actualizar env + redeploy según [`render.env.example`](../render.env.example).
-- Supabase migraciones: remoto al día (`supabase db push --dry-run`).
+- [ ] `make lint && make test && make ml-test-docker` verde
+- [ ] `docker build -f Dockerfile .` exitoso (3× `.keras` en imagen)
+- [ ] `supabase db push` — remoto al día
+- [ ] Variables en Render según [`render.env.example`](../render.env.example) (mínimo obligatorio)
+
+## Estado (2026-06-24)
+
+- **Render prod:** `/health` → `status=ok`, `model_loaded=true`, `model_version=v2.0` (ensemble v2).
+- **Smoke:** automatizado vía `make smoke-prod` + job `smoke-prod` en keepalive.
 
 ## Limitaciones (release notes)
 

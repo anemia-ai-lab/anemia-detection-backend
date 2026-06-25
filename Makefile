@@ -1,4 +1,4 @@
-.PHONY: install run dev lint format test ml-test ml-venv ml-install ml-tf-check ml-test-docker \
+.PHONY: install run dev lint format test smoke-prod ml-test ml-venv ml-install ml-tf-check ml-test-docker \
 	db-push ml-train-demo ml-train ml-train-finetune ml-eval ml-eval-ghana \
 	ml-prepare-ghana ml-docker-eval-ghana ml-docker-train-finetune ml-docker-finetune-ghana \
 	ml-docker-train-ghana-scratch ml-docker-calibrate-ghana \
@@ -35,6 +35,9 @@ format:
 
 test:
 	env DISABLE_TF=1 INFERENCE_MODEL_PATH= $(TEST_PYTHON) -m pytest tests/
+
+smoke-prod:
+	$(PYTHON) scripts/smoke_prod.py
 
 ml-test:
 	PYTHONPATH=. $(ML_PYTHON) -m pytest ml/tests/
