@@ -284,4 +284,5 @@ ml/artifacts/runs/*
 
 # AWS CDK
 infra/cdk.out/
+infra/cdk.out.synth/
 infra/.venv/

@@ -51,6 +51,7 @@ Supabase keys (security):
 
 AWS deployment:
 	•	Production: ECS Fargate + ALB in `us-west-2`, IaC in `infra/` (CDK Python).
+	•	Node **22** for CDK CLI (`.nvmrc` at repo root; CI uses the same file).
 	•	Guide: `docs/DEPLOYMENT_AWS.md` · env reference: `aws.env.example`.
 	•	Secrets: AWS Secrets Manager `anemia-api/prod` (not in git).
 	•	CI deploy: `.github/workflows/deploy-aws.yml` (manual dispatch).

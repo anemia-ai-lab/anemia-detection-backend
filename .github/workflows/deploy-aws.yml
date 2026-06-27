@@ -44,7 +44,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version-file: ".nvmrc"
 
       - name: Install CDK CLI and Python deps
         working-directory: infra
@@ -55,8 +55,6 @@ jobs:
 
       - name: CDK deploy (infra)
         working-directory: infra
-        env:
-          JSII_SILENCE_WARNING_DEPRECATED_NODE_VERSION: "1"
         run: cdk deploy --require-approval never
 
       - name: Login to ECR
@@ -71,7 +69,7 @@ jobs:
         run: |
           TAG="${{ github.event.inputs.image_tag }}"
           if [ -z "$TAG" ]; then TAG="${{ github.sha }}"; fi
-          docker build -f Dockerfile -t "${{ steps.ecr.outputs.uri }}:${TAG}" -t "${{ steps.ecr.outputs.uri }}:latest" .
+          docker build --platform linux/amd64 -f Dockerfile -t "${{ steps.ecr.outputs.uri }}:${TAG}" -t "${{ steps.ecr.outputs.uri }}:latest" .
           docker push "${{ steps.ecr.outputs.uri }}:${TAG}"
           docker push "${{ steps.ecr.outputs.uri }}:latest"
           echo "IMAGE_TAG=${TAG}" >> "$GITHUB_ENV"

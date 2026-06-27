@@ -61,8 +61,9 @@ Sin dominio custom ni NAT. HTTPS con dominio propio (Route53 + ACM) es opcional 
 1. Cuenta AWS con permisos para ECS, ECR, ALB, IAM, Secrets Manager, CloudWatch.
 2. [AWS CLI v2](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) configurado (`aws configure` o SSO).
 3. Docker instalado (build de imagen).
-4. Python 3.11+ para CDK (`infra/`).
-5. Supabase: migraciones al día (`make db-push`).
+4. **Node.js 22** para CDK CLI (`.nvmrc` en la raíz → `nvm use`; `npm install -g aws-cdk@2`).
+5. Python 3.11+ para CDK (`infra/`).
+6. Supabase: migraciones al día (`make db-push`).
 
 ---
 
@@ -71,6 +72,10 @@ Sin dominio custom ni NAT. HTTPS con dominio propio (Route53 + ACM) es opcional 
 ### 1. Bootstrap CDK (una vez por cuenta/región)
 
 ```bash
+# Desde la raíz del repo
+nvm use
+npm install -g aws-cdk@2
+
 cd infra
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
@@ -103,12 +108,22 @@ Referencia de variables no secretas: [`aws.env.example`](../aws.env.example).
 
 ### 4. Build y push de la imagen Docker
 
+**Fargate usa `linux/amd64`.** En Mac (Apple Silicon) hay que pasar `--platform linux/amd64` o usar `make docker-push-ecr` (login + build amd64 + push). El `Dockerfile` instala TensorFlow en una capa aparte con timeout largo de pip (~645 MB).
+
+**Recomendado en Mac:** red estable (Ethernet), 30–60 min el primer build amd64.
+
+**Alternativa más fiable:** workflow [Deploy AWS](../.github/workflows/deploy-aws.yml) (build nativo en `ubuntu-latest`).
+
 ```bash
-# Desde la raíz del repo
+# Opción A — Makefile (desde la raíz)
+make docker-push-ecr
+
+# Opción B — manual
 ECR_URI=$(aws cloudformation describe-stacks --stack-name AnemiaApiStack \
+  --region us-west-2 \
   --query "Stacks[0].Outputs[?OutputKey=='EcrRepositoryUri'].OutputValue" --output text)
 aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin "${ECR_URI%%/*}"
-docker build -f Dockerfile -t "$ECR_URI:latest" .
+docker build --platform linux/amd64 -f Dockerfile -t "$ECR_URI:latest" .
 docker push "$ECR_URI:latest"
 ```
 
@@ -194,6 +209,8 @@ aws ecs update-service --cluster anemia-api-cluster --service anemia-api-service
 
 | Síntoma | Causa probable |
 |---------|----------------|
+| `CannotPullContainerError` / `linux/amd64` | Imagen en ECR solo arm64; rebuild con `--platform linux/amd64` o `make docker-push-ecr` |
+| `docker build` falla en `tensorflow` (Read timed out) | Wheel ~645 MB; reintentar con red estable; capa TF en Dockerfile usa `PIP_DEFAULT_TIMEOUT=1000` |
 | Target unhealthy | Task no arranca (secretos vacíos, imagen ausente en ECR) |
 | 502 desde ALB | Contenedor caído; revisar CloudWatch `/ecs/anemia-api` |
 | 401/403 API | JWT o Supabase incorrecto en Secrets Manager |

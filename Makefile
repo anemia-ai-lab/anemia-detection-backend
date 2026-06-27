@@ -1,4 +1,4 @@
-.PHONY: install run dev lint format test smoke-prod cdk-synth ml-test ml-venv ml-install ml-tf-check ml-test-docker \
+.PHONY: install run dev lint format test smoke-prod cdk-synth docker-push-ecr ml-test ml-venv ml-install ml-tf-check ml-test-docker \
 	db-push ml-train-demo ml-train ml-train-finetune ml-eval ml-eval-ghana \
 	ml-prepare-ghana ml-docker-eval-ghana ml-docker-train-finetune ml-docker-finetune-ghana \
 	ml-docker-train-ghana-scratch ml-docker-calibrate-ghana \
@@ -42,7 +42,23 @@ smoke-prod:
 cdk-synth:
 	@test -d infra/.venv || (echo "Run: cd infra && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt"; exit 1)
 	@command -v cdk >/dev/null 2>&1 || (echo "Install CDK CLI: npm install -g aws-cdk@2"; exit 1)
-	cd infra && env AWS_REGION=us-west-2 JSII_SILENCE_WARNING_DEPRECATED_NODE_VERSION=1 cdk synth
+	@NODE_MAJOR=$$(node -p "process.versions.node.split('.')[0]"); \
+	if [ "$$NODE_MAJOR" -lt 22 ]; then \
+		echo "Node 22+ required for CDK (repo .nvmrc: run nvm use)"; exit 1; \
+	fi
+	cd infra && env AWS_REGION=us-west-2 cdk synth --output cdk.out.synth
+
+AWS_ACCOUNT ?= $(shell aws sts get-caller-identity --query Account --output text 2>/dev/null)
+AWS_REGION ?= us-west-2
+ECR_URI ?= $(AWS_ACCOUNT).dkr.ecr.$(AWS_REGION).amazonaws.com/anemia-detection-backend
+
+# Fargate requires linux/amd64. On Apple Silicon use this instead of plain docker build.
+docker-push-ecr:
+	@test -n "$(AWS_ACCOUNT)" || (echo "AWS CLI not configured (aws sts get-caller-identity)"; exit 1)
+	aws ecr get-login-password --region $(AWS_REGION) | \
+		docker login --username AWS --password-stdin "$(AWS_ACCOUNT).dkr.ecr.$(AWS_REGION).amazonaws.com"
+	docker build --platform linux/amd64 -f Dockerfile -t "$(ECR_URI):latest" .
+	docker push "$(ECR_URI):latest"
 
 ml-test:
 	PYTHONPATH=. $(ML_PYTHON) -m pytest ml/tests/

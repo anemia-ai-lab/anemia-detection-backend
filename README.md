@@ -39,7 +39,7 @@ The backend uses Keras for server-side inference. Offline capability is provided
 
 ## Deployment
 
-Production: **AWS ECS Fargate** (us-west-2) via **CDK Python** — see [`docs/DEPLOYMENT_AWS.md`](docs/DEPLOYMENT_AWS.md).
+Production: **AWS ECS Fargate** (us-west-2) via **CDK Python** — Node 22 (`.nvmrc`), see [`docs/DEPLOYMENT_AWS.md`](docs/DEPLOYMENT_AWS.md).
 
 ## Technical Stack
 

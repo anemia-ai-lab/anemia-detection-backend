@@ -6,6 +6,8 @@ WORKDIR /app
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
+    PIP_DEFAULT_TIMEOUT=1000 \
+    PIP_RETRIES=10 \
     PYTHONPATH=/app \
     MODEL_VERSION=v2.0 \
     INFERENCE_MODEL_PATH=ml/artifacts/models/baseline_mobilenetv2_ghana_augmented_seed42.keras \
@@ -16,9 +18,10 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Layer cache: dependencies before application code
+# Layer cache: dependencies before application code (TensorFlow ~645 MB in its own layer)
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --default-timeout=1000 --retries=10 --no-cache-dir tensorflow==2.19.1
+RUN pip install --default-timeout=300 --retries=10 --no-cache-dir -r requirements.txt
 
 # Application; `repo_root()` in config.py is the working directory (/app)
 COPY backend/ /app/backend/
