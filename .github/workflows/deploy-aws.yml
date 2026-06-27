@@ -53,6 +53,49 @@ jobs:
           .venv/bin/pip install -r requirements.txt
           npm install -g aws-cdk@2
 
+      # ECR uses RemovalPolicy.RETAIN — if the stack was deleted, the repo can block a fresh create.
+      - name: Recover stuck stack or orphan ECR
+        run: |
+          set -euo pipefail
+          STACK="AnemiaApiStack"
+          ECR_REPO="anemia-detection-backend"
+
+          STATUS=$(aws cloudformation describe-stacks \
+            --stack-name "$STACK" --region "$AWS_REGION" \
+            --query 'Stacks[0].StackStatus' --output text 2>/dev/null || echo "NOT_FOUND")
+
+          echo "CloudFormation stack status: $STATUS"
+
+          case "$STATUS" in
+            CREATE_COMPLETE|UPDATE_COMPLETE|UPDATE_ROLLBACK_COMPLETE)
+              echo "Stack is healthy; continuing."
+              ;;
+            REVIEW_IN_PROGRESS|CREATE_FAILED|ROLLBACK_COMPLETE|ROLLBACK_FAILED|UPDATE_ROLLBACK_FAILED)
+              echo "Deleting failed or stuck stack ($STATUS)..."
+              aws cloudformation delete-stack --stack-name "$STACK" --region "$AWS_REGION"
+              aws cloudformation wait stack-delete-complete --stack-name "$STACK" --region "$AWS_REGION"
+              STATUS="NOT_FOUND"
+              ;;
+            DELETE_IN_PROGRESS)
+              echo "Waiting for stack deletion to finish..."
+              aws cloudformation wait stack-delete-complete --stack-name "$STACK" --region "$AWS_REGION"
+              STATUS="NOT_FOUND"
+              ;;
+            NOT_FOUND)
+              echo "No active stack."
+              ;;
+            *)
+              echo "Stack in state $STATUS; not auto-recovering."
+              ;;
+          esac
+
+          if aws ecr describe-repositories --repository-names "$ECR_REPO" --region "$AWS_REGION" >/dev/null 2>&1; then
+            if [ "$STATUS" = "NOT_FOUND" ]; then
+              echo "Removing orphan ECR repository $ECR_REPO (left after stack delete with RETAIN)."
+              aws ecr delete-repository --repository-name "$ECR_REPO" --region "$AWS_REGION" --force
+            fi
+          fi
+
       - name: CDK deploy (infra)
         working-directory: infra
         run: cdk deploy --require-approval never
