@@ -105,18 +105,31 @@ jobs:
             --stack-name AnemiaApiStack --region "$AWS_REGION" \
             --query 'Stacks[0].StackStatus' --output text 2>/dev/null || echo "NOT_FOUND")
 
-          case "$STATUS" in
-            CREATE_COMPLETE|UPDATE_COMPLETE|UPDATE_ROLLBACK_COMPLETE)
-              echo "Healthy stack; deploying with desiredCount=1"
+          HAS_IMAGE="false"
+          if aws ecr describe-images \
+            --repository-name anemia-detection-backend \
+            --region "$AWS_REGION" \
+            --image-ids imageTag=latest >/dev/null 2>&1; then
+            HAS_IMAGE="true"
+          fi
+
+          echo "Stack status: $STATUS, ECR latest: $HAS_IMAGE"
+
+          if [ "$STATUS" = "CREATE_COMPLETE" ] || [ "$STATUS" = "UPDATE_COMPLETE" ] || [ "$STATUS" = "UPDATE_ROLLBACK_COMPLETE" ]; then
+            if [ "$HAS_IMAGE" = "true" ]; then
+              echo "Healthy stack with image; deploying desiredCount=1"
               cdk deploy --require-approval never -c desiredCount=1
               echo "bootstrap=false" >> "$GITHUB_OUTPUT"
-              ;;
-            *)
-              echo "Bootstrap deploy (no image in ECR yet); desiredCount=0"
+            else
+              echo "Stack exists but ECR has no :latest; scale to 0 then push image"
               cdk deploy --require-approval never -c desiredCount=0
               echo "bootstrap=true" >> "$GITHUB_OUTPUT"
-              ;;
-          esac
+            fi
+          else
+            echo "Bootstrap deploy; desiredCount=0 until image is pushed"
+            cdk deploy --require-approval never -c desiredCount=0
+            echo "bootstrap=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Login to ECR
         id: ecr
@@ -135,10 +148,33 @@ jobs:
           docker push "${{ steps.ecr.outputs.uri }}:latest"
           echo "IMAGE_TAG=${TAG}" >> "$GITHUB_ENV"
 
-      - name: CDK deploy (scale up ECS after image push)
+      - name: Verify ECR image (latest)
+        run: |
+          aws ecr describe-images \
+            --repository-name anemia-detection-backend \
+            --region "$AWS_REGION" \
+            --image-ids imageTag=latest \
+            --query 'imageDetails[0].imageDigest' --output text
+
+      - name: Scale up ECS after image push
+        if: steps.cdk_bootstrap.outputs.bootstrap == 'true'
+        run: |
+          aws ecs update-service \
+            --cluster anemia-api-cluster \
+            --service anemia-api-service \
+            --desired-count 1 \
+            --force-new-deployment \
+            --region "$AWS_REGION"
+
+      - name: CDK deploy (sync desiredCount=1)
         if: steps.cdk_bootstrap.outputs.bootstrap == 'true'
         working-directory: infra
-        run: cdk deploy --require-approval never -c desiredCount=1
+        run: |
+          aws ecs wait services-stable \
+            --cluster anemia-api-cluster \
+            --services anemia-api-service \
+            --region "$AWS_REGION"
+          cdk deploy --require-approval never -c desiredCount=1
 
       - name: Force ECS redeployment
         if: steps.cdk_bootstrap.outputs.bootstrap != 'true'
@@ -150,6 +186,7 @@ jobs:
             --region "$AWS_REGION"
 
       - name: Wait for service stability
+        if: steps.cdk_bootstrap.outputs.bootstrap != 'true'
         run: |
           aws ecs wait services-stable \
             --cluster anemia-api-cluster \
