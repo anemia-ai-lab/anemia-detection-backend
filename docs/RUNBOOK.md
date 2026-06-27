@@ -38,7 +38,7 @@ CLI Supabase enlazada al proyecto. SQL en `supabase/migrations/`. Sin migracione
 make run
 ```
 
-(`uvicorn backend.main:app --reload`). OpenAPI: `/docs`, `/openapi.json`. Con `INFERENCE_MODEL_PATH` el lifespan carga el modelo; con `DISABLE_TF=1` o ruta vacía puede no cargarse TF.
+(`uvicorn backend.main:app --reload`). OpenAPI: `/docs`, `/openapi.json`. Con `INFERENCE_MODEL_PATHS` (producción v2) o `INFERENCE_MODEL_PATH` (legacy) el lifespan carga el modelo; con `DISABLE_TF=1` o rutas vacías puede no cargarse TF.
 
 ## Tests API (sin TensorFlow en ese proceso)
 
@@ -70,7 +70,19 @@ make ml-test-docker
 
 (`Dockerfile.ml-test`, Linux reproducible.)
 
-## Pipeline Nature + Ghana
+## Pipeline ML (histórico v1 + ensemble v2)
+
+### Producción v2 (ensemble)
+
+Flujo recomendado para el modelo pediátrico en producción (3 semillas, tiers low/medium/high). Detalle en [`ml/README.md`](../ml/README.md).
+
+1. **Ghana augmented:** `make ml-docker-prepare-ghana-augmented` (o preparar datos con `prepare_ghana_dataset.py`).
+2. **Entrenar ensemble:** `make ml-docker-train-ghana-ensemble-seeds` (seeds 42, 123, 456).
+3. **Calibrar ensemble:** `make ml-docker-calibrate-ensemble-ghana` → `artifacts/runs/calibration_ensemble_ghana_v2.json`.
+4. **Export TFLite móvil:** `make ml-docker-export-ensemble-tflite`.
+5. **Sync API:** `python ml/scripts/sync_calibration_constants.py --calibration-json ml/artifacts/runs/calibration_ensemble_ghana_v2.json`.
+
+### Pipeline Nature + Ghana (histórico v1)
 
 1. **Nature:** `python ml/scripts/prepare_nature_dataset.py` → `ml/data/train|test`.
 2. **Ghana:** copiar PNG a `ml/data_raw/ghana/` → `python ml/scripts/prepare_ghana_dataset.py` → `ml/data/ghana/`.
@@ -78,7 +90,8 @@ make ml-test-docker
 4. **Calibrar:** `python scripts/calibrate_eval.py --experiment-json artifacts/runs/experiment_<último>.json`.
 5. **Sync API:** `python ml/scripts/sync_calibration_constants.py --calibration-json artifacts/runs/calibration_<último>.json`.
 6. **Eval Ghana:** `python scripts/evaluate_dir.py --test-dir data/ghana/test --calibration-json artifacts/runs/calibration_*.json --dataset-label ghana_external`.
-7. **Fine-tune pediatría (Fase 4):** `make ml-docker-finetune-ghana` (carga modelo Nature, `data/ghana/train`, 10 épocas backbone). Re-calibrar con `--train-dir data/ghana/train --test-dir data/ghana/test`.
+
+**Nota histórica:** el fine-tune Nature→Ghana (`make ml-docker-finetune-ghana`) fue una ablación con AUC ~0,56 — no recomendado para producción. Ver [`ml/docs/CONFERENCE_EXPERIMENTS.md`](../ml/docs/CONFERENCE_EXPERIMENTS.md).
 
 Entrenamiento, calibración y `evaluate_dir` requieren TensorFlow; si `make ml-tf-check` aborta en macOS, usar `make ml-test-docker` o Linux. `prepare_ghana_dataset.py` puede usar `sips` en macOS sin TF.
 
@@ -97,7 +110,7 @@ Los tests validan software y artefactos, no validez clínica.
 
 **Local** (con `.env` válido y `make run`): `GET /health`, `GET /docs`, `POST /auth/register|login`, `POST /predict` (JWT + multipart; 200 con inferencia real solo si el modelo está cargado). No commitear secretos.
 
-**Producción (automático):** `make smoke-prod` contra AWS ALB (`scripts/smoke_prod.py`). Requiere `SMOKE_BASE_URL`, `SMOKE_EMAIL`, `SMOKE_PASSWORD`, `METRICS_BEARER_TOKEN`. CI: job `smoke-prod` en [`.github/workflows/ci.yml`](../.github/workflows/ci.yml). Detalle: [`docs/RELEASE_1_SMOKE.md`](RELEASE_1_SMOKE.md).
+**Producción (automático):** `make smoke-prod` contra AWS ALB (`scripts/smoke_prod.py`). Requiere `SMOKE_BASE_URL`, `SMOKE_EMAIL`, `SMOKE_PASSWORD`, `METRICS_BEARER_TOKEN`. CI: job `smoke-prod` en [`.github/workflows/ci.yml`](../.github/workflows/ci.yml). Detalle: [`docs/RELEASE.md`](RELEASE.md).
 
 **AWS (env):** secretos en Secrets Manager; task env según [`aws.env.example`](../aws.env.example). Guía completa: [`docs/DEPLOYMENT_AWS.md`](DEPLOYMENT_AWS.md).
 
@@ -141,8 +154,12 @@ Métricas por fase de `POST /predict` en `/metrics`: `predict_phase_duration_sec
 | `SUPABASE_SERVICE_ROLE_KEY` | Solo servidor (bypass RLS en bootstrap). |
 | `APP_ENV` / `DEBUG` | Entorno; `APP_ENV=production` exige `SUPABASE_*`, `METRICS_BEARER_TOKEN`, prohíbe `DEBUG=true` y bucket distinto de `prediction-images`. |
 | `MODEL_VERSION` | Versión persistida y expuesta en API. |
-| `INFERENCE_MODEL_PATH` | `.keras`; vacío = sin modelo cargado en runtime integrado. |
-| `INFERENCE_CALIBRATION_*` | Calibración y umbral operacional. |
+| `INFERENCE_MODEL_PATHS` | Producción v2: lista CSV de `.keras` (ensemble 3 semillas). |
+| `INFERENCE_MODEL_PATH` | Legacy / fallback: un solo `.keras`; vacío = sin modelo cargado. |
+| `INFERENCE_CALIBRATION_TEMPERATURE` | Temperatura de calibración post-hoc. |
+| `INFERENCE_CALIBRATION_OPERATIONAL_THRESHOLD` | Umbral operacional para `POST /predict` (calibrado). |
+| `INFERENCE_RISK_TIER_LOW_UPPER` | Límite superior del tier `low` (v2). |
+| `INFERENCE_RISK_TIER_HIGH_LOWER` | Límite inferior del tier `high` (v2). |
 | `DISABLE_TF` | Omite carga TF en runtime cuando aplica (p. ej. tests). |
 | `METRICS_BEARER_TOKEN` | Protege `/metrics` fuera de entornos locales si está definido. |
 | `PREDICTION_IMAGE_*` | Límites de imagen. |

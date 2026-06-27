@@ -41,6 +41,21 @@ The backend uses Keras for server-side inference. Offline capability is provided
 
 Production: **AWS ECS Fargate** (us-west-2) via **CDK Python** — Node 22 (`.nvmrc`), see [`docs/DEPLOYMENT_AWS.md`](docs/DEPLOYMENT_AWS.md).
 
+## Documentation
+
+| Document | Purpose |
+|----------|---------|
+| [`docs/RUNBOOK.md`](docs/RUNBOOK.md) | Local setup, tests, smoke, troubleshooting |
+| [`docs/DEPLOYMENT_AWS.md`](docs/DEPLOYMENT_AWS.md) | Production ECS Fargate deployment |
+| [`docs/RELEASE.md`](docs/RELEASE.md) | Release v1.0.0 and production smoke checklist |
+| [`docs/TRACEABILITY.md`](docs/TRACEABILITY.md) | Thesis ↔ repository traceability matrix |
+| [`docs/V1_VS_V2.md`](docs/V1_VS_V2.md) | Pediatric model v1 vs v2 comparison |
+| [`ml/README.md`](ml/README.md) | ML pipeline, artifacts, and commands |
+| [`ml/docs/MOBILE_INFERENCE.md`](ml/docs/MOBILE_INFERENCE.md) | Offline mobile inference contract |
+| [`observability/README.md`](observability/README.md) | Local Prometheus/Grafana stack |
+| [`infra/README.md`](infra/README.md) | CDK quickstart (delegates to DEPLOYMENT_AWS) |
+| [`SECURITY.md`](SECURITY.md) | Vulnerability reporting policy |
+
 ## Technical Stack
 
 - Python 3.11 recommended / used in CI (local `make run` uses `python3` from your PATH)
@@ -83,49 +98,11 @@ Offline inference requires strict alignment of preprocessing, calibration, thres
 
 ## Reproducibility
 
-Full setup, migrations, smoke checks: [`docs/RUNBOOK.md`](docs/RUNBOOK.md). Traceability matrix: [`docs/TRACEABILITY.md`](docs/TRACEABILITY.md).
+Full setup, migrations, smoke checks, and ML pipeline commands: [`docs/RUNBOOK.md`](docs/RUNBOOK.md). Traceability matrix: [`docs/TRACEABILITY.md`](docs/TRACEABILITY.md). Release and production smoke: [`docs/RELEASE.md`](docs/RELEASE.md).
 
 Pediatric model **v1 vs v2** (AUC, ensemble, risk tiers): [`docs/V1_VS_V2.md`](docs/V1_VS_V2.md).
 
-Backend tests without loading TensorFlow in that process:
-
-```bash
-make test
-```
-
-`requirements.txt` includes TensorFlow because the production backend can load the bundled
-Keras model. The backend test suite sets `DISABLE_TF=1` and clears `INFERENCE_MODEL_PATH`
-so API tests do not import TensorFlow.
-
-Run linting:
-
-```bash
-make lint
-```
-
-Prepare the ML environment:
-
-```bash
-make ml-install
-```
-
-Check TensorFlow availability in the ML environment:
-
-```bash
-make ml-tf-check
-```
-
-Run ML tests locally:
-
-```bash
-make ml-test
-```
-
-Run ML tests in Docker:
-
-```bash
-make ml-test-docker
-```
+The validation commands in the table above cover the main `make` targets. `requirements.txt` includes TensorFlow because production loads the bundled Keras ensemble; API tests set `DISABLE_TF=1` and clear model paths so they do not import TensorFlow.
 
 ## Public Release Notes
 
@@ -157,3 +134,5 @@ Languages: English / Spanish
 This software is released under the MIT License. The academic and medical-safety notes above limit
 the intended interpretation of this research prototype; they do not establish clinical validity,
 regulatory approval, or fitness for medical deployment.
+
+Security issues: see [`SECURITY.md`](SECURITY.md).

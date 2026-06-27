@@ -368,7 +368,7 @@
           "tags" : "Element,Component",
           "technology" : "Supabase Storage client"
         }, {
-          "description" : "Exposes static evaluation metrics and calibration metadata for model v1.0.",
+          "description" : "Exposes static evaluation metrics and calibration metadata for model v2.0 ensemble (3× Ghana augmented).",
           "documentation" : { },
           "id" : "19",
           "name" : "Model Evaluation Service",

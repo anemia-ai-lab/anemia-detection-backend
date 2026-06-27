@@ -216,4 +216,4 @@ aws ecs update-service --cluster anemia-api-cluster --service anemia-api-service
 | 401/403 API | JWT o Supabase incorrecto en Secrets Manager |
 | Cold start largo | Normal en primer deploy; warm-up corre en lifespan |
 
-Más operación local: [`RUNBOOK.md`](RUNBOOK.md). Smoke: [`RELEASE_1_SMOKE.md`](RELEASE_1_SMOKE.md).
+Más operación local: [`RUNBOOK.md`](RUNBOOK.md). Release y smoke: [`RELEASE.md`](RELEASE.md).

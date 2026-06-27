@@ -46,12 +46,7 @@ La documentación no cambia fórmulas de inferencia; solo enlaza responsabilidad
 
 ## Comandos de validación
 
-| Comando | Notas |
-|---------|--------|
-| `make test` | `DISABLE_TF=1`, suite `tests/`. |
-| `make lint` | Ruff. |
-| `make ml-test` | TF + `ml/.venv`. |
-| `make ml-test-docker` | Si TF local falla. |
+Ver [`docs/RUNBOOK.md`](RUNBOOK.md) §Validación para la tabla de comandos `make test`, `make lint`, `make ml-test` y `make ml-test-docker`.
 
 ## Referencias
 

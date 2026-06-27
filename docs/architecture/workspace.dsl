@@ -22,7 +22,7 @@ workspace "Anemia Prediction System" "C4 architecture model for a CNN-based chil
                 riskMapping = component "Risk Mapping" "Maps calibrated probability into prediction and risk labels." "Python"
                 predictionRepository = component "Prediction Repository" "Persists and retrieves prediction records." "Supabase PostgREST client"
                 storageRepository = component "Prediction Image Storage" "Uploads prediction images and issues signed download URLs." "Supabase Storage client"
-                modelEvaluation = component "Model Evaluation Service" "Exposes static evaluation metrics and calibration metadata for model v1.0." "Python"
+                modelEvaluation = component "Model Evaluation Service" "Exposes static evaluation metrics and calibration metadata for model v2.0 ensemble (3× Ghana augmented)." "Python"
                 metricsComponent = component "Metrics / Health / Logging" "Prometheus HTTP middleware, /metrics builder, /health status, and structured logs for local and deployed monitoring." "Prometheus client / Starlette middleware / Python logging"
             }
 
