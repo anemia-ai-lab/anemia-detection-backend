@@ -1,8 +1,14 @@
 # Deploy API to AWS ECS Fargate (manual dispatch).
+# Bootstrap (no ECR image): infra at desiredCount=0 → build/push → scale ECS via CLI.
+# Never runs `cdk deploy -c desiredCount=1` until ECR :latest exists (verified).
 name: Deploy AWS
 
 permissions:
   contents: read
+
+concurrency:
+  group: deploy-aws-${{ github.ref }}
+  cancel-in-progress: false
 
 on:
   workflow_dispatch:
@@ -14,10 +20,17 @@ on:
 
 env:
   AWS_REGION: us-west-2
+  STACK_NAME: AnemiaApiStack
+  ECR_REPO: anemia-detection-backend
+  ECS_CLUSTER: anemia-api-cluster
+  ECS_SERVICE: anemia-api-service
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 120
+    outputs:
+      bootstrap: ${{ steps.deploy_mode.outputs.bootstrap }}
     steps:
       - uses: actions/checkout@v4
 
@@ -26,7 +39,7 @@ jobs:
           python-version: "3.11"
           cache: "pip"
 
-      - name: Install backend dependencies
+      - name: Install backend dependencies (API tests, no TensorFlow load)
         run: python -m pip install -r requirements.txt
 
       - name: Lint and test API
@@ -35,8 +48,7 @@ jobs:
           SUPABASE_KEY: test-anon-key-not-real
         run: make lint && make test
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -44,24 +56,20 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version-file: ".nvmrc"
+          node-version: "22"
 
-      - name: Install CDK CLI and Python deps
+      - name: Install CDK CLI and infra deps
         working-directory: infra
         run: |
           python -m venv .venv
           .venv/bin/pip install -r requirements.txt
           npm install -g aws-cdk@2
 
-      # ECR uses RemovalPolicy.RETAIN — if the stack was deleted, the repo can block a fresh create.
-      - name: Recover stuck stack or orphan ECR
+      - name: Recover failed or stuck CloudFormation stack
         run: |
           set -euo pipefail
-          STACK="AnemiaApiStack"
-          ECR_REPO="anemia-detection-backend"
-
           STATUS=$(aws cloudformation describe-stacks \
-            --stack-name "$STACK" --region "$AWS_REGION" \
+            --stack-name "$STACK_NAME" --region "$AWS_REGION" \
             --query 'Stacks[0].StackStatus' --output text 2>/dev/null || echo "NOT_FOUND")
 
           echo "CloudFormation stack status: $STATUS"
@@ -72,14 +80,40 @@ jobs:
               ;;
             REVIEW_IN_PROGRESS|CREATE_FAILED|ROLLBACK_COMPLETE|ROLLBACK_FAILED|UPDATE_ROLLBACK_FAILED)
               echo "Deleting failed or stuck stack ($STATUS)..."
-              aws cloudformation delete-stack --stack-name "$STACK" --region "$AWS_REGION"
-              aws cloudformation wait stack-delete-complete --stack-name "$STACK" --region "$AWS_REGION"
+              aws cloudformation delete-stack --stack-name "$STACK_NAME" --region "$AWS_REGION"
+              aws cloudformation wait stack-delete-complete --stack-name "$STACK_NAME" --region "$AWS_REGION"
               STATUS="NOT_FOUND"
               ;;
             DELETE_IN_PROGRESS)
               echo "Waiting for stack deletion to finish..."
-              aws cloudformation wait stack-delete-complete --stack-name "$STACK" --region "$AWS_REGION"
+              aws cloudformation wait stack-delete-complete --stack-name "$STACK_NAME" --region "$AWS_REGION"
               STATUS="NOT_FOUND"
+              ;;
+            CREATE_IN_PROGRESS)
+              echo "Waiting for stack creation to finish..."
+              aws cloudformation wait stack-create-complete --stack-name "$STACK_NAME" --region "$AWS_REGION"
+              STATUS=$(aws cloudformation describe-stacks \
+                --stack-name "$STACK_NAME" --region "$AWS_REGION" \
+                --query 'Stacks[0].StackStatus' --output text)
+              if [[ "$STATUS" == ROLLBACK_* ]] || [ "$STATUS" = "CREATE_FAILED" ]; then
+                echo "Create failed ($STATUS); deleting stack..."
+                aws cloudformation delete-stack --stack-name "$STACK_NAME" --region "$AWS_REGION"
+                aws cloudformation wait stack-delete-complete --stack-name "$STACK_NAME" --region "$AWS_REGION"
+                STATUS="NOT_FOUND"
+              fi
+              ;;
+            UPDATE_IN_PROGRESS|UPDATE_COMPLETE_CLEANUP_IN_PROGRESS|UPDATE_ROLLBACK_IN_PROGRESS|UPDATE_ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS)
+              echo "Waiting for stack update to finish ($STATUS)..."
+              aws cloudformation wait stack-update-complete --stack-name "$STACK_NAME" --region "$AWS_REGION" || true
+              STATUS=$(aws cloudformation describe-stacks \
+                --stack-name "$STACK_NAME" --region "$AWS_REGION" \
+                --query 'Stacks[0].StackStatus' --output text 2>/dev/null || echo "NOT_FOUND")
+              if [[ "$STATUS" == ROLLBACK_* ]] || [ "$STATUS" = "UPDATE_ROLLBACK_FAILED" ]; then
+                echo "Update failed ($STATUS); deleting stack..."
+                aws cloudformation delete-stack --stack-name "$STACK_NAME" --region "$AWS_REGION"
+                aws cloudformation wait stack-delete-complete --stack-name "$STACK_NAME" --region "$AWS_REGION"
+                STATUS="NOT_FOUND"
+              fi
               ;;
             NOT_FOUND)
               echo "No active stack."
@@ -91,106 +125,111 @@ jobs:
 
           if aws ecr describe-repositories --repository-names "$ECR_REPO" --region "$AWS_REGION" >/dev/null 2>&1; then
             if [ "$STATUS" = "NOT_FOUND" ]; then
-              echo "Removing orphan ECR repository $ECR_REPO (left after stack delete with RETAIN)."
+              echo "Removing orphan ECR repository $ECR_REPO (RETAIN after stack delete)."
               aws ecr delete-repository --repository-name "$ECR_REPO" --region "$AWS_REGION" --force
             fi
           fi
 
-      - name: CDK deploy (infra)
-        working-directory: infra
-        id: cdk_bootstrap
+      - name: Determine deploy mode
+        id: deploy_mode
         run: |
           set -euo pipefail
           STATUS=$(aws cloudformation describe-stacks \
-            --stack-name AnemiaApiStack --region "$AWS_REGION" \
+            --stack-name "$STACK_NAME" --region "$AWS_REGION" \
             --query 'Stacks[0].StackStatus' --output text 2>/dev/null || echo "NOT_FOUND")
 
           HAS_IMAGE="false"
           if aws ecr describe-images \
-            --repository-name anemia-detection-backend \
+            --repository-name "$ECR_REPO" \
             --region "$AWS_REGION" \
             --image-ids imageTag=latest >/dev/null 2>&1; then
             HAS_IMAGE="true"
           fi
 
-          echo "Stack status: $STATUS, ECR latest: $HAS_IMAGE"
+          echo "Stack=$STATUS ECR_latest=$HAS_IMAGE"
 
-          if [ "$STATUS" = "CREATE_COMPLETE" ] || [ "$STATUS" = "UPDATE_COMPLETE" ] || [ "$STATUS" = "UPDATE_ROLLBACK_COMPLETE" ]; then
-            if [ "$HAS_IMAGE" = "true" ]; then
-              echo "Healthy stack with image; deploying desiredCount=1"
-              cdk deploy --require-approval never -c desiredCount=1
-              echo "bootstrap=false" >> "$GITHUB_OUTPUT"
-            else
-              echo "Stack exists but ECR has no :latest; scale to 0 then push image"
-              cdk deploy --require-approval never -c desiredCount=0
-              echo "bootstrap=true" >> "$GITHUB_OUTPUT"
-            fi
+          # Bootstrap: no deployable image yet — never scale ECS via CDK in this phase.
+          if [ "$HAS_IMAGE" = "true" ] && { [ "$STATUS" = "CREATE_COMPLETE" ] || [ "$STATUS" = "UPDATE_COMPLETE" ] || [ "$STATUS" = "UPDATE_ROLLBACK_COMPLETE" ]; }; then
+            echo "mode=update" >> "$GITHUB_OUTPUT"
+            echo "bootstrap=false" >> "$GITHUB_OUTPUT"
           else
-            echo "Bootstrap deploy; desiredCount=0 until image is pushed"
-            cdk deploy --require-approval never -c desiredCount=0
+            echo "mode=bootstrap" >> "$GITHUB_OUTPUT"
             echo "bootstrap=true" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: CDK deploy (infra, desiredCount=0)
+        if: steps.deploy_mode.outputs.mode == 'bootstrap'
+        working-directory: infra
+        run: |
+          echo "Deploying infrastructure with desiredCount=0 (no ECS tasks until image exists)"
+          cdk deploy --require-approval never -c desiredCount=0
+
+      - name: CDK deploy (infra update, desiredCount=1)
+        if: steps.deploy_mode.outputs.mode == 'update'
+        working-directory: infra
+        run: |
+          aws ecr describe-images \
+            --repository-name "$ECR_REPO" \
+            --region "$AWS_REGION" \
+            --image-ids imageTag=latest \
+            --query 'imageDetails[0].imageDigest' --output text
+          echo "ECR :latest verified; deploying desiredCount=1"
+          cdk deploy --require-approval never -c desiredCount=1
 
       - name: Login to ECR
         id: ecr
         run: |
           ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
-          ECR_URI="${ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com/anemia-detection-backend"
+          ECR_URI="${ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}"
           aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "${ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com"
           echo "uri=${ECR_URI}" >> "$GITHUB_OUTPUT"
 
       - name: Build and push Docker image
         run: |
+          set -euo pipefail
           TAG="${{ github.event.inputs.image_tag }}"
           if [ -z "$TAG" ]; then TAG="${{ github.sha }}"; fi
-          docker build --platform linux/amd64 -f Dockerfile -t "${{ steps.ecr.outputs.uri }}:${TAG}" -t "${{ steps.ecr.outputs.uri }}:latest" .
+          echo "Building linux/amd64 image (Fargate) tag=${TAG}"
+          docker build --platform linux/amd64 -f Dockerfile \
+            -t "${{ steps.ecr.outputs.uri }}:${TAG}" \
+            -t "${{ steps.ecr.outputs.uri }}:latest" .
           docker push "${{ steps.ecr.outputs.uri }}:${TAG}"
           docker push "${{ steps.ecr.outputs.uri }}:latest"
           echo "IMAGE_TAG=${TAG}" >> "$GITHUB_ENV"
 
       - name: Verify ECR image (latest)
         run: |
-          aws ecr describe-images \
-            --repository-name anemia-detection-backend \
+          DIGEST=$(aws ecr describe-images \
+            --repository-name "$ECR_REPO" \
             --region "$AWS_REGION" \
             --image-ids imageTag=latest \
-            --query 'imageDetails[0].imageDigest' --output text
+            --query 'imageDetails[0].imageDigest' --output text)
+          echo "ECR :latest digest=$DIGEST"
 
-      - name: Scale up ECS after image push
-        if: steps.cdk_bootstrap.outputs.bootstrap == 'true'
+      - name: Scale up ECS (bootstrap)
+        if: steps.deploy_mode.outputs.bootstrap == 'true'
         run: |
           aws ecs update-service \
-            --cluster anemia-api-cluster \
-            --service anemia-api-service \
+            --cluster "$ECS_CLUSTER" \
+            --service "$ECS_SERVICE" \
             --desired-count 1 \
             --force-new-deployment \
             --region "$AWS_REGION"
 
-      - name: CDK deploy (sync desiredCount=1)
-        if: steps.cdk_bootstrap.outputs.bootstrap == 'true'
-        working-directory: infra
-        run: |
-          aws ecs wait services-stable \
-            --cluster anemia-api-cluster \
-            --services anemia-api-service \
-            --region "$AWS_REGION"
-          cdk deploy --require-approval never -c desiredCount=1
-
-      - name: Force ECS redeployment
-        if: steps.cdk_bootstrap.outputs.bootstrap != 'true'
+      - name: Force ECS redeployment (update)
+        if: steps.deploy_mode.outputs.bootstrap != 'true'
         run: |
           aws ecs update-service \
-            --cluster anemia-api-cluster \
-            --service anemia-api-service \
+            --cluster "$ECS_CLUSTER" \
+            --service "$ECS_SERVICE" \
             --force-new-deployment \
             --region "$AWS_REGION"
 
-      - name: Wait for service stability
-        if: steps.cdk_bootstrap.outputs.bootstrap != 'true'
+      - name: Wait for ECS service stability
         run: |
           aws ecs wait services-stable \
-            --cluster anemia-api-cluster \
-            --services anemia-api-service \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_SERVICE" \
             --region "$AWS_REGION"
 
       - name: Smoke prod (optional)
@@ -205,3 +244,53 @@ jobs:
             exit 0
           fi
           make smoke-prod
+
+  sync-iac:
+    needs: deploy
+    if: needs.deploy.outputs.bootstrap == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install CDK CLI and infra deps
+        working-directory: infra
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install -r requirements.txt
+          npm install -g aws-cdk@2
+
+      - name: Verify prerequisites for IaC sync
+        run: |
+          set -euo pipefail
+          aws ecr describe-images \
+            --repository-name "$ECR_REPO" \
+            --region "$AWS_REGION" \
+            --image-ids imageTag=latest \
+            --query 'imageDetails[0].imageDigest' --output text
+          RUNNING=$(aws ecs describe-services \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_SERVICE" \
+            --region "$AWS_REGION" \
+            --query 'services[0].runningCount' --output text)
+          echo "ECS runningCount=$RUNNING"
+          if [ "$RUNNING" -lt 1 ]; then
+            echo "ECS has no running tasks; aborting IaC sync to avoid rollback"
+            exit 1
+          fi
+
+      - name: CDK deploy (sync desiredCount=1)
+        working-directory: infra
+        run: |
+          echo "Syncing CloudFormation desiredCount=1 (ECS already running with image in ECR)"
+          cdk deploy --require-approval never -c desiredCount=1

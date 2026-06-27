@@ -164,6 +164,13 @@ Esperado: `inference` domina el tiempo en `predict_phase_duration_seconds`.
 
 Workflow [`.github/workflows/deploy-aws.yml`](../.github/workflows/deploy-aws.yml) — disparo manual (`workflow_dispatch`):
 
+1. **Recover** — borra stacks en `ROLLBACK_*` y repos ECR huérfanos.
+2. **Bootstrap** (sin `:latest` en ECR): `cdk deploy -c desiredCount=0` → build/push → `aws ecs update-service --desired-count 1`.
+3. **Job `sync-iac`** (solo tras bootstrap exitoso): `cdk deploy -c desiredCount=1` cuando ECR y ECS ya están sanos.
+4. **Updates** (con imagen previa): `cdk deploy -c desiredCount=1` → build/push → redeploy.
+
+`concurrency` evita dos deploys simultáneos sobre el mismo stack.
+
 **Secrets:** `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` (o OIDC con `AWS_ROLE_ARN`).
 
 **Variables:** `AWS_REGION=us-west-2`, `SMOKE_BASE_URL` (URL del ALB).
@@ -209,7 +216,8 @@ aws ecs update-service --cluster anemia-api-cluster --service anemia-api-service
 
 | Síntoma | Causa probable |
 |---------|----------------|
-| Circuit breaker / `CannotPullContainerError` `latest: not found` | `cdk deploy` arrancó ECS antes del `docker push`; bootstrap: `desiredCount=0` → push → `desiredCount=1` (CI lo hace solo) |
+| Circuit breaker / `CannotPullContainerError` `latest: not found` | ECS escaló a 1 antes de que existiera `:latest` en ECR. El workflow hace bootstrap `desiredCount=0` → build/push → `aws ecs update-service`; el job `sync-iac` solo corre si ECR y ECS ya están sanos |
+| `ROLLBACK_COMPLETE` tras deploy | No ejecutes `cdk deploy` local en paralelo con GitHub Actions; el workflow **Recover** borra el stack fallido. Vuelve a lanzar **Deploy AWS** |
 | `CannotPullContainerError` / `linux/amd64` | Imagen en ECR solo arm64; rebuild con `--platform linux/amd64` o `make docker-push-ecr` |
 | `ECR Repository already exists` (Early validation) | Stack borrado pero ECR quedó por `RemovalPolicy.RETAIN`; el workflow **Recover stuck stack or orphan ECR** lo limpia, o borra el repo en consola ECR |
 | `docker build` falla en `tensorflow` (Read timed out) | Wheel ~645 MB; reintentar con red estable; capa TF en Dockerfile usa `PIP_DEFAULT_TIMEOUT=1000` |
