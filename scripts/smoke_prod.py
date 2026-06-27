@@ -80,6 +80,12 @@ def check_health(client: httpx.Client, base: str) -> None:
         _fail(step, "model_loaded=false")
     if data.get("model_version") != "v2.0":
         _fail(step, f"model_version={data.get('model_version')!r}")
+    if data.get("supabase_ready") is False:
+        _fail(
+            step,
+            "supabase_ready=false — edita Secrets Manager anemia-api/prod (SUPABASE_*) "
+            "y fuerza redeploy ECS",
+        )
     _ok(step, "model_loaded=true model_version=v2.0")
 
 

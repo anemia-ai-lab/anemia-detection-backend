@@ -23,6 +23,19 @@ INFERENCE_RISK_TIER_LOW_UPPER_DEFAULT = 0.3243127259493805
 INFERENCE_RISK_TIER_HIGH_LOWER_DEFAULT = 0.3815443834698594
 
 
+def looks_like_placeholder(value: str) -> bool:
+    v = value.strip()
+    if not v:
+        return True
+    upper = v.upper()
+    return upper == "REPLACE_ME" or "YOUR_" in upper or "CHANGE_ME" in upper
+
+
+def supabase_url_is_valid(url: str) -> bool:
+    u = url.strip()
+    return u.startswith("https://") and ".supabase.co" in u
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=_REPO_ROOT / ".env",
@@ -229,6 +242,21 @@ class Settings(BaseSettings):
             if missing:
                 msg = "Production requires non-empty configuration: " + ", ".join(missing)
                 raise ValueError(msg)
+            invalid: list[str] = []
+            if looks_like_placeholder(self.supabase_url) or not supabase_url_is_valid(self.supabase_url):
+                invalid.append("SUPABASE_URL")
+            if looks_like_placeholder(self.supabase_key):
+                invalid.append("SUPABASE_KEY")
+            if looks_like_placeholder(self.supabase_service_role_key):
+                invalid.append("SUPABASE_SERVICE_ROLE_KEY")
+            if looks_like_placeholder(self.metrics_bearer_token):
+                invalid.append("METRICS_BEARER_TOKEN")
+            if invalid:
+                msg = (
+                    "Production requires real values in Secrets Manager (not REPLACE_ME): "
+                    + ", ".join(invalid)
+                )
+                raise ValueError(msg)
             bucket = self.predictions_storage_bucket.strip() or "prediction-images"
             if bucket != "prediction-images":
                 msg = (
@@ -258,3 +286,23 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+def supabase_config_ready(
+    *,
+    supabase_url: str | None = None,
+    supabase_key: str | None = None,
+    supabase_service_role_key: str | None = None,
+) -> bool:
+    url = settings.supabase_url if supabase_url is None else supabase_url
+    key = settings.supabase_key if supabase_key is None else supabase_key
+    service_key = (
+        settings.supabase_service_role_key
+        if supabase_service_role_key is None
+        else supabase_service_role_key
+    )
+    return (
+        supabase_url_is_valid(url)
+        and not looks_like_placeholder(key)
+        and not looks_like_placeholder(service_key)
+    )

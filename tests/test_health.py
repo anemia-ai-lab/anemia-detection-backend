@@ -15,6 +15,8 @@ def test_health_check() -> None:
     assert data["model_version"] == "v2.0"
     assert "calibration_enabled" in data
     assert isinstance(data["calibration_enabled"], bool)
+    assert "supabase_ready" in data
+    assert isinstance(data["supabase_ready"], bool)
     if data.get("inference_model_path"):
         assert isinstance(data["inference_model_path"], str)
 

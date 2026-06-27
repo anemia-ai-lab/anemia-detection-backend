@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse, Response
 from backend.api.routes.auth import router as auth_router
 from backend.api.routes.model import router as model_router
 from backend.api.routes.predict import router as predict_router
-from backend.core.config import settings
+from backend.core.config import settings, supabase_config_ready
 from backend.core.exceptions import ClientHttpError
 from backend.core.http_error_codes import default_error_code
 from backend.core.logging_config import configure_logging
@@ -172,6 +172,7 @@ def health() -> HealthOut:
         model_loaded=model_loaded,
         model_version=settings.model_version,
         calibration_enabled=calibration_enabled,
+        supabase_ready=supabase_config_ready(),
         inference_model_path=(raw_path or None) if _local_environment() else None,
     )
 

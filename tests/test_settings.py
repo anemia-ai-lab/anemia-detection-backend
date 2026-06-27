@@ -22,6 +22,20 @@ def test_production_requires_supabase_and_metrics(monkeypatch: pytest.MonkeyPatc
     assert "METRICS_BEARER_TOKEN" in msg
 
 
+def test_production_rejects_placeholder_secrets(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("DEBUG", "false")
+    monkeypatch.setenv("SUPABASE_URL", "REPLACE_ME")
+    monkeypatch.setenv("SUPABASE_KEY", "REPLACE_ME")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "REPLACE_ME")
+    monkeypatch.setenv("METRICS_BEARER_TOKEN", "REPLACE_ME")
+    with pytest.raises(ValidationError) as exc:
+        Settings()
+    msg = str(exc.value)
+    assert "REPLACE_ME" in msg
+    assert "SUPABASE_URL" in msg
+
+
 def test_production_rejects_non_default_storage_bucket(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("APP_ENV", "production")
     monkeypatch.setenv("DEBUG", "false")

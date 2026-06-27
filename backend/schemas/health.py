@@ -40,6 +40,12 @@ class HealthOut(BaseModel):
     calibration_enabled: bool = Field(
         description="``True`` si T≠1 en configuración (temperature scaling no trivial en inferencia).",
     )
+    supabase_ready: bool = Field(
+        description=(
+            "``True`` si ``SUPABASE_URL`` y claves anon/service están configuradas "
+            "(no placeholders tipo REPLACE_ME)."
+        ),
+    )
     inference_model_path: str | None = Field(
         default=None,
         description=(

@@ -106,6 +106,32 @@ Consola AWS → Secrets Manager → `anemia-api/prod` → **Store a new secret v
 
 Referencia de variables no secretas: [`aws.env.example`](../aws.env.example).
 
+Tras guardar, **obligatorio** forzar nuevo despliegue ECS (las tareas en curso no recargan secretos solas):
+
+```bash
+aws ecs update-service \
+  --cluster anemia-api-cluster \
+  --service anemia-api-service \
+  --force-new-deployment \
+  --region us-west-2
+```
+
+Desde CLI (sustituye valores reales; no uses comillas en la shell si copias desde `.env`):
+
+```bash
+aws secretsmanager put-secret-value \
+  --secret-id anemia-api/prod \
+  --region us-west-2 \
+  --secret-string "$(jq -n \
+    --arg url "$SUPABASE_URL" \
+    --arg key "$SUPABASE_KEY" \
+    --arg svc "$SUPABASE_SERVICE_ROLE_KEY" \
+    --arg metrics "$METRICS_BEARER_TOKEN" \
+    '{SUPABASE_URL:$url,SUPABASE_KEY:$key,SUPABASE_SERVICE_ROLE_KEY:$svc,METRICS_BEARER_TOKEN:$metrics}')"
+```
+
+Si el smoke falla en `auth/login` HTTP 500, revisa CloudWatch `/ecs/anemia-api`: suele ser `SupabaseException: Invalid URL` → secretos aún en `REPLACE_ME`.
+
 ### 4. Build y push de la imagen Docker
 
 **Fargate usa `linux/amd64`.** En Mac (Apple Silicon) hay que pasar `--platform linux/amd64` o usar `make docker-push-ecr` (login + build amd64 + push). El `Dockerfile` instala TensorFlow en una capa aparte con timeout largo de pip (~645 MB).
@@ -231,6 +257,7 @@ aws ecs update-service --cluster anemia-api-cluster --service anemia-api-service
 | Target unhealthy | Task no arranca (secretos vacíos, imagen ausente en ECR) |
 | 502 desde ALB | Contenedor caído; revisar CloudWatch `/ecs/anemia-api` |
 | 401/403 API | JWT o Supabase incorrecto en Secrets Manager |
+| `auth/login` HTTP 500 tras deploy | `SUPABASE_URL` en `REPLACE_ME` o inválida → CloudWatch: `SupabaseException: Invalid URL`. Edita `anemia-api/prod` y `force-new-deployment` |
 | Cold start largo | Normal en primer deploy; warm-up corre en lifespan |
 
 Más operación local: [`RUNBOOK.md`](RUNBOOK.md). Release y smoke: [`RELEASE.md`](RELEASE.md).
