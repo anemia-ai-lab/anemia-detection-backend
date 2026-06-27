@@ -98,7 +98,25 @@ jobs:
 
       - name: CDK deploy (infra)
         working-directory: infra
-        run: cdk deploy --require-approval never
+        id: cdk_bootstrap
+        run: |
+          set -euo pipefail
+          STATUS=$(aws cloudformation describe-stacks \
+            --stack-name AnemiaApiStack --region "$AWS_REGION" \
+            --query 'Stacks[0].StackStatus' --output text 2>/dev/null || echo "NOT_FOUND")
+
+          case "$STATUS" in
+            CREATE_COMPLETE|UPDATE_COMPLETE|UPDATE_ROLLBACK_COMPLETE)
+              echo "Healthy stack; deploying with desiredCount=1"
+              cdk deploy --require-approval never -c desiredCount=1
+              echo "bootstrap=false" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "Bootstrap deploy (no image in ECR yet); desiredCount=0"
+              cdk deploy --require-approval never -c desiredCount=0
+              echo "bootstrap=true" >> "$GITHUB_OUTPUT"
+              ;;
+          esac
 
       - name: Login to ECR
         id: ecr
@@ -117,7 +135,13 @@ jobs:
           docker push "${{ steps.ecr.outputs.uri }}:latest"
           echo "IMAGE_TAG=${TAG}" >> "$GITHUB_ENV"
 
+      - name: CDK deploy (scale up ECS after image push)
+        if: steps.cdk_bootstrap.outputs.bootstrap == 'true'
+        working-directory: infra
+        run: cdk deploy --require-approval never -c desiredCount=1
+
       - name: Force ECS redeployment
+        if: steps.cdk_bootstrap.outputs.bootstrap != 'true'
         run: |
           aws ecs update-service \
             --cluster anemia-api-cluster \

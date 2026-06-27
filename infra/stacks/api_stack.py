@@ -39,6 +39,7 @@ class AnemiaApiStack(Stack):
         super().__init__(scope, construct_id, **kwargs)
 
         image_tag = self.node.try_get_context("imageTag") or "latest"
+        desired_count = int(self.node.try_get_context("desiredCount") or 1)
 
         repository = ecr.Repository(
             self,
@@ -97,7 +98,7 @@ class AnemiaApiStack(Stack):
             cluster=cluster,
             cpu=2048,
             memory_limit_mib=4096,
-            desired_count=1,
+            desired_count=1 if desired_count == 0 else desired_count,
             public_load_balancer=True,
             assign_public_ip=True,
             circuit_breaker=ecs.DeploymentCircuitBreaker(rollback=True),
@@ -131,6 +132,10 @@ class AnemiaApiStack(Stack):
             ),
             health_check_grace_period=Duration.seconds(120),
         )
+
+        if desired_count == 0:
+            cfn_service = fargate.service.node.default_child
+            cfn_service.add_property_override("DesiredCount", 0)
 
         fargate.target_group.configure_health_check(
             path="/health",

@@ -209,6 +209,7 @@ aws ecs update-service --cluster anemia-api-cluster --service anemia-api-service
 
 | Síntoma | Causa probable |
 |---------|----------------|
+| Circuit breaker / `CannotPullContainerError` `latest: not found` | `cdk deploy` arrancó ECS antes del `docker push`; bootstrap: `desiredCount=0` → push → `desiredCount=1` (CI lo hace solo) |
 | `CannotPullContainerError` / `linux/amd64` | Imagen en ECR solo arm64; rebuild con `--platform linux/amd64` o `make docker-push-ecr` |
 | `ECR Repository already exists` (Early validation) | Stack borrado pero ECR quedó por `RemovalPolicy.RETAIN`; el workflow **Recover stuck stack or orphan ECR** lo limpia, o borra el repo en consola ECR |
 | `docker build` falla en `tensorflow` (Read timed out) | Wheel ~645 MB; reintentar con red estable; capa TF en Dockerfile usa `PIP_DEFAULT_TIMEOUT=1000` |
