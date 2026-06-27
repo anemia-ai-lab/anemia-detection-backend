@@ -281,3 +281,7 @@ ml/artifacts/runs/*
 !ml/artifacts/runs/.gitkeep
 !ml/artifacts/runs/calibration_ensemble_ghana_v2.json
 !ml/artifacts/runs/calibration_ensemble_ghana_v2.md
+
+# AWS CDK
+infra/cdk.out/
+infra/.venv/

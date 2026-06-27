@@ -222,14 +222,9 @@ def test_delete_prediction_removes_row_and_storage() -> None:
     deleted_path: list[str] = []
 
     class FakeRepo:
-        def fetch_by_id(self, _token: str, prediction_id: str) -> dict | None:
-            if prediction_id == PRED_ID:
-                return _base_row(image_storage_path=f"{USER_ID}/gone.png")
-            return None
-
-        def delete_by_id(self, _token: str, prediction_id: str) -> bool:
+        def delete_by_id(self, _token: str, prediction_id: str) -> dict | None:
             assert prediction_id == PRED_ID
-            return True
+            return {"id": PRED_ID, "image_storage_path": f"{USER_ID}/gone.png"}
 
     class FakeImg:
         def delete_user_image(self, _token: str, path: str) -> None:
@@ -253,7 +248,7 @@ def test_delete_prediction_removes_row_and_storage() -> None:
 
 def test_delete_prediction_404() -> None:
     class FakeRepo:
-        def fetch_by_id(self, _token: str, prediction_id: str) -> dict | None:
+        def delete_by_id(self, _token: str, prediction_id: str) -> dict | None:
             return None
 
     app.dependency_overrides[api_deps.get_predict_context] = _fake_context

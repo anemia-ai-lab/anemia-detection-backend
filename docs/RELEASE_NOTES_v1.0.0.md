@@ -18,9 +18,9 @@ make lint && make test && make ml-test-docker
 docker build -f Dockerfile .
 ```
 
-## Producción (Render)
+## Producción (AWS ECS)
 
-Variables: ver [`render.env.example`](../render.env.example). Smoke manual: [`docs/RELEASE_1_SMOKE.md`](RELEASE_1_SMOKE.md).
+Variables y despliegue: [`docs/DEPLOYMENT_AWS.md`](DEPLOYMENT_AWS.md). Smoke: [`docs/RELEASE_1_SMOKE.md`](RELEASE_1_SMOKE.md).
 
 ## Limitaciones (obligatorio leer)
 

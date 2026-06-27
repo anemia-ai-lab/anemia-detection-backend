@@ -34,7 +34,7 @@ format:
 	$(TEST_PYTHON) -m ruff format .
 
 test:
-	env DISABLE_TF=1 INFERENCE_MODEL_PATH= $(TEST_PYTHON) -m pytest tests/
+	env APP_ENV=test DISABLE_TF=1 INFERENCE_MODEL_PATH= $(TEST_PYTHON) -m pytest tests/
 
 smoke-prod:
 	$(PYTHON) scripts/smoke_prod.py
@@ -260,7 +260,7 @@ c4-code-clean:
 
 .PHONY: c4-structurizr
 
-c3-structurizr:
+c4-structurizr:
 	docker run -it --rm \
 		-p 8080:8080 \
 		-v "$(PWD)/docs/architecture:/usr/local/structurizr" \

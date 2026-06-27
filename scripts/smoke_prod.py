@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Smoke E2E contra el API desplegado (Render prod por defecto).
+Smoke E2E contra el API desplegado (AWS ALB u otro host).
 
 Requiere variables de entorno:
-  SMOKE_BASE_URL          — base sin barra final (default: URL pública Render)
+  SMOKE_BASE_URL          — base sin barra final (obligatorio)
   SMOKE_EMAIL / SMOKE_PASSWORD — usuario Supabase dedicado a smoke
-  METRICS_BEARER_TOKEN    — mismo token que en Render (GET /metrics)
+  METRICS_BEARER_TOKEN    — token para GET /metrics
 
 Salida: 0 si todos los pasos pasan; 1 en caso contrario.
 """
@@ -18,7 +18,7 @@ from io import BytesIO
 
 import httpx
 
-DEFAULT_BASE_URL = "https://anemia-detection-backend.onrender.com"
+DEFAULT_BASE_URL = ""
 VALID_RISKS = frozenset({"low", "medium", "high"})
 TIMEOUT_DEFAULT = httpx.Timeout(30.0, read=120.0)
 TIMEOUT_PREDICT = httpx.Timeout(30.0, read=180.0)
@@ -33,7 +33,7 @@ def _env(name: str, *, required: bool = False, default: str = "") -> str:
 
 
 def _base_url() -> str:
-    raw = _env("SMOKE_BASE_URL", default=DEFAULT_BASE_URL)
+    raw = _env("SMOKE_BASE_URL", required=True, default=DEFAULT_BASE_URL)
     return raw.rstrip("/")
 
 

@@ -1,0 +1,19 @@
+{
+  "app": ".venv/bin/python app.py",
+  "watch": {
+    "include": ["**"],
+    "exclude": [
+      "README.md",
+      "cdk*.json",
+      "requirements*.txt",
+      "source.bat",
+      "**/__pycache__",
+      "**/.venv",
+      "cdk.out"
+    ]
+  },
+  "context": {
+    "@aws-cdk/aws-ecs:enableImdsBlockingDeprecatedFeature": false,
+    "@aws-cdk/aws-ecs:reduceEc2FargateCloudWatchPermissions": true
+  }
+}

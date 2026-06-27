@@ -18,7 +18,7 @@ package "backend.repositories" {
 
   class PredictionsRepository {
     +insert_for_user(access_token: str, user_id: str, ...): dict
-    +list_for_user(access_token: str): list[dict]
+    +list_for_user_paginated(access_token: str, limit: int, cursor: str?): list[dict]
     +fetch_image_storage_path(access_token: str, prediction_id: str): str?
   }
 
@@ -30,7 +30,6 @@ package "backend.repositories" {
 
 package "backend.integrations" {
   class SupabaseClient <<module>> {
-    +get_supabase_client(): Client
     +create_supabase_anon_client(): Client
     +create_supabase_user_client(access_token: str): Client
     +get_supabase_service_client(): Client

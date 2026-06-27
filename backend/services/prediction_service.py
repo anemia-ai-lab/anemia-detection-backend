@@ -548,21 +548,14 @@ class PredictionService:
         access_token: str,
         prediction_id: str,
     ) -> None:
-        row = self._repo.fetch_by_id(access_token, prediction_id)
-        if row is None:
-            raise PredictionServiceError(
-                "Predicción no encontrada.",
-                404,
-                code="prediction_not_found",
-            )
-        image_path = row.get("image_storage_path")
         deleted = self._repo.delete_by_id(access_token, prediction_id)
-        if not deleted:
+        if deleted is None:
             raise PredictionServiceError(
                 "Predicción no encontrada.",
                 404,
                 code="prediction_not_found",
             )
+        image_path = deleted.get("image_storage_path")
         if image_path:
             self._images.delete_user_image(access_token, str(image_path))
 

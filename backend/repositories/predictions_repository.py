@@ -123,29 +123,49 @@ class PredictionsRepository:
         if image_sha256 is not None:
             payload["image_sha256"] = image_sha256
         try:
-            client.from_("predictions").update(payload).eq("id", prediction_id).execute()
+            result = (
+                client.from_("predictions")
+                .update(payload)
+                .eq("id", prediction_id)
+                .select(_SELECT_RETURN)
+                .execute()
+            )
         except APIError as e:
             self._raise_db(e, "Could not update prediction image", op="update_image")
-        row = self.fetch_by_id(access_token, prediction_id)
-        if row is None:
+        rows = result.data
+        if not isinstance(rows, list) or not rows:
             raise PredictionServiceError(
                 "Prediction not found after image update",
                 502,
                 code="update_fetch_miss",
             )
+        row = rows[0]
+        if not isinstance(row, dict):
+            raise PredictionServiceError(
+                "Unexpected update response",
+                502,
+                code="invalid_update_shape",
+            )
         return row
 
-    def delete_by_id(self, access_token: str, prediction_id: str) -> bool:
-        """Delete row; returns True if a row was removed."""
+    def delete_by_id(self, access_token: str, prediction_id: str) -> dict[str, Any] | None:
+        """Delete row; returns deleted row with ``id`` and ``image_storage_path``, or ``None``."""
         client = create_supabase_user_client(access_token)
         try:
             result = (
-                client.from_("predictions").delete().eq("id", prediction_id).select("id").execute()
+                client.from_("predictions")
+                .delete()
+                .eq("id", prediction_id)
+                .select("id,image_storage_path")
+                .execute()
             )
         except APIError as e:
             self._raise_db(e, "Could not delete prediction", op="delete")
         rows = result.data
-        return isinstance(rows, list) and len(rows) > 0
+        if not isinstance(rows, list) or not rows:
+            return None
+        row = rows[0]
+        return row if isinstance(row, dict) else None
 
     def list_for_user_paginated(
         self,
@@ -187,38 +207,28 @@ class PredictionsRepository:
             )
         return [r for r in rows if isinstance(r, dict)]
 
-    def list_for_user(self, access_token: str) -> list[dict[str, Any]]:
-        """Legacy: all rows (tests / compat). Prefer ``list_for_user_paginated``."""
-        client = create_supabase_user_client(access_token)
-        try:
-            result = (
-                client.from_("predictions")
-                .select(_SELECT_RETURN)
-                .order("effective_created_at", desc=True)
-                .order("id", desc=True)
-                .execute()
-            )
-        except APIError as e:
-            self._raise_db(e, "Could not load predictions", op="list")
-        rows = result.data
-        if rows is None:
-            return []
-        if not isinstance(rows, list):
-            raise PredictionServiceError(
-                "Unexpected list response",
-                502,
-                code="invalid_list_shape",
-            )
-        return [r for r in rows if isinstance(r, dict)]
-
     def fetch_image_storage_path(
         self,
         access_token: str,
         prediction_id: str,
     ) -> str | None:
         """Path de imagen para una fila propia (RLS); ``None`` si no existe o no hay imagen."""
-        row = self.fetch_by_id(access_token, prediction_id)
-        if row is None:
+        client = create_supabase_user_client(access_token)
+        try:
+            result = (
+                client.from_("predictions")
+                .select("image_storage_path")
+                .eq("id", prediction_id)
+                .limit(1)
+                .execute()
+            )
+        except APIError as e:
+            self._raise_db(e, "Could not load prediction image path", op="fetch_image_path")
+        rows = result.data
+        if not isinstance(rows, list) or not rows:
+            return None
+        row = rows[0]
+        if not isinstance(row, dict):
             return None
         p = row.get("image_storage_path")
         return str(p) if p else None

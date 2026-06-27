@@ -1,7 +1,7 @@
 # Observabilidad local (opcional)
 
 Stack **Prometheus + Grafana** para visualizar las métricas del backend (`GET /metrics`).  
-**No forma parte del arranque normal:** la API puede ejecutarse sola (local, Render, Docker propio, etc.). Este `docker-compose` **no incluye** el servicio backend.
+**No forma parte del arranque normal:** la API puede ejecutarse sola (local, AWS ECS, Docker, etc.). Este `docker-compose` **no incluye** el servicio backend.
 
 ---
 

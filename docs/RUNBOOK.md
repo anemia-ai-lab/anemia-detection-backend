@@ -97,9 +97,9 @@ Los tests validan software y artefactos, no validez clínica.
 
 **Local** (con `.env` válido y `make run`): `GET /health`, `GET /docs`, `POST /auth/register|login`, `POST /predict` (JWT + multipart; 200 con inferencia real solo si el modelo está cargado). No commitear secretos.
 
-**Producción (automático):** `make smoke-prod` contra Render (`scripts/smoke_prod.py`). Requiere `SMOKE_EMAIL`, `SMOKE_PASSWORD`, `METRICS_BEARER_TOKEN`; opcional `SMOKE_BASE_URL`. En CI: job `smoke-prod` en `.github/workflows/keepalive.yml`. Detalle: [`docs/RELEASE_1_SMOKE.md`](RELEASE_1_SMOKE.md).
+**Producción (automático):** `make smoke-prod` contra AWS ALB (`scripts/smoke_prod.py`). Requiere `SMOKE_BASE_URL`, `SMOKE_EMAIL`, `SMOKE_PASSWORD`, `METRICS_BEARER_TOKEN`. CI: job `smoke-prod` en [`.github/workflows/ci.yml`](../.github/workflows/ci.yml). Detalle: [`docs/RELEASE_1_SMOKE.md`](RELEASE_1_SMOKE.md).
 
-**Render (env mínimo):** solo secretos + `TRUST_PROXY_HEADERS=true` + `INFERENCE_MODEL_PATHS` (ensemble); el resto usa defaults en `backend/core/config.py`. Plantilla: [`render.env.example`](../render.env.example).
+**AWS (env):** secretos en Secrets Manager; task env según [`aws.env.example`](../aws.env.example). Guía completa: [`docs/DEPLOYMENT_AWS.md`](DEPLOYMENT_AWS.md).
 
 ## Paridad API vs offline
 

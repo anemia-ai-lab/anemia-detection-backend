@@ -1,0 +1,105 @@
+# Deploy API to AWS ECS Fargate (manual dispatch).
+name: Deploy AWS
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "ECR image tag (default: git SHA)"
+        required: false
+        default: ""
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install backend dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Lint and test API
+        env:
+          SUPABASE_URL: https://example.supabase.co
+          SUPABASE_KEY: test-anon-key-not-real
+        run: make lint && make test
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install CDK CLI and Python deps
+        working-directory: infra
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install -r requirements.txt
+          npm install -g aws-cdk@2
+
+      - name: CDK deploy (infra)
+        working-directory: infra
+        env:
+          JSII_SILENCE_WARNING_DEPRECATED_NODE_VERSION: "1"
+        run: .venv/bin/cdk deploy --require-approval never
+
+      - name: Login to ECR
+        id: ecr
+        run: |
+          ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
+          ECR_URI="${ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com/anemia-detection-backend"
+          aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "${ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+          echo "uri=${ECR_URI}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push Docker image
+        run: |
+          TAG="${{ github.event.inputs.image_tag }}"
+          if [ -z "$TAG" ]; then TAG="${{ github.sha }}"; fi
+          docker build -f Dockerfile -t "${{ steps.ecr.outputs.uri }}:${TAG}" -t "${{ steps.ecr.outputs.uri }}:latest" .
+          docker push "${{ steps.ecr.outputs.uri }}:${TAG}"
+          docker push "${{ steps.ecr.outputs.uri }}:latest"
+          echo "IMAGE_TAG=${TAG}" >> "$GITHUB_ENV"
+
+      - name: Force ECS redeployment
+        run: |
+          aws ecs update-service \
+            --cluster anemia-api-cluster \
+            --service anemia-api-service \
+            --force-new-deployment \
+            --region "$AWS_REGION"
+
+      - name: Wait for service stability
+        run: |
+          aws ecs wait services-stable \
+            --cluster anemia-api-cluster \
+            --services anemia-api-service \
+            --region "$AWS_REGION"
+
+      - name: Smoke prod (optional)
+        env:
+          SMOKE_BASE_URL: ${{ vars.SMOKE_BASE_URL }}
+          SMOKE_EMAIL: ${{ secrets.SMOKE_EMAIL }}
+          SMOKE_PASSWORD: ${{ secrets.SMOKE_PASSWORD }}
+          METRICS_BEARER_TOKEN: ${{ secrets.METRICS_BEARER_TOKEN }}
+        run: |
+          if [ -z "${SMOKE_BASE_URL:-}" ] || [ -z "${SMOKE_EMAIL:-}" ]; then
+            echo "Skip smoke: set SMOKE_BASE_URL and SMOKE_* secrets"
+            exit 0
+          fi
+          make smoke-prod

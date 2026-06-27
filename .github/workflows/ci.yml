@@ -1,15 +1,11 @@
-# Keepalive: runs on a schedule to keep the public demo environment "warm" (e.g. Render
-# free-tier sleep) and to reduce long idle gaps that can make Supabase-backed demo flows
-# feel stale. It only GETs /health—no app secrets; override the URL with repo var HEALTH_URL
-# if the default public URL changes.
-name: Keepalive (health)
+# CI: lint, tests API/ML, smoke opcional contra AWS (SMOKE_BASE_URL).
+name: CI
 
 permissions:
   contents: read
 
 on:
   schedule:
-    # Monday and Thursday, 15:00 UTC
     - cron: "0 15 * * 1,4"
   workflow_dispatch:
   pull_request:
@@ -44,19 +40,6 @@ jobs:
       - name: ML tests in Docker (TensorFlow 2.19.1 / Linux)
         run: make ml-test-docker
 
-  health:
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    env:
-      # Optional: set repository variable HEALTH_URL to the full /health URL (e.g. https://…/health)
-      HEALTH_URL: ${{ vars.HEALTH_URL }}
-    steps:
-      - name: Ping deployed /health
-        run: |
-          set -euo pipefail
-          url="${HEALTH_URL:-https://anemia-detection-backend.onrender.com/health}"
-          curl -fsS --connect-timeout 20 --max-time 30 "$url" || { echo "Health check failed"; exit 1; }
-
   smoke-prod:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
@@ -76,6 +59,10 @@ jobs:
       - name: Smoke E2E (prod)
         run: |
           set -euo pipefail
+          if [ -z "${SMOKE_BASE_URL:-}" ]; then
+            echo "Skip smoke-prod: set repository variable SMOKE_BASE_URL (ALB DNS, sin barra final)"
+            exit 0
+          fi
           if [ -z "${SMOKE_EMAIL:-}" ] || [ -z "${SMOKE_PASSWORD:-}" ] || [ -z "${METRICS_BEARER_TOKEN:-}" ]; then
             echo "Skip smoke-prod: configure secrets SMOKE_EMAIL, SMOKE_PASSWORD, METRICS_BEARER_TOKEN"
             exit 0

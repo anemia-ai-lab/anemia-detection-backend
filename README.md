@@ -37,6 +37,10 @@ The backend uses Keras for server-side inference. Offline capability is provided
 - Separate backend and ML validation paths to avoid TensorFlow dependency during API tests.
 - Prometheus-compatible operational metrics for controlled deployments.
 
+## Deployment
+
+Production: **AWS ECS Fargate** (us-east-1) via **CDK Python** — see [`docs/DEPLOYMENT_AWS.md`](docs/DEPLOYMENT_AWS.md).
+
 ## Technical Stack
 
 - Python 3.11 recommended / used in CI (local `make run` uses `python3` from your PATH)

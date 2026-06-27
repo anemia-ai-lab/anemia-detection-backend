@@ -1,22 +1,22 @@
 # Release 1 — smoke (prod)
 
-Base URL prod: `https://anemia-detection-backend.onrender.com`
+Base URL prod: variable `SMOKE_BASE_URL` (DNS del ALB AWS, p. ej. `http://anemia-api-xxx.us-east-1.elb.amazonaws.com`).
 
 ## Automático
 
 ```bash
 export SMOKE_EMAIL=smoke@example.com
 export SMOKE_PASSWORD=minimum8chars
-export METRICS_BEARER_TOKEN=<mismo que Render>
-# opcional: export SMOKE_BASE_URL=https://anemia-detection-backend.onrender.com
+export METRICS_BEARER_TOKEN=<mismo que Secrets Manager>
+export SMOKE_BASE_URL=http://<LoadBalancerDNS>
 make smoke-prod
 ```
 
-**GitHub Actions** (workflow [`.github/workflows/keepalive.yml`](../.github/workflows/keepalive.yml), job `smoke-prod`):
+**GitHub Actions** (workflow [`.github/workflows/ci.yml`](../.github/workflows/ci.yml), job `smoke-prod`):
 
 - Triggers: `schedule` (lun/jue 15:00 UTC) y `workflow_dispatch`
-- Secrets del repo: `SMOKE_EMAIL`, `SMOKE_PASSWORD`, `METRICS_BEARER_TOKEN`
-- Variable opcional: `SMOKE_BASE_URL` (sin barra final)
+- Secrets: `SMOKE_EMAIL`, `SMOKE_PASSWORD`, `METRICS_BEARER_TOKEN`
+- Variable obligatoria para smoke: `SMOKE_BASE_URL` (sin barra final)
 
 El script registra el usuario en el primer run si `login` devuelve 401.
 
@@ -36,12 +36,11 @@ El script registra el usuario en el primer run si `login` devuelve 401.
 - [ ] `make lint && make test && make ml-test-docker` verde
 - [ ] `docker build -f Dockerfile .` exitoso (3× `.keras` en imagen)
 - [ ] `supabase db push` — remoto al día
-- [ ] Variables en Render según [`render.env.example`](../render.env.example) (mínimo obligatorio)
+- [ ] Secretos en AWS Secrets Manager según [`docs/DEPLOYMENT_AWS.md`](DEPLOYMENT_AWS.md)
 
-## Estado (2026-06-24)
+## Despliegue
 
-- **Render prod:** `/health` → `status=ok`, `model_loaded=true`, `model_version=v2.0` (ensemble v2).
-- **Smoke:** automatizado vía `make smoke-prod` + job `smoke-prod` en keepalive.
+Ver [`docs/DEPLOYMENT_AWS.md`](DEPLOYMENT_AWS.md) para ECS Fargate + CDK.
 
 ## Limitaciones (release notes)
 
