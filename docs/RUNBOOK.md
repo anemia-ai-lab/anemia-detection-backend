@@ -117,6 +117,21 @@ Los tests validan software y artefactos, no validez clínica.
 | ML OK en Docker, mal en macOS | Rueda TF del host → `make ml-test-docker`. |
 | CORS | Fuera de `development`, definir `CORS_ALLOWED_ORIGINS`. |
 
+## Rendimiento e índices Postgres
+
+Índices actuales (migraciones en `supabase/migrations/`):
+
+| Tabla | Índice | Cubre |
+|-------|--------|-------|
+| `predictions` | `predictions_user_id_idx` (`user_id`) | Filtro RLS + lookups por usuario. |
+| `predictions` | `predictions_user_effective_created_idx` (`user_id`, `effective_created_at` DESC, `id` DESC) | Listado paginado `GET /predictions`. |
+| `predictions` | `predictions_user_client_id_uidx` (`user_id`, `client_id`) parcial | Sync offline idempotente. |
+| `profiles` | PK (`id`) | `GET/PATCH /auth/me/profile` por `auth.uid()`. |
+
+No hace falta índice adicional mientras el volumen sea bajo/medio. Si el historial crece (>100k filas/usuario), ejecutar **Supabase → Database → Performance Advisor** y revisar latencia de `list_for_user_paginated` con `EXPLAIN ANALYZE`.
+
+Métricas por fase de `POST /predict` en `/metrics`: `predict_phase_duration_seconds{phase="preprocess|inference|storage_upload|db_insert"}`.
+
 ## Variables de entorno críticas
 
 | Variable | Uso |

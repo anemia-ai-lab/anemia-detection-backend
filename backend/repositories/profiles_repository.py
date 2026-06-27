@@ -87,20 +87,14 @@ class ProfilesRepository:
         """Insert or update the row for ``user_id`` (same RLS rules)."""
         client = create_supabase_anon_client()
         client.postgrest.auth(access_token)
-        sel = client.from_("profiles").select("id").eq("id", user_id).limit(1).execute()
-        rows = sel.data
-        exists = (
-            isinstance(rows, list)
-            and len(rows) == 1
-            and isinstance(rows[0], dict)
-            and str(rows[0].get("id")) == str(user_id)
-        )
+        upsert_body = {"id": user_id, **payload}
         try:
-            if not exists:
-                insert_body = {"id": user_id, **payload}
-                res = client.from_("profiles").insert(insert_body).execute()
-            else:
-                res = client.from_("profiles").update(payload).eq("id", user_id).execute()
+            res = (
+                client.from_("profiles")
+                .upsert(upsert_body, on_conflict="id")
+                .select("id,first_name,last_name,department,province,profile_completed,created_at")
+                .execute()
+            )
         except APIError:
             logger.exception("profiles upsert_profile failed user_id=%s", user_id)
             raise

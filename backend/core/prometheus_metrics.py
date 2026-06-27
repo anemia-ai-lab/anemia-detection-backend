@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import re
 import time
+from collections.abc import Iterator
+from contextlib import contextmanager
 
 from fastapi import FastAPI
 from prometheus_client import Counter, Gauge, Histogram
@@ -44,6 +46,28 @@ MODEL_LOADED = Gauge(
     "model_loaded",
     "1 si el predictor Keras embarcado está cargado; 0 si no.",
 )
+
+PREDICT_PHASE_DURATION_SECONDS = Histogram(
+    "predict_phase_duration_seconds",
+    "Duración por fase de POST /predict (segundos).",
+    ["phase"],
+    buckets=(0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0, float("inf")),
+)
+
+_PREDICT_PHASES = frozenset({"preprocess", "inference", "storage_upload", "db_insert"})
+
+
+@contextmanager
+def observe_predict_phase(phase: str) -> Iterator[None]:
+    """Registra la duración de una fase de ``run_predict`` en Prometheus."""
+    if phase not in _PREDICT_PHASES:
+        msg = f"unknown predict phase: {phase}"
+        raise ValueError(msg)
+    start = time.perf_counter()
+    try:
+        yield
+    finally:
+        PREDICT_PHASE_DURATION_SECONDS.labels(phase=phase).observe(time.perf_counter() - start)
 
 
 # Rutas estáticas conocidas (coincidencia exacta tras normalización ligera).

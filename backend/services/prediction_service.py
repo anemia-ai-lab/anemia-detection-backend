@@ -6,12 +6,14 @@ from datetime import UTC, datetime, timedelta
 import numpy as np
 from fastapi import UploadFile
 from pydantic import ValidationError
+from starlette.concurrency import run_in_threadpool
 
 from backend.core import patient_age
 from backend.core.config import settings
 from backend.core.exceptions import ClientHttpError, PredictionServiceError
 from backend.core.prediction_cursor import encode_prediction_cursor
 from backend.core.prediction_image_limits import prediction_image_max_bytes
+from backend.core.prometheus_metrics import observe_predict_phase
 from backend.core.risk_mapping import anemia_risk_label, risk_from_probability
 from backend.core.upload_io import UploadExceedsMaxBytesError, read_upload_file_with_byte_limit
 from backend.inference.image_predictor import ImagePredictor
@@ -197,7 +199,14 @@ class PredictionService:
         upload = self.require_image_upload(image)
         raw, content_type = await self.read_prediction_image_bytes(upload)
         body = self.parse_prediction_body(birth_date=birth_date, notes=notes)
-        return self.run_predict(user, access_token, body, raw, content_type)
+        return await run_in_threadpool(
+            self.run_predict,
+            user,
+            access_token,
+            body,
+            raw,
+            content_type,
+        )
 
     def run_predict(
         self,
@@ -207,23 +216,26 @@ class PredictionService:
         file_bytes: bytes,
         content_type: str | None,
     ) -> PredictionResponse:
-        normalized_ct, processed_bytes, rgb = prepare_prediction_image(
-            content_type,
-            file_bytes,
-        )
-        self._nail_checker(rgb)
-        predictor = self._effective_image_predictor()
-        raw_probability = average_raw_probability_with_optional_tta(
-            predictor,
-            rgb,
-            tta_enabled=bool(settings.inference_tta_enabled),
-        )
-        path = self._images.upload_user_image(
-            access_token,
-            user_id=user.id,
-            file_bytes=processed_bytes,
-            content_type=normalized_ct,
-        )
+        with observe_predict_phase("preprocess"):
+            normalized_ct, processed_bytes, rgb = prepare_prediction_image(
+                content_type,
+                file_bytes,
+            )
+            self._nail_checker(rgb)
+        with observe_predict_phase("inference"):
+            predictor = self._effective_image_predictor()
+            raw_probability = average_raw_probability_with_optional_tta(
+                predictor,
+                rgb,
+                tta_enabled=bool(settings.inference_tta_enabled),
+            )
+        with observe_predict_phase("storage_upload"):
+            path = self._images.upload_user_image(
+                access_token,
+                user_id=user.id,
+                file_bytes=processed_bytes,
+                content_type=normalized_ct,
+            )
         preprocessing = {"tta_enabled": bool(settings.inference_tta_enabled)}
         try:
             return self._run_predict_core(
@@ -266,23 +278,24 @@ class PredictionService:
         age_months: int | None = None
         if birth is not None:
             age_months = patient_age.completed_age_months(birth, ref)
-        row = self._repo.insert_for_user(
-            access_token,
-            user_id=user.id,
-            risk=risk,
-            score=calibrated_probability,
-            model_version=model_version,
-            age_months=age_months,
-            birth_date=birth_iso,
-            notes=body.notes,
-            image_storage_path=image_storage_path,
-            inference_mode=_INFERENCE_MODE_BACKEND,
-            raw_probability=raw_probability,
-            calibrated_probability=calibrated_probability,
-            threshold_used=threshold_used,
-            prediction=prediction,
-            preprocessing=preprocessing,
-        )
+        with observe_predict_phase("db_insert"):
+            row = self._repo.insert_for_user(
+                access_token,
+                user_id=user.id,
+                risk=risk,
+                score=calibrated_probability,
+                model_version=model_version,
+                age_months=age_months,
+                birth_date=birth_iso,
+                notes=body.notes,
+                image_storage_path=image_storage_path,
+                inference_mode=_INFERENCE_MODE_BACKEND,
+                raw_probability=raw_probability,
+                calibrated_probability=calibrated_probability,
+                threshold_used=threshold_used,
+                prediction=prediction,
+                preprocessing=preprocessing,
+            )
         return self._row_to_prediction_response(
             row,
             raw_probability=raw_probability,
@@ -394,7 +407,25 @@ class PredictionService:
     ) -> PredictionImageUploadOut:
         upload = self.require_image_upload(image)
         raw, content_type = await self.read_prediction_image_bytes(upload)
+        return await run_in_threadpool(
+            self._finish_upload_prediction_image,
+            user,
+            access_token,
+            prediction_id,
+            raw,
+            content_type,
+            image_sha256,
+        )
 
+    def _finish_upload_prediction_image(
+        self,
+        user: UserOut,
+        access_token: str,
+        prediction_id: str,
+        raw: bytes,
+        content_type: str | None,
+        image_sha256: str | None,
+    ) -> PredictionImageUploadOut:
         row = self._repo.fetch_by_id(access_token, prediction_id)
         if row is None:
             raise PredictionServiceError(

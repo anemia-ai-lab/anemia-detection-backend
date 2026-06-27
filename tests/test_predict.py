@@ -751,7 +751,7 @@ def test_predict_postgrest_api_error_returns_502(monkeypatch: pytest.MonkeyPatch
         return (user, "aaa.bbb.ccc")
 
     mock_client = MagicMock()
-    mock_client.from_.return_value.insert.return_value.execute.side_effect = APIError(
+    mock_client.from_.return_value.insert.return_value.select.return_value.execute.side_effect = APIError(
         {"message": "RLS blocked", "code": "42501"},
     )
 

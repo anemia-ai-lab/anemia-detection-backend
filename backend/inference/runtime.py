@@ -127,3 +127,17 @@ def shutdown_inference_model() -> None:
 def get_builtin_image_predictor() -> Any:
     """Instancia Keras cargada o ``None`` (import de TF solo si el modelo se inicializó)."""
     return _builtin_predictor
+
+
+def warmup_inference_model() -> None:
+    """Inferencia dummy al arranque para amortizar el grafo antes del primer ``/predict``."""
+    if _tf_disabled() or _builtin_predictor is None:
+        return
+    try:
+        import numpy as np
+
+        dummy_rgb = np.zeros((224, 224, 3), dtype=np.uint8)
+        _builtin_predictor.predict_from_rgb(dummy_rgb)
+        logger.info("inference_warmup_completed")
+    except Exception:
+        logger.warning("inference_warmup_failed", exc_info=True)

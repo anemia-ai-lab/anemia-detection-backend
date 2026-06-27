@@ -21,6 +21,7 @@ from backend.inference.runtime import (
     inference_service_status,
     init_inference_model,
     shutdown_inference_model,
+    warmup_inference_model,
 )
 from backend.schemas.health import HealthOut
 
@@ -46,6 +47,7 @@ async def lifespan(_app: FastAPI):
         settings.debug,
     )
     init_inference_model()
+    warmup_inference_model()
     logger.info("inference_model_ready=%s", get_builtin_image_predictor() is not None)
     yield
     shutdown_inference_model()

@@ -225,53 +225,27 @@ class PredictionsRepository:
 
     def _insert_and_fetch(self, client: Any, payload: dict[str, Any]) -> dict[str, Any]:
         try:
-            insert_result = client.from_("predictions").insert(payload).execute()
+            insert_result = (
+                client.from_("predictions")
+                .insert(payload)
+                .select(_SELECT_RETURN)
+                .execute()
+            )
         except APIError as e:
             self._raise_db(e, "Could not save prediction", op="insert")
-        ins_rows = insert_result.data
-        if not isinstance(ins_rows, list) or not ins_rows:
+        rows = insert_result.data
+        if not isinstance(rows, list) or not rows:
             raise PredictionServiceError(
                 "Empty insert response",
                 502,
                 code="empty_insert",
             )
-        ins_first = ins_rows[0]
-        if not isinstance(ins_first, dict):
+        row = rows[0]
+        if not isinstance(row, dict):
             raise PredictionServiceError(
                 "Unexpected insert response",
                 502,
                 code="invalid_insert_shape",
-            )
-        new_id = ins_first.get("id")
-        if new_id is None:
-            raise PredictionServiceError(
-                "Insert did not return a row id",
-                502,
-                code="insert_no_id",
-            )
-        try:
-            fetch_result = (
-                client.from_("predictions")
-                .select(_SELECT_RETURN)
-                .eq("id", new_id)
-                .limit(1)
-                .execute()
-            )
-        except APIError as e:
-            self._raise_db(e, "Could not load prediction after insert", op="select_after_insert")
-        rows = fetch_result.data
-        if not isinstance(rows, list) or not rows:
-            raise PredictionServiceError(
-                "Inserted prediction not found after save",
-                502,
-                code="insert_fetch_miss",
-            )
-        row = rows[0]
-        if not isinstance(row, dict):
-            raise PredictionServiceError(
-                "Unexpected fetch response",
-                502,
-                code="invalid_fetch_shape",
             )
         return row
 

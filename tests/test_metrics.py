@@ -17,6 +17,7 @@ def test_metrics_endpoint_returns_prometheus_text() -> None:
     assert "http_request_duration_seconds" in body
     assert "predictions_completed_total" in body
     assert "prediction_errors_total" in body
+    assert "predict_phase_duration_seconds" in body
     assert "model_loaded" in body
     ctype = response.headers.get("content-type", "")
     assert ctype.startswith("text/plain")
