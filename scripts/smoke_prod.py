@@ -34,7 +34,16 @@ def _env(name: str, *, required: bool = False, default: str = "") -> str:
 
 def _base_url() -> str:
     raw = _env("SMOKE_BASE_URL", required=True, default=DEFAULT_BASE_URL)
-    return raw.rstrip("/")
+    base = raw.rstrip("/")
+    if "onrender.com" in base.lower():
+        print(
+            "ERROR: SMOKE_BASE_URL apunta a Render (retirado). "
+            "Usa el DNS del ALB AWS, p. ej. "
+            "http://<LoadBalancerDNS> (output de CloudFormation AnemiaApiStack).",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    return base
 
 
 def skin_patch_png() -> bytes:

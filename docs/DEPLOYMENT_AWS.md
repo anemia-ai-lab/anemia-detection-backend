@@ -171,11 +171,18 @@ Workflow [`.github/workflows/deploy-aws.yml`](../.github/workflows/deploy-aws.ym
 
 `concurrency` evita dos deploys simultáneos sobre el mismo stack.
 
-**Secrets:** `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` (o OIDC con `AWS_ROLE_ARN`).
+**Secrets:** `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` (o OIDC con `AWS_ROLE_ARN`), `SMOKE_EMAIL`, `SMOKE_PASSWORD`, `METRICS_BEARER_TOKEN`.
 
-**Variables:** `AWS_REGION=us-west-2`, `SMOKE_BASE_URL` (URL del ALB).
+**Variables (solo CI programado):** `SMOKE_BASE_URL` = `http://<LoadBalancerDNS>`. En **Deploy AWS**, el smoke usa el output `LoadBalancerDNS` del stack (no la variable del repo).
 
-Smoke post-deploy en el mismo workflow si están configurados `SMOKE_*`.
+Obtén el DNS:
+
+```bash
+aws cloudformation describe-stacks --stack-name AnemiaApiStack --region us-west-2 \
+  --query 'Stacks[0].Outputs[?OutputKey==`LoadBalancerDNS`].OutputValue' --output text
+```
+
+Smoke post-deploy en Deploy AWS si están los secrets anteriores.
 
 ---
 
