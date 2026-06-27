@@ -1,6 +1,6 @@
 # Release 1 — smoke (prod)
 
-Base URL prod: variable `SMOKE_BASE_URL` (DNS del ALB AWS, p. ej. `http://anemia-api-xxx.us-east-1.elb.amazonaws.com`).
+Base URL prod: variable `SMOKE_BASE_URL` (DNS del ALB AWS, p. ej. `http://anemia-api-xxx.us-west-2.elb.amazonaws.com`).
 
 ## Automático
 

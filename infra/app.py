@@ -9,7 +9,7 @@ from stacks.api_stack import AnemiaApiStack
 app = cdk.App()
 
 account = os.environ.get("CDK_DEFAULT_ACCOUNT") or os.environ.get("AWS_ACCOUNT_ID")
-region = os.environ.get("CDK_DEFAULT_REGION") or os.environ.get("AWS_REGION") or "us-east-1"
+region = os.environ.get("CDK_DEFAULT_REGION") or os.environ.get("AWS_REGION") or "us-west-2"
 
 AnemiaApiStack(
     app,

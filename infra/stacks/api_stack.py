@@ -100,6 +100,9 @@ class AnemiaApiStack(Stack):
             desired_count=1,
             public_load_balancer=True,
             assign_public_ip=True,
+            circuit_breaker=ecs.DeploymentCircuitBreaker(rollback=True),
+            min_healthy_percent=100,
+            max_healthy_percent=200,
             task_image_options=ecs_patterns.ApplicationLoadBalancedTaskImageOptions(
                 image=ecs.ContainerImage.from_ecr_repository(repository, tag=image_tag),
                 container_port=8000,

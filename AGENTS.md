@@ -50,7 +50,7 @@ Supabase keys (security):
 	•	`APP_ENV=production` requires `SUPABASE_*`, `METRICS_BEARER_TOKEN`, and forbids `DEBUG=true`.
 
 AWS deployment:
-	•	Production: ECS Fargate + ALB in `us-east-1`, IaC in `infra/` (CDK Python).
+	•	Production: ECS Fargate + ALB in `us-west-2`, IaC in `infra/` (CDK Python).
 	•	Guide: `docs/DEPLOYMENT_AWS.md` · env reference: `aws.env.example`.
 	•	Secrets: AWS Secrets Manager `anemia-api/prod` (not in git).
 	•	CI deploy: `.github/workflows/deploy-aws.yml` (manual dispatch).

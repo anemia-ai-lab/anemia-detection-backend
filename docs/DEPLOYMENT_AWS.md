@@ -1,6 +1,6 @@
 # Despliegue AWS (ECS Fargate + CDK Python)
 
-Producción del API en **us-east-1**: contenedor Docker (FastAPI + TensorFlow + ensemble 3× `.keras`) detrás de un **Application Load Balancer**. **Supabase** sigue externo (Auth, Postgres, Storage).
+Producción del API en **us-west-2** (Oregon, alineado con Supabase): contenedor Docker (FastAPI + TensorFlow + ensemble 3× `.keras`) detrás de un **Application Load Balancer**. **Supabase** sigue externo (Auth, Postgres, Storage).
 
 ## Arquitectura
 
@@ -10,7 +10,7 @@ flowchart TB
     build[docker_build_push]
     deploy[cdk_deploy]
   end
-  subgraph aws [AWS_us_east_1]
+  subgraph aws [AWS_us_west_2]
     ecr[ECR]
     alb[ALB_HTTP]
     ecs[ECSFargate_2vCPU_4GB]
@@ -43,7 +43,7 @@ flowchart TB
 
 **Red MVP:** VPC default, subnets públicas, `assignPublicIp: true`, **sin NAT Gateway** (~$32/mes ahorrados).
 
-## Costos estimados (24/7, us-east-1)
+## Costos estimados (24/7, us-west-2)
 
 | Recurso | ~USD/mes |
 |---------|----------|
@@ -74,8 +74,8 @@ Sin dominio custom ni NAT. HTTPS con dominio propio (Route53 + ACM) es opcional 
 cd infra
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-export AWS_REGION=us-east-1
-cdk bootstrap aws://$(aws sts get-caller-identity --query Account --output text)/us-east-1
+export AWS_REGION=us-west-2
+cdk bootstrap aws://$(aws sts get-caller-identity --query Account --output text)/us-west-2
 ```
 
 ### 2. Desplegar infraestructura (ECR, ECS, ALB, secret placeholder)
@@ -107,7 +107,7 @@ Referencia de variables no secretas: [`aws.env.example`](../aws.env.example).
 # Desde la raíz del repo
 ECR_URI=$(aws cloudformation describe-stacks --stack-name AnemiaApiStack \
   --query "Stacks[0].Outputs[?OutputKey=='EcrRepositoryUri'].OutputValue" --output text)
-aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin "${ECR_URI%%/*}"
+aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin "${ECR_URI%%/*}"
 docker build -f Dockerfile -t "$ECR_URI:latest" .
 docker push "$ECR_URI:latest"
 ```
@@ -119,7 +119,7 @@ aws ecs update-service \
   --cluster anemia-api-cluster \
   --service anemia-api-service \
   --force-new-deployment \
-  --region us-east-1
+  --region us-west-2
 ```
 
 (O repetir `cdk deploy -c imageTag=latest` tras el push.)
@@ -151,7 +151,7 @@ Workflow [`.github/workflows/deploy-aws.yml`](../.github/workflows/deploy-aws.ym
 
 **Secrets:** `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` (o OIDC con `AWS_ROLE_ARN`).
 
-**Variables:** `AWS_REGION=us-east-1`, `SMOKE_BASE_URL` (URL del ALB).
+**Variables:** `AWS_REGION=us-west-2`, `SMOKE_BASE_URL` (URL del ALB).
 
 Smoke post-deploy en el mismo workflow si están configurados `SMOKE_*`.
 
@@ -184,7 +184,7 @@ aws ecs update-service --cluster anemia-api-cluster --service anemia-api-service
 ## HTTPS y dominio custom (fase 2)
 
 1. Dominio en Route53.
-2. Certificado ACM en us-east-1.
+2. Certificado ACM en us-west-2.
 3. Listener HTTPS en ALB + redirect HTTP→HTTPS.
 4. `TRUST_PROXY_HEADERS=true` ya está en el task.
 

@@ -13,7 +13,7 @@ on:
         default: ""
 
 env:
-  AWS_REGION: us-east-1
+  AWS_REGION: us-west-2
 
 jobs:
   deploy:
@@ -44,7 +44,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
 
       - name: Install CDK CLI and Python deps
         working-directory: infra
@@ -57,7 +57,7 @@ jobs:
         working-directory: infra
         env:
           JSII_SILENCE_WARNING_DEPRECATED_NODE_VERSION: "1"
-        run: .venv/bin/cdk deploy --require-approval never
+        run: cdk deploy --require-approval never
 
       - name: Login to ECR
         id: ecr

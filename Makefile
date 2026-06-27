@@ -1,4 +1,4 @@
-.PHONY: install run dev lint format test smoke-prod ml-test ml-venv ml-install ml-tf-check ml-test-docker \
+.PHONY: install run dev lint format test smoke-prod cdk-synth ml-test ml-venv ml-install ml-tf-check ml-test-docker \
 	db-push ml-train-demo ml-train ml-train-finetune ml-eval ml-eval-ghana \
 	ml-prepare-ghana ml-docker-eval-ghana ml-docker-train-finetune ml-docker-finetune-ghana \
 	ml-docker-train-ghana-scratch ml-docker-calibrate-ghana \
@@ -38,6 +38,11 @@ test:
 
 smoke-prod:
 	$(PYTHON) scripts/smoke_prod.py
+
+cdk-synth:
+	@test -d infra/.venv || (echo "Run: cd infra && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt"; exit 1)
+	@command -v cdk >/dev/null 2>&1 || (echo "Install CDK CLI: npm install -g aws-cdk@2"; exit 1)
+	cd infra && env AWS_REGION=us-west-2 JSII_SILENCE_WARNING_DEPRECATED_NODE_VERSION=1 cdk synth
 
 ml-test:
 	PYTHONPATH=. $(ML_PYTHON) -m pytest ml/tests/
