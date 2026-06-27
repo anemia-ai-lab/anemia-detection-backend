@@ -254,7 +254,6 @@ jobs:
           SMOKE_EMAIL: ${{ secrets.SMOKE_EMAIL }}
           SMOKE_PASSWORD: ${{ secrets.SMOKE_PASSWORD }}
           METRICS_BEARER_TOKEN: ${{ secrets.METRICS_BEARER_TOKEN }}
-        continue-on-error: true
         run: |
           set -euo pipefail
           if [ -z "${SMOKE_EMAIL:-}" ] || [ -z "${SMOKE_PASSWORD:-}" ] || [ -z "${METRICS_BEARER_TOKEN:-}" ]; then
@@ -274,7 +273,7 @@ jobs:
           fi
 
           export SMOKE_BASE_URL="http://${ALB}"
-          echo "Smoke prod → $SMOKE_BASE_URL (ALB from CloudFormation; ignoring repo SMOKE_BASE_URL if stale)"
+          echo "Smoke prod → $SMOKE_BASE_URL"
 
           python -m pip install -q -r requirements.txt
           make smoke-prod
