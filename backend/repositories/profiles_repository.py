@@ -92,7 +92,6 @@ class ProfilesRepository:
             res = (
                 client.from_("profiles")
                 .upsert(upsert_body, on_conflict="id")
-                .select("id,first_name,last_name,department,province,profile_completed,created_at")
                 .execute()
             )
         except APIError:

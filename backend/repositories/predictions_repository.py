@@ -127,7 +127,6 @@ class PredictionsRepository:
                 client.from_("predictions")
                 .update(payload)
                 .eq("id", prediction_id)
-                .select(_SELECT_RETURN)
                 .execute()
             )
         except APIError as e:
@@ -156,7 +155,6 @@ class PredictionsRepository:
                 client.from_("predictions")
                 .delete()
                 .eq("id", prediction_id)
-                .select("id,image_storage_path")
                 .execute()
             )
         except APIError as e:
@@ -234,13 +232,9 @@ class PredictionsRepository:
         return str(p) if p else None
 
     def _insert_and_fetch(self, client: Any, payload: dict[str, Any]) -> dict[str, Any]:
+        # postgrest 2.28.x: write builders have no .select(); default returning=representation.
         try:
-            insert_result = (
-                client.from_("predictions")
-                .insert(payload)
-                .select(_SELECT_RETURN)
-                .execute()
-            )
+            insert_result = client.from_("predictions").insert(payload).execute()
         except APIError as e:
             self._raise_db(e, "Could not save prediction", op="insert")
         rows = insert_result.data
