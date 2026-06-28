@@ -1,4 +1,4 @@
-# Deploy API to AWS ECS Fargate (manual dispatch).
+# Deploy API to AWS ECS Fargate (push a main + manual dispatch).
 # Bootstrap (no ECR image): infra at desiredCount=0 → build/push → scale ECS via CLI.
 # Never runs `cdk deploy -c desiredCount=1` until ECR :latest exists (verified).
 name: Deploy AWS
@@ -8,7 +8,7 @@ permissions:
 
 concurrency:
   group: deploy-aws-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 on:
   workflow_dispatch:
@@ -17,6 +17,16 @@ on:
         description: "ECR image tag (default: git SHA)"
         required: false
         default: ""
+  push:
+    branches:
+      - main
+    paths:
+      - "backend/**"
+      - "ml/**"
+      - "Dockerfile"
+      - "requirements.txt"
+      - "infra/**"
+      - ".github/workflows/deploy-aws.yml"
 
 env:
   AWS_REGION: us-west-2

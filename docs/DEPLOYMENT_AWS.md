@@ -188,14 +188,23 @@ Esperado: `inference` domina el tiempo en `predict_phase_duration_seconds`.
 
 ## CI/CD (GitHub Actions)
 
-Workflow [`.github/workflows/deploy-aws.yml`](../.github/workflows/deploy-aws.yml) — disparo manual (`workflow_dispatch`):
+Workflow [`.github/workflows/deploy-aws.yml`](../.github/workflows/deploy-aws.yml):
+
+**Triggers:**
+
+- **Push a `main`** (automático) — solo si cambian rutas relevantes: `backend/`, `ml/`, `Dockerfile`, `requirements.txt`, `infra/`, o el propio workflow. Commits solo en `docs/` no disparan deploy (~30–40 min por build TensorFlow).
+- **`workflow_dispatch`** (manual) — redespliegue bajo demanda; input opcional `image_tag`.
+
+CI ([`ci.yml`](../.github/workflows/ci.yml)) corre en paralelo en cada push; no bloquea el deploy.
+
+**Flujo del deploy:**
 
 1. **Recover** — borra stacks en `ROLLBACK_*` y repos ECR huérfanos.
 2. **Bootstrap** (sin `:latest` en ECR): `cdk deploy -c desiredCount=0` → build/push → `aws ecs update-service --desired-count 1`.
 3. **Job `sync-iac`** (solo tras bootstrap exitoso): `cdk deploy -c desiredCount=1` cuando ECR y ECS ya están sanos.
 4. **Updates** (con imagen previa): `cdk deploy -c desiredCount=1` → build/push → redeploy.
 
-`concurrency` evita dos deploys simultáneos sobre el mismo stack.
+`concurrency` con `cancel-in-progress: true`: un push nuevo cancela un deploy anterior en curso sobre la misma rama.
 
 **Secrets:** `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` (o OIDC con `AWS_ROLE_ARN`), `SMOKE_EMAIL`, `SMOKE_PASSWORD`, `METRICS_BEARER_TOKEN`.
 
