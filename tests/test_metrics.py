@@ -45,13 +45,9 @@ def test_metrics_not_found_in_prod_without_configured_token(monkeypatch) -> None
 
 def test_route_templates_low_cardinality() -> None:
     assert route_template_for_path("/health") == "/health"
-    pid = "550e8400-e29b-41d4-a716-446655440000"
-    assert route_template_for_path(f"/predictions/{pid}/image-signed-url") == (
-        "/predictions/{id}/image-signed-url"
-    )
+    assert route_template_for_path("/predictions") == "/predictions"
     assert route_template_for_path("/predict?q=1") == "/predict"
-    weird = "/predictions/evil/../../../etc/passwd/image-signed-url"
-    assert route_template_for_path(weird) == "/other"
+    assert route_template_for_path("/predictions/unknown-path") == "/other"
 
 
 def test_health_unchanged_fields() -> None:

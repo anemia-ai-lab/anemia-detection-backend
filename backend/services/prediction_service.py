@@ -32,7 +32,6 @@ from backend.schemas.prediction import (
     SYNC_METADATA_BATCH_MAX,
     PredictionCreateBody,
     PredictionDetailOut,
-    PredictionImageSignedUrlOut,
     PredictionImageUploadOut,
     PredictionListItem,
     PredictionListResponse,
@@ -558,23 +557,6 @@ class PredictionService:
         image_path = deleted.get("image_storage_path")
         if image_path:
             self._images.delete_user_image(access_token, str(image_path))
-
-    def signed_image_url_for_prediction(
-        self,
-        user: UserOut,
-        access_token: str,
-        prediction_id: str,
-    ) -> PredictionImageSignedUrlOut:
-        path = self._repo.fetch_image_storage_path(access_token, prediction_id)
-        if not path:
-            raise PredictionServiceError(
-                "Predicción sin imagen o no encontrada.",
-                404,
-                code="prediction_image_not_found",
-            )
-        self._assert_image_path_owned(user, path)
-        url = self._images.create_signed_url(access_token, path)
-        return PredictionImageSignedUrlOut(signed_url=url)
 
     @staticmethod
     def _assert_image_path_owned(user: UserOut, path: str) -> None:

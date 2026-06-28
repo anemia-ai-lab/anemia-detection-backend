@@ -15,6 +15,7 @@ from __future__ import annotations
 import os
 import sys
 from io import BytesIO
+from urllib.parse import urlparse
 
 import httpx
 
@@ -32,10 +33,17 @@ def _env(name: str, *, required: bool = False, default: str = "") -> str:
     return value
 
 
-def _base_url() -> str:
-    raw = _env("SMOKE_BASE_URL", required=True, default=DEFAULT_BASE_URL)
-    base = raw.rstrip("/")
-    if "onrender.com" in base.lower():
+def is_retired_render_url(base: str) -> bool:
+    raw = base.strip().rstrip("/")
+    if not raw:
+        return False
+    parsed = urlparse(raw if "://" in raw else f"http://{raw}")
+    host = (parsed.hostname or "").lower()
+    return host == "onrender.com" or host.endswith(".onrender.com")
+
+
+def _reject_retired_render_url(base: str) -> None:
+    if is_retired_render_url(base):
         print(
             "ERROR: SMOKE_BASE_URL apunta a Render (retirado). "
             "Usa el DNS del ALB AWS, p. ej. "
@@ -43,6 +51,12 @@ def _base_url() -> str:
             file=sys.stderr,
         )
         sys.exit(1)
+
+
+def _base_url() -> str:
+    raw = _env("SMOKE_BASE_URL", required=True, default=DEFAULT_BASE_URL)
+    base = raw.rstrip("/")
+    _reject_retired_render_url(base)
     return base
 
 
@@ -212,4 +226,6 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    if len(sys.argv) == 3 and sys.argv[1] == "--check-render-url":
+        sys.exit(1 if is_retired_render_url(sys.argv[2]) else 0)
     main()

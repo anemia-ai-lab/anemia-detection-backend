@@ -61,31 +61,26 @@ app = FastAPI(
     openapi_tags=[
         {
             "name": "health",
-            "description": (
-                "Disponibilidad del proceso y del modelo de inferencia (sin secretos). "
-                "Útil para balanceadores, despliegue y demos; no implica validación clínica."
-            ),
+            "description": "Disponibilidad del proceso y del modelo Keras cargado.",
         },
         {
             "name": "auth",
             "description": (
-                "Supabase Auth: registro, login, /me, perfil (GET/PATCH). "
-                "El email del perfil sale de auth, no de la tabla."
+                "Supabase Auth: registro, login, refresh (opcional; supabase-js puede refrescar directo), "
+                "/me, perfil GET/PATCH."
             ),
         },
         {
             "name": "predictions",
-            "description": (
-                "Predicción de riesgo con imagen (Keras si el modelo está cargado), historial y URLs firmadas. "
-                "Salidas cuantitativas y binarias asistidas por modelo; no diagnóstico."
-            ),
+            "description": "Inferencia online e historial CRUD del usuario autenticado.",
+        },
+        {
+            "name": "offline-sync",
+            "description": "Sync TFLite móvil: metadatos en batch + imagen. Idempotente por client_id.",
         },
         {
             "name": "model",
-            "description": (
-                "Métricas de evaluación offline fijadas en configuración (trazabilidad tesis/paper). "
-                "Sin inferencia en vivo; no sustituye informe clínico."
-            ),
+            "description": "Métricas de evaluación offline en configuración (model_version).",
         },
     ],
 )
@@ -155,11 +150,7 @@ async def client_http_error_handler(
     "/health",
     tags=["health"],
     summary="Estado del API y de la inferencia",
-    description=(
-        "Comprueba que el proceso responde y expone si el predictor Keras está cargado, la versión de modelo "
-        "declarada, si la calibración por temperatura es no trivial (T≠1) y la ruta configurada del artefacto "
-        "(sin rutas absolutas arbitrarias ni credenciales). No evalúa calidad clínica del despliegue."
-    ),
+    description="model_loaded, model_version, calibration_enabled, supabase_ready.",
     response_model=HealthOut,
     response_model_exclude_none=True,
 )

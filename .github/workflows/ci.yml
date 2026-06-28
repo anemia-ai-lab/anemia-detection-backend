@@ -67,10 +67,8 @@ jobs:
             echo "Skip smoke-prod: configure secrets SMOKE_EMAIL, SMOKE_PASSWORD, METRICS_BEARER_TOKEN"
             exit 0
           fi
-          case "${SMOKE_BASE_URL}" in
-            *onrender.com*)
-              echo "Skip smoke-prod: SMOKE_BASE_URL apunta a Render (retirado). Actualiza la variable a http://<LoadBalancerDNS>"
-              exit 0
-              ;;
-          esac
+          if ! python3 scripts/smoke_prod.py --check-render-url "${SMOKE_BASE_URL}"; then
+            echo "Skip smoke-prod: SMOKE_BASE_URL apunta a Render (retirado). Actualiza la variable a http://<LoadBalancerDNS>"
+            exit 0
+          fi
           make smoke-prod

@@ -32,7 +32,9 @@ package "backend.api.routes" {
   class PredictRoutes <<module>> {
     +predict(...): PredictionResponse
     +list_predictions(...): list[PredictionHistoryItem]
-    +prediction_image_signed_url(...): PredictionImageSignedUrlOut
+    +get_prediction(...): PredictionDetailOut
+    +sync_predictions_metadata(...): PredictionSyncMetadataResponse
+    +upload_prediction_image(...): PredictionImageUploadOut
   }
 
   class ModelRoutes <<module>> {
@@ -65,7 +67,6 @@ package "backend.schemas" {
   class ProfileOut
   class PredictionResponse
   class PredictionHistoryItem
-  class PredictionImageSignedUrlOut
   class ModelEvaluationOut
 }
 
@@ -87,7 +88,7 @@ AuthRoutes --> AuthService : register/login/me
 AuthRoutes --> ProfileService : profile endpoints
 
 PredictRoutes --> Dependencies : FastAPI Depends
-PredictRoutes --> PredictionService : predict/history/signed URL
+PredictRoutes --> PredictionService : predict/history/sync
 
 ModelRoutes --> ModelEvaluationService : evaluation metadata
 

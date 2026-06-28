@@ -191,12 +191,6 @@ class PredictionImageUploadOut(BaseModel):
     image_sha256: Optional[str] = None
 
 
-class PredictionImageSignedUrlOut(BaseModel):
-    """URL firmada temporal para leer la imagen (no se persiste en ``predictions``)."""
-
-    signed_url: str = Field(description="Enlace firmado a Storage (~1 h).")
-
-
 class PredictionResponse(BaseModel):
     """
     Éxito de ``POST /predict``: fila persistida, probabilidades y decisión binaria **asistida por modelo**.

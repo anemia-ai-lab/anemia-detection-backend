@@ -6,7 +6,6 @@ from backend.api.deps import PredictContextDep, PredictionServiceDep
 from backend.schemas.errors import ErrorResponse
 from backend.schemas.prediction import (
     PredictionDetailOut,
-    PredictionImageSignedUrlOut,
     PredictionImageUploadOut,
     PredictionListResponse,
     PredictionResponse,
@@ -15,8 +14,6 @@ from backend.schemas.prediction import (
 )
 
 router = APIRouter(tags=["predictions"])
-
-# POST /predict: lectura multipart en el servicio; la ruta solo enlaza Starlette/FastAPI.
 
 _PREDICT_RESPONSES: dict[int | str, dict[str, object]] = {
     400: {
@@ -60,15 +57,8 @@ _PREDICT_RESPONSES: dict[int | str, dict[str, object]] = {
     "/predict",
     response_model=PredictionResponse,
     responses=_PREDICT_RESPONSES,
-    summary="Predicción de riesgo (imagen obligatoria)",
-    description=(
-        "Ejecuta inferencia **asistiva** sobre una imagen de uña (CNN MobileNetV2 + calibración por temperatura "
-        "y umbral operacional configurados). Devuelve probabilidades, decisión binaria, nivel de riesgo y metadatos "
-        "persistidos en Supabase.\n\n"
-        "**Alcance:** estimación de riesgo para investigación o triaje informativo; **no** es diagnóstico clínico, "
-        "no sustituye criterio médico ni analítica de laboratorio.\n\n"
-        "Multipart: campo ``image`` obligatorio (JPEG, PNG o WebP); ``birth_date`` y ``notes`` opcionales."
-    ),
+    summary="Inferencia online",
+    description="Multipart: ``image`` (JPEG/PNG/WebP); ``birth_date`` y ``notes`` opcionales.",
 )
 async def predict(
     ctx: PredictContextDep,
@@ -87,31 +77,12 @@ async def predict(
     )
 
 
-@router.post(
-    "/predictions/sync/metadata",
-    response_model=PredictionSyncMetadataResponse,
-    responses=_PREDICT_RESPONSES,
-    summary="Sync offline — paso 1: metadatos en batch",
-    description=(
-        "Ingesta idempotente de predicciones hechas offline (TFLite). "
-        "Cada item requiere ``client_id`` único en el dispositivo. "
-        "Las imágenes se suben en el paso 2 (``POST /predictions/{id}/image``)."
-    ),
-)
-def sync_predictions_metadata(
-    body: PredictionSyncMetadataRequest,
-    ctx: PredictContextDep,
-    svc: PredictionServiceDep,
-) -> PredictionSyncMetadataResponse:
-    user, access_token = ctx
-    return svc.sync_metadata_batch(user, access_token, body)
-
-
 @router.get(
     "/predictions",
     response_model=PredictionListResponse,
     responses=_PREDICT_RESPONSES,
-    summary="List my predictions (paginated)",
+    summary="Historial paginado",
+    description="Query: ``limit`` (1–100), ``cursor`` opaco de la página anterior.",
 )
 def list_predictions(
     ctx: PredictContextDep,
@@ -119,7 +90,6 @@ def list_predictions(
     limit: Annotated[int | None, Query(ge=1, le=100)] = None,
     cursor: Annotated[str | None, Query()] = None,
 ) -> PredictionListResponse:
-    """History for the JWT subject (RLS limits rows to the current user)."""
     _user, access_token = ctx
     return svc.list_predictions_paginated(access_token, limit=limit, cursor=cursor)
 
@@ -128,7 +98,7 @@ def list_predictions(
     "/predictions/{prediction_id}",
     response_model=PredictionDetailOut,
     responses=_PREDICT_RESPONSES,
-    summary="Detalle de una predicción propia",
+    summary="Detalle de predicción",
 )
 def get_prediction(
     prediction_id: str,
@@ -143,7 +113,7 @@ def get_prediction(
     "/predictions/{prediction_id}",
     status_code=204,
     responses=_PREDICT_RESPONSES,
-    summary="Borrar una predicción propia",
+    summary="Borrar predicción",
 )
 def delete_prediction(
     prediction_id: str,
@@ -156,10 +126,29 @@ def delete_prediction(
 
 
 @router.post(
+    "/predictions/sync/metadata",
+    response_model=PredictionSyncMetadataResponse,
+    responses=_PREDICT_RESPONSES,
+    tags=["offline-sync"],
+    summary="Sync offline — paso 1: metadatos",
+    description="Idempotente por ``client_id``; máx. 50 items. Imagen en paso 2.",
+)
+def sync_predictions_metadata(
+    body: PredictionSyncMetadataRequest,
+    ctx: PredictContextDep,
+    svc: PredictionServiceDep,
+) -> PredictionSyncMetadataResponse:
+    user, access_token = ctx
+    return svc.sync_metadata_batch(user, access_token, body)
+
+
+@router.post(
     "/predictions/{prediction_id}/image",
     response_model=PredictionImageUploadOut,
     responses=_PREDICT_RESPONSES,
-    summary="Sync offline — paso 2: subir imagen",
+    tags=["offline-sync"],
+    summary="Sync offline — paso 2: imagen",
+    description="Multipart ``image``; ``image_sha256`` opcional (409 si no coincide).",
 )
 async def upload_prediction_image(
     prediction_id: str,
@@ -176,18 +165,3 @@ async def upload_prediction_image(
         image=image,
         image_sha256=image_sha256,
     )
-
-
-@router.get(
-    "/predictions/{prediction_id}/image-signed-url",
-    response_model=PredictionImageSignedUrlOut,
-    responses=_PREDICT_RESPONSES,
-    summary="URL firmada temporal para la imagen de una predicción propia",
-)
-def prediction_image_signed_url(
-    prediction_id: str,
-    ctx: PredictContextDep,
-    svc: PredictionServiceDep,
-) -> PredictionImageSignedUrlOut:
-    user, access_token = ctx
-    return svc.signed_image_url_for_prediction(user, access_token, prediction_id)

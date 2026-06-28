@@ -50,6 +50,8 @@ Comparar `p_hand` con:
 
 ## Sincronización con API (offline → backend)
 
+Contrato HTTP detallado: `/docs` → tag **offline-sync**.
+
 El backend **confía en los resultados TFLite del dispositivo** (no re-inferencia al sincronizar). Usar los mismos `T`, `low_upper`, `high_lower` y agregación documentada arriba.
 
 ### Cola local

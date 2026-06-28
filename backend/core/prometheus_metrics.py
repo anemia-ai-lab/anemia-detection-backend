@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 import time
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -90,14 +89,6 @@ _STATIC_ROUTE_TEMPLATES: frozenset[str] = frozenset(
 )
 
 
-_DYNAMIC_ROUTE_RULES: tuple[tuple[re.Pattern[str], str], ...] = (
-    (
-        re.compile(r"^/predictions/[^/]+/image-signed-url$"),
-        "/predictions/{id}/image-signed-url",
-    ),
-)
-
-
 def _strip_trailing_slash_except_root(path: str) -> str:
     if path == "/" or len(path) <= 1:
         return path or "/"
@@ -115,9 +106,6 @@ def route_template_for_path(path: str) -> str:
     p = _strip_trailing_slash_except_root(p0)
     if p in _STATIC_ROUTE_TEMPLATES:
         return p
-    for pattern, template in _DYNAMIC_ROUTE_RULES:
-        if pattern.match(p):
-            return template
     return "/other"
 
 

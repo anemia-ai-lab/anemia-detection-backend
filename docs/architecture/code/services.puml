@@ -18,7 +18,7 @@ package "backend.services" {
   class PredictionService {
     +run_predict(user: UserOut, access_token: str, body: PredictionCreateBody, file_bytes: bytes, content_type: str?): PredictionResponse
     +list_predictions(access_token: str): list[PredictionHistoryItem]
-    +signed_image_url_for_prediction(user: UserOut, access_token: str, prediction_id: str): PredictionImageSignedUrlOut
+    +get_prediction_detail(...): PredictionDetailOut
   }
 
   class ModelEvaluationService {
@@ -64,7 +64,6 @@ package "backend.schemas" {
   class PredictionCreateBody
   class PredictionResponse
   class PredictionHistoryItem
-  class PredictionImageSignedUrlOut
   class ModelEvaluationOut
 }
 

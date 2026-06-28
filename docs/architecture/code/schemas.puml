@@ -94,9 +94,6 @@ package "backend.schemas.prediction" {
     +message: str?
   }
 
-  class PredictionImageSignedUrlOut {
-    +signed_url: str
-  }
 }
 
 package "backend.schemas.model_evaluation" {

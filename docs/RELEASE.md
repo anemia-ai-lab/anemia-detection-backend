@@ -41,11 +41,12 @@ export SMOKE_BASE_URL=http://<LoadBalancerDNS>
 make smoke-prod
 ```
 
-**GitHub Actions** (workflow [`.github/workflows/ci.yml`](../.github/workflows/ci.yml), job `smoke-prod`):
+**GitHub Actions**
 
-- Triggers: `schedule` (lun/jue 15:00 UTC) y `workflow_dispatch`
+- **Deploy AWS** ([`.github/workflows/deploy-aws.yml`](../.github/workflows/deploy-aws.yml)): push a `main` (rutas relevantes) o `workflow_dispatch`. Smoke post-deploy usa el DNS del ALB desde CloudFormation (no `SMOKE_BASE_URL` del repo).
+- **CI smoke programado** ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml), job `smoke-prod`): `schedule` (lun/jue 15:00 UTC) y `workflow_dispatch`
 - Secrets: `SMOKE_EMAIL`, `SMOKE_PASSWORD`, `METRICS_BEARER_TOKEN`
-- Variable obligatoria para smoke: `SMOKE_BASE_URL` (sin barra final)
+- Variable para CI programado: `SMOKE_BASE_URL` (DNS del ALB, sin barra final)
 
 El script registra el usuario en el primer run si `login` devuelve 401.
 
@@ -53,7 +54,7 @@ El script registra el usuario en el primer run si `login` devuelve 401.
 
 | # | Request | Esperado |
 |---|---------|----------|
-| 1 | `GET /health` | `status=ok`, `model_loaded=true`, `model_version=v2.0` |
+| 1 | `GET /health` | `status=ok`, `model_loaded=true`, `model_version=v2.0`, `supabase_ready=true` si el campo está presente |
 | 2 | `POST /auth/login` (o `register` + `login`) | 200 + JWT |
 | 3 | `GET /auth/me/profile` | 200 con JWT |
 | 4 | `POST /predict` | 200, `risk` en low/medium/high |
