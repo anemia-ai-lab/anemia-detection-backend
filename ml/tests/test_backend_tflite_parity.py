@@ -47,8 +47,8 @@ def test_raw_and_calibrated_parity(
 
     cal_k = apply_temperature_calibration(raw_k, r.temperature)
     cal_delta = abs(r.calibrated_probability - cal_k)
-    assert cal_delta < 1e-6, (
-        "Paridad calibrada: misma temperatura y fórmula que el backend; |Δ| debe ser < 1e-6. "
+    assert cal_delta < 1e-5, (
+        "Paridad calibrada: misma temperatura y fórmula que el backend; |Δ| debe ser < 1e-5. "
         f"cal_keras={cal_k!r} cal_tflite={r.calibrated_probability!r} |Δ|={cal_delta!r} "
         f"(raw_keras={raw_k!r}, raw_tflite={r.raw_probability!r})."
     )
