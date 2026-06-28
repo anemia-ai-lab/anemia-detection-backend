@@ -34,6 +34,7 @@ _AUTH_ERROR_RESPONSES: dict[int | str, dict[str, object]] = {
     "/register",
     response_model=RegisterAuthResponse,
     responses=_AUTH_ERROR_RESPONSES,
+    tags=["auth"],
     summary="Register (auth user + intento de fila en profiles)",
 )
 def register(body: RegisterRequest, auth: AuthServiceDep) -> RegisterAuthResponse:
@@ -44,6 +45,7 @@ def register(body: RegisterRequest, auth: AuthServiceDep) -> RegisterAuthRespons
     "/login",
     response_model=LoginAuthResponse,
     responses=_AUTH_ERROR_RESPONSES,
+    tags=["auth"],
     summary="Login",
 )
 def login(body: LoginRequest, auth: AuthServiceDep) -> LoginAuthResponse:
@@ -54,6 +56,7 @@ def login(body: LoginRequest, auth: AuthServiceDep) -> LoginAuthResponse:
     "/refresh",
     response_model=LoginAuthResponse,
     responses=_AUTH_ERROR_RESPONSES,
+    tags=["auth"],
     summary="Refresh session (Supabase refresh token)",
 )
 def refresh(body: RefreshRequest, auth: AuthServiceDep) -> LoginAuthResponse:
@@ -64,6 +67,7 @@ def refresh(body: RefreshRequest, auth: AuthServiceDep) -> LoginAuthResponse:
     "/me",
     response_model=UserOut,
     responses=_AUTH_ERROR_RESPONSES,
+    tags=["auth"],
     summary="Current user (JWT)",
 )
 def me(token: AccessTokenDep, auth: AuthServiceDep) -> UserOut:
@@ -74,6 +78,7 @@ def me(token: AccessTokenDep, auth: AuthServiceDep) -> UserOut:
     "/me/profile",
     response_model=ProfileOut,
     responses=_AUTH_ERROR_RESPONSES,
+    tags=["profile"],
     summary="Mi perfil (tabla profiles + email desde auth)",
 )
 def get_my_profile(
@@ -88,6 +93,7 @@ def get_my_profile(
     "/me/profile",
     response_model=ProfileOut,
     responses=_AUTH_ERROR_RESPONSES,
+    tags=["profile"],
     summary="Actualizar mi perfil (crea fila si no existía)",
 )
 def patch_my_profile(

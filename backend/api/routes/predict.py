@@ -13,7 +13,7 @@ from backend.schemas.prediction import (
     PredictionSyncMetadataResponse,
 )
 
-router = APIRouter(tags=["predictions"])
+router = APIRouter()
 
 _PREDICT_RESPONSES: dict[int | str, dict[str, object]] = {
     400: {
@@ -57,6 +57,7 @@ _PREDICT_RESPONSES: dict[int | str, dict[str, object]] = {
     "/predict",
     response_model=PredictionResponse,
     responses=_PREDICT_RESPONSES,
+    tags=["predictions"],
     summary="Inferencia online",
     description="Multipart: ``image`` (JPEG/PNG/WebP); ``birth_date`` y ``notes`` opcionales.",
 )
@@ -81,6 +82,7 @@ async def predict(
     "/predictions",
     response_model=PredictionListResponse,
     responses=_PREDICT_RESPONSES,
+    tags=["predictions"],
     summary="Historial paginado",
     description="Query: ``limit`` (1–100), ``cursor`` opaco de la página anterior.",
 )
@@ -98,6 +100,7 @@ def list_predictions(
     "/predictions/{prediction_id}",
     response_model=PredictionDetailOut,
     responses=_PREDICT_RESPONSES,
+    tags=["predictions"],
     summary="Detalle de predicción",
 )
 def get_prediction(
@@ -113,6 +116,7 @@ def get_prediction(
     "/predictions/{prediction_id}",
     status_code=204,
     responses=_PREDICT_RESPONSES,
+    tags=["predictions"],
     summary="Borrar predicción",
 )
 def delete_prediction(

@@ -66,9 +66,12 @@ app = FastAPI(
         {
             "name": "auth",
             "description": (
-                "Supabase Auth: registro, login, refresh (opcional; supabase-js puede refrescar directo), "
-                "/me, perfil GET/PATCH."
+                "Supabase Auth: registro, login, refresh (opcional; supabase-js puede refrescar directo), /me."
             ),
+        },
+        {
+            "name": "profile",
+            "description": "Tabla profiles: GET/PATCH /auth/me/profile. Email desde auth.",
         },
         {
             "name": "predictions",
@@ -189,7 +192,7 @@ def prometheus_metrics_endpoint(request: Request) -> Response:
     return Response(content=payload, media_type=ctype)
 
 
-app.include_router(auth_router, prefix="/auth", tags=["auth"])
+app.include_router(auth_router, prefix="/auth")
 app.include_router(model_router, prefix="/model")
 app.include_router(predict_router)
 
