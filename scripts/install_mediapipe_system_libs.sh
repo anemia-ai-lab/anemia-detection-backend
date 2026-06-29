@@ -8,12 +8,18 @@ if [ "$(uname -s)" != Linux ]; then
   exit 0
 fi
 
+apt_pkg_installable() {
+  local candidate
+  candidate="$(apt-cache policy "$1" 2>/dev/null | awk '/Candidate:/ {print $2; exit}')"
+  [ -n "${candidate:-}" ] && [ "${candidate}" != "(none)" ]
+}
+
 pick_packages() {
   PACKAGES=()
-  if apt-cache show libgl1-mesa-glx >/dev/null 2>&1; then
+  # apt-cache show puede listar libgl1-mesa-glx en Ubuntu aunque no sea instalable.
+  if apt_pkg_installable libgl1-mesa-glx && apt_pkg_installable libgles2-mesa; then
     PACKAGES+=(libgl1-mesa-glx libgles2-mesa libegl1-mesa)
   else
-    # Ubuntu 23.10+ / noble: libgl1-mesa-glx obsoleto
     PACKAGES+=(libgl1 libglx-mesa0 libgles2 libegl1)
   fi
 }
