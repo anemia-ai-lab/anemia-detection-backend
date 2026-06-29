@@ -15,7 +15,7 @@
 
 - **Cribado e investigación** — no diagnóstico clínico ni recomendación terapéutica.
 - Dataset proxy **Ghana pediátrico**; sin validación en cohorte peruana.
-- Rate limit **in-memory** (adecuado para demo/piloto; no multi-réplica sin Redis).
+- Rate limit **in-memory** (adecuado para demo/piloto con 1 réplica ECS).
 - App móvil es cliente externo; contrato offline en [`ml/docs/MOBILE_INFERENCE.md`](../ml/docs/MOBILE_INFERENCE.md).
 
 ## Artefactos móvil (en repo)
@@ -59,7 +59,8 @@ El script registra el usuario en el primer run si `login` devuelve 401.
 | 3 | `GET /auth/me/profile` | 200 con JWT |
 | 4 | `POST /predict` (JPEG `scripts/fixtures/smoke_hand.jpg`, MediaPipe) | 200, `risk` válido, `preprocessing.detector=mediapipe_hands` |
 | 5 | `GET /predictions` | 200, incluye la predicción del paso 4 |
-| 6 | `GET /metrics` + `Authorization: Bearer $METRICS_BEARER_TOKEN` | 200 Prometheus |
+| 6 | `POST /predictions/sync/metadata` + `POST /predictions/{id}/image` + idempotencia + `GET /predictions/{id}` | sync offline `tflite_offline`, `has_image=true` |
+| 7 | `GET /metrics` + `Authorization: Bearer $METRICS_BEARER_TOKEN` | 200 Prometheus |
 
 ## Pre-deploy checklist
 

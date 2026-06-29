@@ -51,12 +51,18 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument(
         "--tflite-path",
         type=Path,
-        default=ML_ROOT / "artifacts" / "models" / "baseline_mobilenetv2_ghana_augmented_seed42.tflite",
+        default=ML_ROOT
+        / "artifacts"
+        / "models"
+        / "baseline_mobilenetv2_ghana_augmented_seed42.tflite",
     )
     p.add_argument(
         "--metadata-path",
         type=Path,
-        default=ML_ROOT / "artifacts" / "models" / "baseline_mobilenetv2_ghana_augmented_seed42.metadata.json",
+        default=ML_ROOT
+        / "artifacts"
+        / "models"
+        / "baseline_mobilenetv2_ghana_augmented_seed42.metadata.json",
     )
     p.add_argument("--output-json", type=Path, default=None, help="Escribir JSON además de stdout.")
     p.add_argument(

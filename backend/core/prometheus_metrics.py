@@ -59,12 +59,41 @@ PREDICT_NAIL_DETECTION_FAILURES_TOTAL = Counter(
     ["reason"],
 )
 
+RATE_LIMIT_EXCEEDED_TOTAL = Counter(
+    "rate_limit_exceeded_total",
+    "Peticiones rechazadas por rate limit (HTTP 429).",
+    ["path"],
+)
+
+SYNC_METADATA_REJECTED_TOTAL = Counter(
+    "sync_metadata_rejected_total",
+    "Metadatos sync offline rechazados por validación.",
+    ["reason"],
+)
+
+SYNC_COMPLETED_TOTAL = Counter(
+    "sync_completed_total",
+    "Sync offline completado (imagen subida tras metadata tflite_offline).",
+)
+
 _PREDICT_PHASES = frozenset({"preprocess", "inference", "storage_upload", "db_insert"})
 
 
 def record_nail_detection_failure(reason: str) -> None:
     """Incrementa contador cuando multinail rechaza por detección insuficiente."""
     PREDICT_NAIL_DETECTION_FAILURES_TOTAL.labels(reason=reason).inc()
+
+
+def record_rate_limit_exceeded(path: str) -> None:
+    RATE_LIMIT_EXCEEDED_TOTAL.labels(path=path).inc()
+
+
+def record_sync_metadata_rejected(reason: str) -> None:
+    SYNC_METADATA_REJECTED_TOTAL.labels(reason=reason).inc()
+
+
+def record_sync_completed() -> None:
+    SYNC_COMPLETED_TOTAL.inc()
 
 
 @contextmanager
@@ -88,6 +117,7 @@ _STATIC_ROUTE_TEMPLATES: frozenset[str] = frozenset(
         "/metrics",
         "/predict",
         "/predictions",
+        "/predictions/sync/metadata",
         "/auth/register",
         "/auth/login",
         "/auth/me",
@@ -117,6 +147,8 @@ def route_template_for_path(path: str) -> str:
     p = _strip_trailing_slash_except_root(p0)
     if p in _STATIC_ROUTE_TEMPLATES:
         return p
+    if p.startswith("/predictions/") and p.endswith("/image"):
+        return "/predictions/{id}/image"
     return "/other"
 
 

@@ -12,6 +12,7 @@ client = TestClient(app)
 def test_model_evaluation_returns_config_metrics() -> None:
     response = client.get("/model/evaluation")
     assert response.status_code == 200
+    assert response.headers.get("cache-control") == "public, max-age=3600"
     data = response.json()
     assert data["model_version"] == "v2.0"
     assert data["auc"] == pytest.approx(0.681532)

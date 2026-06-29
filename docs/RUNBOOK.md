@@ -149,6 +149,46 @@ No hace falta índice adicional mientras el volumen sea bajo/medio. Si el histor
 
 Métricas por fase de `POST /predict` en `/metrics`: `predict_phase_duration_seconds{phase="preprocess|inference|storage_upload|db_insert"}`.
 
+### Baseline de latencia (antes de cambios de caché)
+
+Establecer p50/p95 por fase en producción (requiere `METRICS_BEARER_TOKEN`):
+
+```bash
+curl -sS -H "Authorization: Bearer $METRICS_BEARER_TOKEN" \
+  "$SMOKE_BASE_URL/metrics" | grep predict_phase_duration_seconds
+```
+
+Interpretación esperada:
+
+| Fase | Cuello de botella típico |
+|------|--------------------------|
+| `inference` | CPU (ensemble Keras + MediaPipe) — **no** se mejora con caché HTTP |
+| `storage_upload` | Supabase Storage — revisar red/región |
+| `db_insert` | PostgREST — revisar índices si crece el historial |
+| `preprocess` | Decodificación/redimensionado de imagen |
+
+Registrar el baseline (fecha + valores) antes de desplegar optimizaciones de caché. Si `inference` domina, priorizar `INFERENCE_TTA_ENABLED=false` y CPU de Fargate.
+
+Automático:
+
+```bash
+export SMOKE_BASE_URL=http://<LoadBalancerDNS>
+export METRICS_BEARER_TOKEN=<token>
+make metrics-baseline
+```
+
+## Caché in-memory
+
+| Capa | Implementación |
+|------|----------------|
+| Modelo Keras / MediaPipe | Singleton en memoria del proceso |
+| URLs firmadas Storage | `TTLCache` local (~50 min) |
+| `GET /model/evaluation` | `Cache-Control: public, max-age=3600` |
+| Rate limit | In-memory por proceso (adecuado con **1 réplica ECS**) |
+| Auth `get_user` | Caché local corta (`AUTH_USER_CACHE_TTL_SECONDS`, default 60) |
+
+Producción actual: **1 tarea Fargate** (`desiredCount: 1`). Escala horizontal (2+ tareas) queda fuera de alcance: el rate limit no sería global entre instancias.
+
 ## Variables de entorno críticas
 
 | Variable | Uso |
@@ -166,7 +206,12 @@ Métricas por fase de `POST /predict` en `/metrics`: `predict_phase_duration_sec
 | `INFERENCE_RISK_TIER_HIGH_LOWER` | Límite inferior del tier `high` (v2). |
 | `DISABLE_TF` | Omite carga TF en runtime cuando aplica (p. ej. tests). |
 | `METRICS_BEARER_TOKEN` | Protege `/metrics` fuera de entornos locales si está definido. |
-| `RATE_LIMIT_*`, `TRUST_PROXY_HEADERS` | Rate limit y confianza en proxy. |
+| `RATE_LIMIT_*`, `TRUST_PROXY_HEADERS` | Rate limit in-memory y confianza en proxy. |
+| `RATE_LIMIT_SYNC_METADATA_REQUESTS` | Límite POST `/predictions/sync/metadata` (default 10/min). |
+| `RATE_LIMIT_SYNC_IMAGE_REQUESTS` | Límite POST `/predictions/{id}/image` (default 30/min). |
+| `AUTH_USER_CACHE_TTL_SECONDS` | TTL caché local de `get_user` (0 = desactivado; default 60). |
+| `SUPABASE_JWT_SECRET` | Opcional: verificación JWT local (Dashboard → JWT Secret). |
+| `INFERENCE_TTA_ENABLED` | `false` en prod si p95 de `inference` es alto (TTA duplica inferencias). |
 | `PREDICTIONS_STORAGE_BUCKET` | Bucket de imágenes (debe coincidir con migraciones SQL; no cambiar sin nueva migración). |
 | `PREDICTION_IMAGE_MAX_BYTES` | Tope de subida (default **20 MB**). |
 | `PREDICTION_IMAGE_MAX_PIXELS` | Tope al decodificar (default **50 MP**; fotos iPhone). |

@@ -13,7 +13,11 @@ from backend.core.config import settings
 from backend.core.exceptions import ClientHttpError, PredictionServiceError
 from backend.core.prediction_cursor import encode_prediction_cursor
 from backend.core.prediction_image_limits import prediction_image_max_bytes
-from backend.core.prometheus_metrics import observe_predict_phase, record_nail_detection_failure
+from backend.core.prometheus_metrics import (
+    observe_predict_phase,
+    record_nail_detection_failure,
+    record_sync_completed,
+)
 from backend.core.risk_mapping import anemia_risk_label, risk_from_probability
 from backend.core.upload_io import UploadExceedsMaxBytesError, read_upload_file_with_byte_limit
 from backend.inference.image_predictor import ImagePredictor
@@ -47,6 +51,7 @@ from backend.schemas.prediction import (
     PredictionSyncMetadataResponse,
     PredictionSyncMetadataResult,
 )
+from backend.services.sync_metadata_validation import validate_sync_metadata_item
 
 _INFERENCE_MODE_BACKEND = "backend"
 
@@ -470,6 +475,13 @@ class PredictionService:
                 created=False,
             )
 
+        validate_sync_metadata_item(
+            item,
+            expected_model_version=settings.model_version,
+            low_upper=float(settings.inference_risk_tier_low_upper),
+            high_lower=float(settings.inference_risk_tier_high_lower),
+        )
+
         ref = patient_age.utc_today()
         birth = item.birth_date
         birth_iso = birth.isoformat() if birth is not None else None
@@ -587,7 +599,8 @@ class PredictionService:
             image_sha256 = hashlib.sha256(raw).hexdigest()
 
         normalized_ct, processed_bytes, rgb = prepare_prediction_image(content_type, raw)
-        self._nail_checker(rgb)
+        if row.get("inference_mode") != "tflite_offline":
+            self._nail_checker(rgb)
         path = self._images.upload_user_image(
             access_token,
             user_id=user.id,
@@ -606,6 +619,8 @@ class PredictionService:
             raise
 
         url = self._images.create_signed_url(access_token, path)
+        if row.get("inference_mode") == "tflite_offline":
+            record_sync_completed()
         return PredictionImageUploadOut(
             id=str(updated["id"]),
             image_storage_path=path,

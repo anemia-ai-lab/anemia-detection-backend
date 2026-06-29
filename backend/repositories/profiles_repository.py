@@ -89,11 +89,7 @@ class ProfilesRepository:
         client.postgrest.auth(access_token)
         upsert_body = {"id": user_id, **payload}
         try:
-            res = (
-                client.from_("profiles")
-                .upsert(upsert_body, on_conflict="id")
-                .execute()
-            )
+            res = client.from_("profiles").upsert(upsert_body, on_conflict="id").execute()
         except APIError:
             logger.exception("profiles upsert_profile failed user_id=%s", user_id)
             raise

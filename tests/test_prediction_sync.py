@@ -44,7 +44,7 @@ def _base_row(**overrides: object) -> dict:
         "inference_mode": "tflite_offline",
         "raw_probability": 0.15,
         "calibrated_probability": 0.12,
-        "threshold_used": 0.168,
+        "threshold_used": 0.3815443834698594,
         "prediction": 0,
         "client_created_at": "2026-04-30T08:00:00+00:00",
         "image_sha256": "abc123",
@@ -64,7 +64,7 @@ def _sync_item_payload() -> dict:
         "score": 0.12,
         "raw_probability": 0.15,
         "calibrated_probability": 0.12,
-        "threshold_used": 0.168,
+        "threshold_used": 0.3815443834698594,
         "prediction": 0,
         "model_version": "v2.0",
         "inference_mode": "tflite_offline",
@@ -344,5 +344,123 @@ def test_list_predictions_invalid_cursor() -> None:
         )
         assert response.status_code == 400
         assert response.json()["code"] == "invalid_cursor"
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_upload_offline_skips_nail_checker(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Sync paso 2: tflite_offline no exige heurística de uña (solo archivar foto)."""
+    import numpy as np
+
+    from backend.core.exceptions import PredictionServiceError
+
+    uploaded: list[tuple[bytes, str]] = []
+
+    class FakeRepo:
+        def fetch_by_id(self, _token: str, prediction_id: str) -> dict | None:
+            assert prediction_id == PRED_ID
+            return _base_row(image_storage_path=None, image_sha256=None)
+
+        def update_image_for_prediction(
+            self,
+            _token: str,
+            prediction_id: str,
+            *,
+            image_storage_path: str,
+            image_sha256: str | None = None,
+        ) -> dict:
+            return _base_row(
+                image_storage_path=image_storage_path,
+                image_sha256=image_sha256,
+            )
+
+    class FakeImg:
+        def upload_user_image(
+            self, _token: str, *, user_id: str, file_bytes: bytes, content_type: str
+        ) -> str:
+            uploaded.append((file_bytes, content_type))
+            return f"{user_id}/offline.png"
+
+        def create_signed_url(self, _token: str, _path: str) -> str:
+            return "https://signed/offline"
+
+    def _reject_checker(_rgb: np.ndarray) -> None:
+        checker_calls.append(1)
+        raise PredictionServiceError("no nail", 400, code="no_fingernail_detected")
+
+    checker_calls: list[int] = []
+
+    monkeypatch.setattr(
+        "backend.services.prediction_service.prepare_prediction_image",
+        lambda _ct, raw: ("image/png", raw, np.zeros((32, 32, 3), dtype=np.uint8)),
+    )
+
+    svc = PredictionService(repo=FakeRepo(), images=FakeImg(), nail_checker=_reject_checker)
+    out = svc._finish_upload_prediction_image(
+        _user(),
+        TOKEN,
+        PRED_ID,
+        b"png-bytes",
+        "image/png",
+        None,
+    )
+    assert out.image_storage_path.endswith("offline.png")
+    assert uploaded
+    assert checker_calls == []
+
+
+def test_upload_prediction_image_success_offline(monkeypatch: pytest.MonkeyPatch) -> None:
+    from tests.test_predict import _skip_nail, skin_patch_png
+
+    stored_path: list[str] = []
+
+    class FakeRepo:
+        def fetch_by_id(self, _token: str, prediction_id: str) -> dict | None:
+            return _base_row(image_storage_path=None, image_sha256=None)
+
+        def update_image_for_prediction(
+            self,
+            _token: str,
+            prediction_id: str,
+            *,
+            image_storage_path: str,
+            image_sha256: str | None = None,
+        ) -> dict:
+            stored_path.append(image_storage_path)
+            return _base_row(
+                image_storage_path=image_storage_path,
+                image_sha256=image_sha256,
+            )
+
+    class FakeImg:
+        def upload_user_image(
+            self, _token: str, *, user_id: str, file_bytes: bytes, content_type: str
+        ) -> str:
+            return f"{user_id}/new.png"
+
+        def create_signed_url(self, _token: str, path: str) -> str:
+            return f"https://signed/{path}"
+
+        def delete_user_image(self, _token: str, _path: str) -> None:
+            return None
+
+    app.dependency_overrides[api_deps.get_predict_context] = _fake_context
+    app.dependency_overrides[api_deps.get_prediction_service] = lambda: PredictionService(
+        repo=FakeRepo(),
+        images=FakeImg(),
+        nail_checker=_skip_nail,
+    )
+    try:
+        response = client.post(
+            f"/predictions/{PRED_ID}/image",
+            headers={"Authorization": f"Bearer {TOKEN}"},
+            files={"image": ("m.png", skin_patch_png(), "image/png")},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["image_storage_path"] == f"{USER_ID}/new.png"
+        assert data["image_signed_url"].startswith("https://signed/")
+        assert data["image_sha256"]
+        assert stored_path == [f"{USER_ID}/new.png"]
     finally:
         app.dependency_overrides.clear()

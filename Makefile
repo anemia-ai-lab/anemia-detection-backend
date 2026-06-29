@@ -1,4 +1,4 @@
-.PHONY: install run dev lint format test smoke-prod cdk-synth docker-push-ecr download-hand-landmarker ml-test ml-venv ml-install ml-tf-check ml-test-docker \
+.PHONY: install run dev lint format test smoke-prod metrics-baseline cdk-synth docker-push-ecr download-hand-landmarker ml-test ml-venv ml-install ml-tf-check ml-test-docker \
 	db-push ml-train-demo ml-train ml-train-finetune ml-eval ml-eval-ghana \
 	ml-prepare-ghana ml-docker-eval-ghana ml-docker-train-finetune ml-docker-finetune-ghana \
 	ml-docker-train-ghana-scratch ml-docker-calibrate-ghana \
@@ -41,6 +41,9 @@ test:
 
 smoke-prod:
 	$(PYTHON) scripts/smoke_prod.py
+
+metrics-baseline:
+	$(PYTHON) scripts/metrics_baseline.py
 
 cdk-synth:
 	@test -d infra/.venv || (echo "Run: cd infra && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt"; exit 1)

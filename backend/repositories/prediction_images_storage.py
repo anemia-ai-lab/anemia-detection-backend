@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import uuid
 
+from cachetools import TTLCache
 from storage3.exceptions import StorageApiError
 from storage3.utils import StorageException
 
@@ -20,6 +21,18 @@ from backend.integrations.supabase_client import create_supabase_user_client
 logger = logging.getLogger(__name__)
 
 _SIGNED_URL_TTL_S: int = 3600
+_SIGNED_URL_CACHE_TTL_S: int = 3000
+_SIGNED_URL_CACHE_MAXSIZE: int = 2048
+
+_signed_url_cache: TTLCache[str, str] = TTLCache(
+    maxsize=_SIGNED_URL_CACHE_MAXSIZE,
+    ttl=_SIGNED_URL_CACHE_TTL_S,
+)
+
+
+def clear_signed_url_cache_for_tests() -> None:
+    """Vacía la caché de URLs firmadas (tests)."""
+    _signed_url_cache.clear()
 
 
 class PredictionImagesStorage:
@@ -77,6 +90,7 @@ class PredictionImagesStorage:
 
     def delete_user_image(self, access_token: str, object_path: str) -> None:
         """Best-effort delete after a failed DB insert (compensating action)."""
+        _signed_url_cache.pop(object_path, None)
         bucket = settings.predictions_storage_bucket.strip() or "prediction-images"
         client = create_supabase_user_client(access_token)
         try:
@@ -91,6 +105,10 @@ class PredictionImagesStorage:
 
     def create_signed_url(self, access_token: str, object_path: str) -> str:
         """URL firmada temporal para un objeto ya existente (mismo JWT que posee el prefijo)."""
+        cached = _signed_url_cache.get(object_path)
+        if cached is not None:
+            return cached
+
         bucket = settings.predictions_storage_bucket.strip() or "prediction-images"
         client = create_supabase_user_client(access_token)
         try:
@@ -116,4 +134,6 @@ class PredictionImagesStorage:
                 502,
                 code="signed_url_empty",
             )
-        return str(url)
+        url_str = str(url)
+        _signed_url_cache[object_path] = url_str
+        return url_str

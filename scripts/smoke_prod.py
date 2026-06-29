@@ -87,8 +87,7 @@ def smoke_hand_jpeg() -> bytes:
     """JPEG con mano real (índice/medio/anular) para MediaPipe en smoke prod."""
     if not _SMOKE_HAND_FIXTURE.is_file():
         print(
-            f"ERROR: falta fixture {_SMOKE_HAND_FIXTURE} "
-            "(imagen de mano para smoke /predict).",
+            f"ERROR: falta fixture {_SMOKE_HAND_FIXTURE} (imagen de mano para smoke /predict).",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -266,6 +265,95 @@ def check_metrics(client: httpx.Client, base: str, metrics_token: str) -> None:
     _ok(step)
 
 
+def _offline_sync_metadata_payload(client_id: str) -> dict:
+    return {
+        "items": [
+            {
+                "client_id": client_id,
+                "risk": "low",
+                "score": 0.12,
+                "raw_probability": 0.15,
+                "calibrated_probability": 0.12,
+                "threshold_used": 0.3815443834698594,
+                "prediction": 0,
+                "model_version": "v2.0",
+                "inference_mode": "tflite_offline",
+                "client_created_at": "2026-04-30T08:00:00+00:00",
+                "preprocessing": {"aggregation": "max", "fingers": ["index", "middle", "ring"]},
+            }
+        ]
+    }
+
+
+def check_offline_sync(
+    client: httpx.Client,
+    base: str,
+    token: str,
+    image_bytes: bytes,
+) -> None:
+    import uuid
+
+    client_id = str(uuid.uuid4())
+    step = "offline-sync/metadata"
+    r = client.post(
+        f"{base}/predictions/sync/metadata",
+        headers={"Authorization": f"Bearer {token}"},
+        json=_offline_sync_metadata_payload(client_id),
+    )
+    if r.status_code != 200:
+        _fail(step, r.text, status=r.status_code)
+    result = r.json()["results"][0]
+    if not result.get("created"):
+        _fail(step, "expected created=true on first sync")
+    if not result.get("image_pending"):
+        _fail(step, "expected image_pending=true")
+    pred_id = result.get("id")
+    if not pred_id:
+        _fail(step, "missing prediction id")
+    _ok(step, f"id={pred_id}")
+
+    step = "offline-sync/image"
+    files = {"image": ("smoke_hand.jpg", image_bytes, "image/jpeg")}
+    r_img = client.post(
+        f"{base}/predictions/{pred_id}/image",
+        headers={"Authorization": f"Bearer {token}"},
+        files=files,
+        timeout=TIMEOUT_PREDICT,
+    )
+    if r_img.status_code != 200:
+        _fail(step, r_img.text, status=r_img.status_code)
+    if not r_img.json().get("image_signed_url"):
+        _fail(step, "missing image_signed_url")
+    _ok(step)
+
+    step = "offline-sync/idempotent"
+    r_retry = client.post(
+        f"{base}/predictions/sync/metadata",
+        headers={"Authorization": f"Bearer {token}"},
+        json=_offline_sync_metadata_payload(client_id),
+    )
+    if r_retry.status_code != 200:
+        _fail(step, r_retry.text, status=r_retry.status_code)
+    retry = r_retry.json()["results"][0]
+    if retry.get("created"):
+        _fail(step, "expected created=false on retry")
+    _ok(step)
+
+    step = "offline-sync/detail"
+    r_detail = client.get(
+        f"{base}/predictions/{pred_id}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    if r_detail.status_code != 200:
+        _fail(step, r_detail.text, status=r_detail.status_code)
+    detail = r_detail.json()
+    if detail.get("inference_mode") != "tflite_offline":
+        _fail(step, f"inference_mode={detail.get('inference_mode')!r}")
+    if not detail.get("has_image"):
+        _fail(step, "has_image=false")
+    _ok(step)
+
+
 def main() -> None:
     base = _base_url()
     email = _env("SMOKE_EMAIL", required=True)
@@ -281,6 +369,7 @@ def main() -> None:
         check_profile(client, base, token)
         pred_id = check_predict(client, base, token, image_bytes)
         check_predictions_list(client, base, token, expect_id=pred_id)
+        check_offline_sync(client, base, token, image_bytes)
         check_metrics(client, base, metrics_token)
 
     print("Smoke prod: todos los pasos OK")

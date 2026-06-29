@@ -42,6 +42,18 @@ Ablaciones: `make ml-docker-train-ghana-focal`, `make ml-docker-train-ghana-mobi
 
 **Limitaciones:** proxy Ghana (sin cohorte peruana); tier medio = zona gris; calidad de recorte OpenCV y protocolo anular/medio/índice dominan en campo.
 
+### Track cohorte peruana (futuro)
+
+Checklist de investigación antes de reclamar validez local (no cambia el API):
+
+1. Recolectar dataset con hemoglobina de referencia en Perú.
+2. Re-entrenar o recalibrar (`ml-docker-calibrate-ensemble-ghana` con nuevo JSON de validación).
+3. Sincronizar constantes: `python ml/scripts/sync_calibration_constants.py`.
+4. Exportar TFLite + actualizar app móvil.
+5. Documentar métricas en `artifacts/runs/` y actualizar `MODEL_VERSION`.
+
+Ver también [`docs/TRACEABILITY.md`](../docs/TRACEABILITY.md).
+
 Tabla comparativa: [`docs/CONFERENCE_EXPERIMENTS.md`](docs/CONFERENCE_EXPERIMENTS.md).
 
 Evaluación externa (modelo + calibración Nature, test Ghana):

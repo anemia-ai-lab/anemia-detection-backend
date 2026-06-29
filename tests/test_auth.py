@@ -224,6 +224,27 @@ def test_me_with_valid_jwt_shape_calls_supabase_get_user(monkeypatch: pytest.Mon
     mock_client.auth.get_user.assert_called_once_with("eyJ.hbG.ccc")
 
 
+def test_me_uses_auth_user_cache_on_second_request(monkeypatch: pytest.MonkeyPatch) -> None:
+    from backend.core.auth_user_cache import clear_auth_user_cache_for_tests
+
+    clear_auth_user_cache_for_tests()
+    monkeypatch.setattr(config_module.settings, "auth_user_cache_ttl_seconds", 60)
+    mock_client = MagicMock()
+    mock_client.auth.get_user.return_value = sample_user_response(email="cached@example.com")
+    monkeypatch.setattr(
+        auth_repository_module,
+        "create_supabase_anon_client",
+        lambda: mock_client,
+    )
+    headers = {"Authorization": "Bearer eyJ.hbG.ccc"}
+    r1 = client.get("/auth/me", headers=headers)
+    r2 = client.get("/auth/me", headers=headers)
+    assert r1.status_code == 200
+    assert r2.status_code == 200
+    assert r1.json()["email"] == "cached@example.com"
+    mock_client.auth.get_user.assert_called_once_with("eyJ.hbG.ccc")
+
+
 def test_me_supabase_rejects_token(monkeypatch: pytest.MonkeyPatch) -> None:
     mock_client = MagicMock()
     mock_client.auth.get_user.side_effect = AuthApiError(

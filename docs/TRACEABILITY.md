@@ -41,6 +41,18 @@ Mapeo breve de responsabilidades a rutas en el repo (defensa / auditoría).
 | Imagen en API | `backend/inference/prediction_image_input.py` (coherente con decode ML; ver código) |
 | Calibración / TFLite | `backend/core/config.py`, `ml/README.md` |
 | Versión | `MODEL_VERSION` / campos `model_version` |
+| Sync offline | `backend/services/prediction_service.py`, `ml/docs/MOBILE_INFERENCE.md` |
+
+## Validación cohorte peruana (investigación futura)
+
+El modelo v2 está calibrado en cohorte **Ghana pediátrica**. Antes de uso clínico ampliado en Perú:
+
+- [ ] Dataset etiquetado con hemoglobina en cohorte local
+- [ ] Re-calibración de tiers (`low_upper`, `high_lower`) y `temperature`
+- [ ] Informe de métricas (AUC, sensibilidad operacional, ECE) vs Ghana
+- [ ] Actualizar `MODEL_VERSION` y metadatos TFLite móvil
+
+Sin esto, el backend sigue operativo pero la **generalización clínica no está validada** (ver [`docs/RELEASE.md`](RELEASE.md)).
 
 La documentación no cambia fórmulas de inferencia; solo enlaza responsabilidades.
 

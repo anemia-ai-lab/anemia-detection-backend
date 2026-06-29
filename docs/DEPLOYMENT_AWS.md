@@ -227,7 +227,12 @@ Smoke post-deploy en Deploy AWS si están los secrets anteriores.
 |---------|--------|
 | OOM / 503 en `/predict` | Subir task a 4 GB → 8 GB en `infra/stacks/api_stack.py` |
 | Inferencia lenta | Subir a 4 vCPU; revisar `/metrics` |
-| Mucha concurrencia | `desired_count` > 1 (rate limit in-memory: una instancia hoy) |
+| Mucha concurrencia | Subir CPU/RAM del task; mantener `desiredCount: 1` (rate limit in-memory no es global entre tareas) |
+| p95 alto en fase `inference` | Mantener `INFERENCE_TTA_ENABLED=false` (default); subir vCPU del task |
+
+### Baseline de latencia
+
+Antes de tuning, registrar p50/p95 de `predict_phase_duration_seconds` (ver [`RUNBOOK.md`](RUNBOOK.md#baseline-de-latencia-antes-de-cambios-de-caché) y [`OBSERVABILITY.md`](OBSERVABILITY.md)).
 
 Tras cambiar CPU/RAM: `cdk deploy`.
 

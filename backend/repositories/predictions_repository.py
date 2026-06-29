@@ -123,12 +123,7 @@ class PredictionsRepository:
         if image_sha256 is not None:
             payload["image_sha256"] = image_sha256
         try:
-            result = (
-                client.from_("predictions")
-                .update(payload)
-                .eq("id", prediction_id)
-                .execute()
-            )
+            result = client.from_("predictions").update(payload).eq("id", prediction_id).execute()
         except APIError as e:
             self._raise_db(e, "Could not update prediction image", op="update_image")
         rows = result.data
@@ -151,12 +146,7 @@ class PredictionsRepository:
         """Delete row; returns deleted row with ``id`` and ``image_storage_path``, or ``None``."""
         client = create_supabase_user_client(access_token)
         try:
-            result = (
-                client.from_("predictions")
-                .delete()
-                .eq("id", prediction_id)
-                .execute()
-            )
+            result = client.from_("predictions").delete().eq("id", prediction_id).execute()
         except APIError as e:
             self._raise_db(e, "Could not delete prediction", op="delete")
         rows = result.data

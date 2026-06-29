@@ -77,11 +77,37 @@ class AuthService:
 
     def me(self, access_token: str) -> UserOut:
         """Resolve current user; ``access_token`` must already pass bearer + shape checks."""
+        from backend.core.auth_user_cache import get_cached_user, set_cached_user
+        from backend.core.jwt_verifier import (
+            JwtVerificationError,
+            jwt_local_verification_enabled,
+            verify_access_token_local,
+        )
+
+        cached = get_cached_user(access_token)
+        if cached is not None:
+            return cached
+
+        if jwt_local_verification_enabled():
+            try:
+                verified = verify_access_token_local(access_token)
+            except JwtVerificationError as exc:
+                raise AuthServiceError(exc.message, 401, code=exc.code) from exc
+            user_out = UserOut(
+                id=verified.id,
+                email=verified.email,
+                created_at=None,
+            )
+            set_cached_user(access_token, user_out)
+            return user_out
+
         try:
             ur = self._repo.get_user(access_token)
         except AuthError as e:
             raise map_supabase_auth_error(e, prefer_unauthorized=True) from e
-        return self._user_to_out(ur.user)
+        user_out = self._user_to_out(ur.user)
+        set_cached_user(access_token, user_out)
+        return user_out
 
     def _login_session_response(
         self,

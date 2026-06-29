@@ -81,6 +81,27 @@ class Settings(BaseSettings):
         validation_alias="RATE_LIMIT_PREDICT_REQUESTS",
         description="Máximo de POST /predict por cliente y ventana.",
     )
+    rate_limit_sync_metadata_requests: int = Field(
+        default=10,
+        ge=1,
+        le=1000,
+        validation_alias="RATE_LIMIT_SYNC_METADATA_REQUESTS",
+        description="Máximo de POST /predictions/sync/metadata por cliente y ventana.",
+    )
+    rate_limit_sync_image_requests: int = Field(
+        default=30,
+        ge=1,
+        le=1000,
+        validation_alias="RATE_LIMIT_SYNC_IMAGE_REQUESTS",
+        description="Máximo de POST /predictions/{id}/image por cliente y ventana.",
+    )
+    auth_user_cache_ttl_seconds: int = Field(
+        default=60,
+        ge=0,
+        le=3600,
+        validation_alias="AUTH_USER_CACHE_TTL_SECONDS",
+        description="TTL de caché local para auth.get_user (0 = desactivado).",
+    )
 
     trust_proxy_headers: bool = Field(
         default=False,
@@ -94,6 +115,14 @@ class Settings(BaseSettings):
     supabase_url: str = ""
     supabase_key: str = ""
     supabase_service_role_key: str = ""
+    supabase_jwt_secret: str = Field(
+        default="",
+        validation_alias="SUPABASE_JWT_SECRET",
+        description=(
+            "JWT secret del proyecto Supabase (HS256). Si está definido, auth.me verifica "
+            "localmente sin round-trip a GoTrue."
+        ),
+    )
     predictions_storage_bucket: str = Field(
         default="prediction-images",
         validation_alias="PREDICTIONS_STORAGE_BUCKET",
@@ -305,7 +334,9 @@ class Settings(BaseSettings):
                 msg = "Production requires non-empty configuration: " + ", ".join(missing)
                 raise ValueError(msg)
             invalid: list[str] = []
-            if looks_like_placeholder(self.supabase_url) or not supabase_url_is_valid(self.supabase_url):
+            if looks_like_placeholder(self.supabase_url) or not supabase_url_is_valid(
+                self.supabase_url
+            ):
                 invalid.append("SUPABASE_URL")
             if looks_like_placeholder(self.supabase_key):
                 invalid.append("SUPABASE_KEY")

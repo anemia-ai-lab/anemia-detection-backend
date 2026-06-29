@@ -9,17 +9,11 @@ import pytest
 from ml.tests.conftest import ML_ROOT
 
 OFFICIAL_KERAS = tuple(
-    ML_ROOT
-    / "artifacts"
-    / "models"
-    / f"baseline_mobilenetv2_ghana_augmented_seed{seed}.keras"
+    ML_ROOT / "artifacts" / "models" / f"baseline_mobilenetv2_ghana_augmented_seed{seed}.keras"
     for seed in (42, 123, 456)
 )
 OFFICIAL_TFLITE = tuple(
-    ML_ROOT
-    / "artifacts"
-    / "models"
-    / f"baseline_mobilenetv2_ghana_augmented_seed{seed}.tflite"
+    ML_ROOT / "artifacts" / "models" / f"baseline_mobilenetv2_ghana_augmented_seed{seed}.tflite"
     for seed in (42, 123, 456)
 )
 OFFICIAL_TFLITE_METADATA = tuple(
@@ -29,7 +23,9 @@ OFFICIAL_TFLITE_METADATA = tuple(
     / f"baseline_mobilenetv2_ghana_augmented_seed{seed}.metadata.json"
     for seed in (42, 123, 456)
 )
-ENSEMBLE_METADATA = ML_ROOT / "artifacts" / "models" / "baseline_mobilenetv2_ghana_ensemble.metadata.json"
+ENSEMBLE_METADATA = (
+    ML_ROOT / "artifacts" / "models" / "baseline_mobilenetv2_ghana_ensemble.metadata.json"
+)
 CALIBRATION_JSON = ML_ROOT / "artifacts" / "runs" / "calibration_ensemble_ghana_v2.json"
 CALIBRATION_MD = ML_ROOT / "artifacts" / "runs" / "calibration_ensemble_ghana_v2.md"
 
