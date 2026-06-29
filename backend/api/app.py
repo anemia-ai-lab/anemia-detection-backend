@@ -166,7 +166,7 @@ async def client_http_error_handler(
     "/health",
     tags=["health"],
     summary="Estado del API y de la inferencia",
-    description="model_loaded, model_version, calibration_enabled, supabase_ready.",
+    description="model_loaded, model_version, calibration_enabled, supabase_ready, hand_landmarker_ready.",
     response_model=HealthOut,
     response_model_exclude_none=True,
 )

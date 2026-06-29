@@ -12,10 +12,8 @@ Salida: 0 si todos los pasos pasan; 1 en caso contrario.
 
 from __future__ import annotations
 
-import json
 import os
 import sys
-import time
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -26,27 +24,6 @@ VALID_RISKS = frozenset({"low", "medium", "high"})
 TIMEOUT_DEFAULT = httpx.Timeout(30.0, read=120.0)
 TIMEOUT_PREDICT = httpx.Timeout(30.0, read=180.0)
 _SMOKE_HAND_FIXTURE = Path(__file__).resolve().parent / "fixtures" / "smoke_hand.jpg"
-_DEBUG_LOG_PATH = Path(__file__).resolve().parents[1] / ".cursor" / "debug-45fd61.log"
-
-
-def _agent_debug_log(hypothesis_id: str, location: str, message: str, data: dict) -> None:
-    # #region agent log
-    try:
-        payload = {
-            "sessionId": "45fd61",
-            "hypothesisId": hypothesis_id,
-            "location": location,
-            "message": message,
-            "data": data,
-            "timestamp": int(time.time() * 1000),
-        }
-        _DEBUG_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-        with _DEBUG_LOG_PATH.open("a", encoding="utf-8") as fh:
-            fh.write(json.dumps(payload, ensure_ascii=False) + "\n")
-    except OSError:
-        pass
-    # #endregion
-
 
 def _env(name: str, *, required: bool = False, default: str = "") -> str:
     value = os.environ.get(name, default).strip()
@@ -107,37 +84,6 @@ def _ok(step: str, detail: str = "") -> None:
     print(f"OK   [{step}]{suffix}")
 
 
-def preflight_local_hand_detection(image_bytes: bytes) -> dict[str, object]:
-    """Diagnóstico local (runner CI) antes de POST /predict remoto."""
-    from io import BytesIO
-
-    result: dict[str, object] = {
-        "image_bytes": len(image_bytes),
-        "fixture": str(_SMOKE_HAND_FIXTURE),
-    }
-    try:
-        import numpy as np
-        from PIL import Image
-
-        from backend.inference.nail_detection import (
-            build_nail_detector,
-            probe_hand_landmarker_status,
-            resolved_hand_landmarker_model_path,
-        )
-
-        rgb = np.array(Image.open(BytesIO(image_bytes)).convert("RGB"))
-        result["image_shape"] = list(rgb.shape)
-        result["probe"] = probe_hand_landmarker_status(warmup=True)
-        result["model_path"] = str(resolved_hand_landmarker_model_path())
-        crops = build_nail_detector().detect(rgb)
-        result["crop_count"] = len(crops)
-        result["crop_sources"] = [c.source for c in crops]
-        result["crop_fingers"] = [c.finger for c in crops]
-    except Exception as exc:
-        result["preflight_error"] = f"{type(exc).__name__}: {exc}"
-    return result
-
-
 def check_health(client: httpx.Client, base: str) -> None:
     step = "health"
     r = client.get(f"{base}/health")
@@ -159,12 +105,6 @@ def check_health(client: httpx.Client, base: str) -> None:
     lm_ready = data.get("hand_landmarker_ready")
     if lm_ready is False:
         lm_err = data.get("hand_landmarker_error") or "unknown"
-        _agent_debug_log(
-            "H2",
-            "smoke_prod.py:check_health",
-            "prod_landmarker_not_ready",
-            {"hand_landmarker_error": lm_err},
-        )
         _fail(step, f"hand_landmarker_ready=false error={lm_err!r}")
     _ok(step, "model_loaded=true model_version=v2.0")
 
@@ -215,9 +155,6 @@ def check_profile(client: httpx.Client, base: str, token: str) -> None:
 
 def check_predict(client: httpx.Client, base: str, token: str, image_bytes: bytes) -> str:
     step = "predict"
-    preflight = preflight_local_hand_detection(image_bytes)
-    print(f"INFO [predict/preflight] {json.dumps(preflight, ensure_ascii=False)}")
-    _agent_debug_log("H1", "smoke_prod.py:check_predict", "local_preflight", preflight)
     files = {"image": ("smoke_hand.jpg", image_bytes, "image/jpeg")}
     r = client.post(
         f"{base}/predict",
@@ -226,30 +163,12 @@ def check_predict(client: httpx.Client, base: str, token: str, image_bytes: byte
         timeout=TIMEOUT_PREDICT,
     )
     if r.status_code != 200:
-        _agent_debug_log(
-            "A",
-            "smoke_prod.py:check_predict",
-            "predict_failed",
-            {
-                "status": r.status_code,
-                "body_preview": r.text[:500],
-                "image_bytes": len(image_bytes),
-                "fixture": str(_SMOKE_HAND_FIXTURE),
-                "preflight": preflight,
-            },
-        )
         _fail(step, r.text, status=r.status_code)
     body = r.json()
     prep = body.get("preprocessing") or {}
     detector = prep.get("detector")
     nails = prep.get("nails") or []
     if detector != "mediapipe_hands":
-        _agent_debug_log(
-            "B",
-            "smoke_prod.py:check_predict",
-            "unexpected_detector",
-            {"detector": detector, "nail_count": len(nails)},
-        )
         _fail(step, f"detector={detector!r} (expected mediapipe_hands)")
     if len(nails) < 1:
         _fail(step, f"nails={len(nails)} (expected >= 1)")
@@ -259,17 +178,6 @@ def check_predict(client: httpx.Client, base: str, token: str, image_bytes: byte
     pred_id = body.get("id")
     if not pred_id:
         _fail(step, "respuesta sin id")
-    _agent_debug_log(
-        "C",
-        "smoke_prod.py:check_predict",
-        "predict_ok",
-        {
-            "detector": detector,
-            "nail_count": len(nails),
-            "risk": risk,
-            "runId": "post-fix",
-        },
-    )
     _ok(step, f"risk={risk} detector={detector} id={pred_id}")
     return str(pred_id)
 

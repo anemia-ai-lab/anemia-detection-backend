@@ -10,7 +10,6 @@ from starlette.concurrency import run_in_threadpool
 
 from backend.core import patient_age
 from backend.core.config import settings
-from backend.core.debug_agent_log import agent_debug_log
 from backend.core.exceptions import ClientHttpError, PredictionServiceError
 from backend.core.prediction_cursor import encode_prediction_cursor
 from backend.core.prediction_image_limits import prediction_image_max_bytes
@@ -262,20 +261,9 @@ class PredictionService:
         rois: str | None,
     ) -> tuple[float, dict]:
         crops = detector.detect(rgb)
-        crop_sources = [getattr(c, "source", None) for c in crops]
         if settings.predict_nail_require_mediapipe and self._nail_detector is None:
             detector_label = self._detector_label(crops, rois=rois, multinail_enabled=True)
             if detector_label not in ("mediapipe_hands", "roi_override"):
-                agent_debug_log(
-                    "H4",
-                    "prediction_service.py:_infer_multinail",
-                    "reject_require_mediapipe",
-                    {
-                        "crop_count": len(crops),
-                        "crop_sources": crop_sources,
-                        "detector_label": detector_label,
-                    },
-                )
                 record_nail_detection_failure("hand_not_detected")
                 raise PredictionServiceError(
                     _NAIL_CAPTURE_RETRY_DETAIL,
@@ -303,17 +291,6 @@ class PredictionService:
 
         min_count = int(settings.predict_nail_min_count)
         if len(scored) < min_count:
-            agent_debug_log(
-                "H3",
-                "prediction_service.py:_infer_multinail",
-                "reject_scored_below_min",
-                {
-                    "crop_count": len(crops),
-                    "scored_count": len(scored),
-                    "min_count": min_count,
-                    "crop_sources": crop_sources,
-                },
-            )
             raise PredictionServiceError(
                 _NAIL_CAPTURE_RETRY_DETAIL,
                 400,

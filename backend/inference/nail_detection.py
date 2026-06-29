@@ -237,8 +237,6 @@ def probe_hand_landmarker_status(*, warmup: bool = True) -> dict[str, object]:
 
     Usado en startup y GET /health; no expone secretos.
     """
-    from backend.core.debug_agent_log import agent_debug_log
-
     model_path = resolved_hand_landmarker_model_path()
     status: dict[str, object] = {
         "ready": False,
@@ -253,26 +251,21 @@ def probe_hand_landmarker_status(*, warmup: bool = True) -> dict[str, object]:
         status["import_ok"] = True
     except (ImportError, OSError) as exc:
         status["error"] = f"import_failed:{type(exc).__name__}:{exc}"
-        agent_debug_log("H1", "nail_detection.py:probe", "mediapipe_import_failed", status)
         return status
 
     if not model_path.is_file():
         status["error"] = "model_file_missing"
-        agent_debug_log("H2", "nail_detection.py:probe", "landmarker_model_missing", status)
         return status
 
     if not warmup:
         status["ready"] = True
-        agent_debug_log("H3", "nail_detection.py:probe", "landmarker_model_present", status)
         return status
 
     try:
         _get_hand_landmarker(float(settings.predict_nail_detect_min_confidence))
         status["ready"] = True
-        agent_debug_log("H3", "nail_detection.py:probe", "landmarker_ready", status)
     except (FileNotFoundError, OSError, RuntimeError, ValueError) as exc:
         status["error"] = f"init_failed:{type(exc).__name__}:{exc}"
-        agent_debug_log("H2", "nail_detection.py:probe", "landmarker_init_failed", status)
     return status
 
 
@@ -430,8 +423,6 @@ class MediaPipeNailDetector:
         if self._roi_overrides is not None:
             return crops_from_roi_overrides(rgb_uint8, self._roi_overrides)
 
-        from backend.core.debug_agent_log import agent_debug_log
-
         try:
             import mediapipe as mp
 
@@ -441,17 +432,6 @@ class MediaPipeNailDetector:
                 "Hand Landmarker no disponible (%s); usando fallback %s",
                 exc,
                 self._fallback_mode,
-            )
-            agent_debug_log(
-                "H1",
-                "nail_detection.py:MediaPipeNailDetector.detect",
-                "landmarker_unavailable",
-                {
-                    "exc_type": type(exc).__name__,
-                    "exc": str(exc)[:200],
-                    "fallback_mode": self._fallback_mode,
-                    "model_path": str(resolved_hand_landmarker_model_path()),
-                },
             )
             return fallback_crops(rgb_uint8, self._fallback_mode)
 
@@ -465,15 +445,6 @@ class MediaPipeNailDetector:
 
         if not result.hand_landmarks:
             logger.info("MediaPipe: sin mano detectada; fallback=%s", self._fallback_mode)
-            agent_debug_log(
-                "H4",
-                "nail_detection.py:MediaPipeNailDetector.detect",
-                "no_hand_landmarks",
-                {
-                    "image_shape": list(rgb_uint8.shape),
-                    "fallback_mode": self._fallback_mode,
-                },
-            )
             return fallback_crops(rgb_uint8, self._fallback_mode)
 
         landmarks = result.hand_landmarks[0]
@@ -485,25 +456,9 @@ class MediaPipeNailDetector:
         )
 
         if crops:
-            agent_debug_log(
-                "H5",
-                "nail_detection.py:MediaPipeNailDetector.detect",
-                "crops_ok",
-                {
-                    "crop_count": len(crops),
-                    "sources": [c.source for c in crops],
-                    "fingers": [c.finger for c in crops],
-                },
-            )
             return crops
 
         logger.info("MediaPipe: landmarks insuficientes; fallback=%s", self._fallback_mode)
-        agent_debug_log(
-            "H4",
-            "nail_detection.py:MediaPipeNailDetector.detect",
-            "landmarks_insufficient",
-            {"landmark_count": len(landmarks), "fallback_mode": self._fallback_mode},
-        )
         return fallback_crops(rgb_uint8, self._fallback_mode)
 
 

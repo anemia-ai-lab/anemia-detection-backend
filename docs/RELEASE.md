@@ -54,7 +54,7 @@ El script registra el usuario en el primer run si `login` devuelve 401.
 
 | # | Request | Esperado |
 |---|---------|----------|
-| 1 | `GET /health` | `status=ok`, `model_loaded=true`, `model_version=v2.0`, `supabase_ready=true` si el campo está presente |
+| 1 | `GET /health` | `status=ok`, `model_loaded=true`, `model_version=v2.0`, `supabase_ready=true`, `hand_landmarker_ready=true` (si multinail activo) |
 | 2 | `POST /auth/login` (o `register` + `login`) | 200 + JWT |
 | 3 | `GET /auth/me/profile` | 200 con JWT |
 | 4 | `POST /predict` (JPEG `scripts/fixtures/smoke_hand.jpg`, MediaPipe) | 200, `risk` válido, `preprocessing.detector=mediapipe_hands` |
