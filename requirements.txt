@@ -32,8 +32,9 @@ iniconfig==2.3.0
 keras==3.14.1
 libclang==18.1.1
 Markdown==3.10.2
-mediapipe==0.10.35
+# OpenCV headless antes de MediaPipe (evita opencv-contrib + libGL en Docker slim).
 opencv-python-headless==4.11.0.86
+mediapipe==0.10.35
 markdown-it-py==4.0.0
 MarkupSafe==3.0.3
 mdurl==0.1.2

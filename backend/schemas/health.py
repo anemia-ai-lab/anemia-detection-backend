@@ -52,3 +52,13 @@ class HealthOut(BaseModel):
             "Valor literal de ``INFERENCE_MODEL_PATH`` solo en entornos locales; omitido en producción."
         ),
     )
+    hand_landmarker_ready: bool | None = Field(
+        default=None,
+        description=(
+            "``True`` si MediaPipe Hand Landmarker está listo (solo cuando multinail está activo)."
+        ),
+    )
+    hand_landmarker_error: str | None = Field(
+        default=None,
+        description="Motivo abreviado si ``hand_landmarker_ready=false`` (sin secretos).",
+    )

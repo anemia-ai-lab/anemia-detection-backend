@@ -15,13 +15,15 @@ ENV PYTHONUNBUFFERED=1 \
 
 # OpenMP for TensorFlow CPU wheels on Debian slim
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libgomp1 libglib2.0-0 curl \
+    && apt-get install -y --no-install-recommends libgomp1 libglib2.0-0 libgl1-mesa-glx curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Layer cache: dependencies before application code (TensorFlow ~645 MB in its own layer)
 COPY requirements.txt .
 RUN pip install --default-timeout=1000 --retries=10 --no-cache-dir tensorflow==2.19.1
+RUN pip install --default-timeout=300 --retries=10 --no-cache-dir opencv-python-headless==4.11.0.86
 RUN pip install --default-timeout=300 --retries=10 --no-cache-dir -r requirements.txt
+RUN pip install --default-timeout=300 --retries=10 --no-cache-dir --force-reinstall --no-deps opencv-python-headless==4.11.0.86
 
 # Application; `repo_root()` in config.py is the working directory (/app)
 COPY backend/ /app/backend/

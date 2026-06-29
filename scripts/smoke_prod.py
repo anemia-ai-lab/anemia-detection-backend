@@ -26,14 +26,14 @@ VALID_RISKS = frozenset({"low", "medium", "high"})
 TIMEOUT_DEFAULT = httpx.Timeout(30.0, read=120.0)
 TIMEOUT_PREDICT = httpx.Timeout(30.0, read=180.0)
 _SMOKE_HAND_FIXTURE = Path(__file__).resolve().parent / "fixtures" / "smoke_hand.jpg"
-_DEBUG_LOG_PATH = Path(__file__).resolve().parents[1] / ".cursor" / "debug-6096ab.log"
+_DEBUG_LOG_PATH = Path(__file__).resolve().parents[1] / ".cursor" / "debug-45fd61.log"
 
 
 def _agent_debug_log(hypothesis_id: str, location: str, message: str, data: dict) -> None:
     # #region agent log
     try:
         payload = {
-            "sessionId": "6096ab",
+            "sessionId": "45fd61",
             "hypothesisId": hypothesis_id,
             "location": location,
             "message": message,
@@ -107,6 +107,37 @@ def _ok(step: str, detail: str = "") -> None:
     print(f"OK   [{step}]{suffix}")
 
 
+def preflight_local_hand_detection(image_bytes: bytes) -> dict[str, object]:
+    """Diagnóstico local (runner CI) antes de POST /predict remoto."""
+    from io import BytesIO
+
+    result: dict[str, object] = {
+        "image_bytes": len(image_bytes),
+        "fixture": str(_SMOKE_HAND_FIXTURE),
+    }
+    try:
+        import numpy as np
+        from PIL import Image
+
+        from backend.inference.nail_detection import (
+            build_nail_detector,
+            probe_hand_landmarker_status,
+            resolved_hand_landmarker_model_path,
+        )
+
+        rgb = np.array(Image.open(BytesIO(image_bytes)).convert("RGB"))
+        result["image_shape"] = list(rgb.shape)
+        result["probe"] = probe_hand_landmarker_status(warmup=True)
+        result["model_path"] = str(resolved_hand_landmarker_model_path())
+        crops = build_nail_detector().detect(rgb)
+        result["crop_count"] = len(crops)
+        result["crop_sources"] = [c.source for c in crops]
+        result["crop_fingers"] = [c.finger for c in crops]
+    except Exception as exc:
+        result["preflight_error"] = f"{type(exc).__name__}: {exc}"
+    return result
+
+
 def check_health(client: httpx.Client, base: str) -> None:
     step = "health"
     r = client.get(f"{base}/health")
@@ -125,6 +156,16 @@ def check_health(client: httpx.Client, base: str) -> None:
             "supabase_ready=false — edita Secrets Manager anemia-api/prod (SUPABASE_*) "
             "y fuerza redeploy ECS",
         )
+    lm_ready = data.get("hand_landmarker_ready")
+    if lm_ready is False:
+        lm_err = data.get("hand_landmarker_error") or "unknown"
+        _agent_debug_log(
+            "H2",
+            "smoke_prod.py:check_health",
+            "prod_landmarker_not_ready",
+            {"hand_landmarker_error": lm_err},
+        )
+        _fail(step, f"hand_landmarker_ready=false error={lm_err!r}")
     _ok(step, "model_loaded=true model_version=v2.0")
 
 
@@ -174,6 +215,9 @@ def check_profile(client: httpx.Client, base: str, token: str) -> None:
 
 def check_predict(client: httpx.Client, base: str, token: str, image_bytes: bytes) -> str:
     step = "predict"
+    preflight = preflight_local_hand_detection(image_bytes)
+    print(f"INFO [predict/preflight] {json.dumps(preflight, ensure_ascii=False)}")
+    _agent_debug_log("H1", "smoke_prod.py:check_predict", "local_preflight", preflight)
     files = {"image": ("smoke_hand.jpg", image_bytes, "image/jpeg")}
     r = client.post(
         f"{base}/predict",
@@ -191,6 +235,7 @@ def check_predict(client: httpx.Client, base: str, token: str, image_bytes: byte
                 "body_preview": r.text[:500],
                 "image_bytes": len(image_bytes),
                 "fixture": str(_SMOKE_HAND_FIXTURE),
+                "preflight": preflight,
             },
         )
         _fail(step, r.text, status=r.status_code)

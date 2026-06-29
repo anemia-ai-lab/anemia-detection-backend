@@ -56,7 +56,9 @@ jobs:
         env:
           SUPABASE_URL: https://example.supabase.co
           SUPABASE_KEY: test-anon-key-not-real
-        run: make lint && make test
+        run: |
+          make download-hand-landmarker
+          make lint && make test
 
       - uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -286,6 +288,7 @@ jobs:
           echo "Smoke prod → $SMOKE_BASE_URL"
 
           python -m pip install -q -r requirements.txt
+          make download-hand-landmarker
           make smoke-prod
 
   sync-iac:

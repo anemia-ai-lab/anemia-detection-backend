@@ -16,7 +16,10 @@ from backend.core.http_error_codes import default_error_code
 from backend.core.logging_config import configure_logging
 from backend.core.prometheus_metrics import build_metrics_response, register_prometheus_middleware
 from backend.core.rate_limit import register_rate_limit_middleware
-from backend.inference.nail_detection import shutdown_hand_landmarker
+from backend.inference.nail_detection import (
+    get_cached_hand_landmarker_status,
+    shutdown_hand_landmarker,
+)
 from backend.inference.runtime import (
     get_builtin_image_predictor,
     inference_service_status,
@@ -50,6 +53,14 @@ async def lifespan(_app: FastAPI):
     init_inference_model()
     warmup_inference_model()
     logger.info("inference_model_ready=%s", get_builtin_image_predictor() is not None)
+    if settings.predict_multinail_enabled:
+        lm_status = get_cached_hand_landmarker_status(refresh=True)
+        logger.info(
+            "hand_landmarker_ready=%s model_exists=%s error=%s",
+            lm_status.get("ready"),
+            lm_status.get("model_exists"),
+            lm_status.get("error"),
+        )
     yield
     shutdown_inference_model()
     shutdown_hand_landmarker()
@@ -163,6 +174,13 @@ def health() -> HealthOut:
     svc_status, model_loaded = inference_service_status()
     calibration_enabled = abs(float(settings.inference_calibration_temperature) - 1.0) > 1e-12
     raw_path = settings.inference_model_path.strip()
+    lm_ready: bool | None = None
+    lm_error: str | None = None
+    if settings.predict_multinail_enabled:
+        lm_status = get_cached_hand_landmarker_status()
+        lm_ready = bool(lm_status.get("ready"))
+        err = lm_status.get("error")
+        lm_error = str(err)[:200] if err else None
     return HealthOut(
         status=svc_status,
         model_loaded=model_loaded,
@@ -170,6 +188,8 @@ def health() -> HealthOut:
         calibration_enabled=calibration_enabled,
         supabase_ready=supabase_config_ready(),
         inference_model_path=(raw_path or None) if _local_environment() else None,
+        hand_landmarker_ready=lm_ready,
+        hand_landmarker_error=lm_error,
     )
 
 

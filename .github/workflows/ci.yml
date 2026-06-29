@@ -56,6 +56,8 @@ jobs:
           cache: "pip"
       - name: Install backend dependencies
         run: python -m pip install -r requirements.txt
+      - name: Download Hand Landmarker (smoke preflight)
+        run: make download-hand-landmarker
       - name: Smoke E2E (prod)
         run: |
           set -euo pipefail
