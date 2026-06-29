@@ -13,10 +13,16 @@ from backend.core.config import settings
 from backend.core.exceptions import ClientHttpError, PredictionServiceError
 from backend.core.prediction_cursor import encode_prediction_cursor
 from backend.core.prediction_image_limits import prediction_image_max_bytes
-from backend.core.prometheus_metrics import observe_predict_phase
+from backend.core.prometheus_metrics import observe_predict_phase, record_nail_detection_failure
 from backend.core.risk_mapping import anemia_risk_label, risk_from_probability
 from backend.core.upload_io import UploadExceedsMaxBytesError, read_upload_file_with_byte_limit
 from backend.inference.image_predictor import ImagePredictor
+from backend.inference.nail_detection import (
+    NailCrop,
+    NailDetector,
+    build_nail_detector,
+    parse_roi_overrides,
+)
 from backend.inference.nail_presence import require_fingernail_presence
 from backend.inference.prediction_image_input import prepare_prediction_image
 from backend.inference.probability_calibration import (
@@ -43,6 +49,11 @@ from backend.schemas.prediction import (
 )
 
 _INFERENCE_MODE_BACKEND = "backend"
+
+_NAIL_CAPTURE_RETRY_DETAIL = (
+    "No se detectaron las uñas en la foto. Vuelve a capturar con índice, medio y anular "
+    "visibles y la palma parcialmente en cuadro."
+)
 _CLIENT_CREATED_AT_FUTURE_TOLERANCE = timedelta(minutes=5)
 _LIST_DEFAULT_LIMIT = 20
 _LIST_MAX_LIMIT = 100
@@ -120,11 +131,13 @@ class PredictionService:
         images: PredictionImagesStorage | None = None,
         image_predictor: ImagePredictor | None = None,
         nail_checker: Callable[[np.ndarray], None] | None = None,
+        nail_detector: NailDetector | None = None,
     ) -> None:
         self._repo = repo or PredictionsRepository()
         self._images = images or PredictionImagesStorage()
         self._image_predictor = image_predictor
         self._nail_checker = nail_checker or require_fingernail_presence
+        self._nail_detector = nail_detector
 
     def _effective_image_predictor(self) -> ImagePredictor:
         if self._image_predictor is not None:
@@ -194,6 +207,7 @@ class PredictionService:
         image: UploadFile | None,
         birth_date: str | None,
         notes: str | None,
+        rois: str | None = None,
     ) -> PredictionResponse:
         upload = self.require_image_upload(image)
         raw, content_type = await self.read_prediction_image_bytes(upload)
@@ -205,7 +219,99 @@ class PredictionService:
             body,
             raw,
             content_type,
+            rois,
         )
+
+    def _resolve_nail_detector(self, rois: str | None) -> NailDetector:
+        if self._nail_detector is not None:
+            return self._nail_detector
+        roi_overrides = parse_roi_overrides(rois)
+        return build_nail_detector(roi_overrides=roi_overrides)
+
+    def _detector_label(
+        self,
+        crops: list[NailCrop],
+        *,
+        rois: str | None,
+        multinail_enabled: bool,
+    ) -> str:
+        if not multinail_enabled:
+            return "legacy_whole"
+        if parse_roi_overrides(rois) is not None:
+            return "roi_override"
+        if len(crops) == 1 and crops[0].finger == "hand":
+            return "fallback_whole"
+        if len(crops) >= 2 and all(c.finger in ("index", "middle", "ring") for c in crops):
+            if all(c.source == "mediapipe" for c in crops):
+                return "mediapipe_hands"
+            return "multinail"
+        return "multinail"
+
+    def _infer_multinail(
+        self,
+        rgb: np.ndarray,
+        predictor: ImagePredictor,
+        detector: NailDetector,
+        *,
+        rois: str | None,
+    ) -> tuple[float, dict]:
+        crops = detector.detect(rgb)
+        if settings.predict_nail_require_mediapipe and self._nail_detector is None:
+            detector_label = self._detector_label(crops, rois=rois, multinail_enabled=True)
+            if detector_label not in ("mediapipe_hands", "roi_override"):
+                record_nail_detection_failure("hand_not_detected")
+                raise PredictionServiceError(
+                    _NAIL_CAPTURE_RETRY_DETAIL,
+                    400,
+                    code="no_fingernail_detected",
+                )
+
+        tta_enabled = bool(settings.inference_tta_enabled)
+        temperature = float(settings.inference_calibration_temperature)
+        scored: list[tuple[NailCrop, float, float]] = []
+
+        for crop in crops:
+            try:
+                self._nail_checker(crop.rgb)
+            except PredictionServiceError:
+                logger.info("nail_checker_rejected finger=%s", crop.finger)
+                continue
+            raw = average_raw_probability_with_optional_tta(
+                predictor,
+                crop.rgb,
+                tta_enabled=tta_enabled,
+            )
+            calibrated = apply_temperature_calibration(raw, temperature)
+            scored.append((crop, raw, calibrated))
+
+        min_count = int(settings.predict_nail_min_count)
+        if len(scored) < min_count:
+            raise PredictionServiceError(
+                _NAIL_CAPTURE_RETRY_DETAIL,
+                400,
+                code="no_fingernail_detected",
+            )
+
+        winner_crop, winner_raw, winner_cal = max(scored, key=lambda item: item[2])
+        nails_meta = [
+            {
+                "finger": crop.finger,
+                "raw": raw,
+                "cal": cal,
+                "bbox": [crop.bbox[0], crop.bbox[1], crop.bbox[2], crop.bbox[3]],
+            }
+            for crop, raw, cal in scored
+        ]
+        preprocessing = {
+            "aggregation": "max",
+            "detector": self._detector_label(crops, rois=rois, multinail_enabled=True),
+            "crop": "tip_to_dip",
+            "tta_enabled": tta_enabled,
+            "winning_finger": winner_crop.finger,
+            "nails": nails_meta,
+        }
+        _ = winner_cal
+        return winner_raw, preprocessing
 
     def run_predict(
         self,
@@ -214,20 +320,36 @@ class PredictionService:
         body: PredictionCreateBody,
         file_bytes: bytes,
         content_type: str | None,
+        rois: str | None = None,
     ) -> PredictionResponse:
         with observe_predict_phase("preprocess"):
             normalized_ct, processed_bytes, rgb = prepare_prediction_image(
                 content_type,
                 file_bytes,
             )
-            self._nail_checker(rgb)
+        multinail = bool(settings.predict_multinail_enabled)
         with observe_predict_phase("inference"):
             predictor = self._effective_image_predictor()
-            raw_probability = average_raw_probability_with_optional_tta(
-                predictor,
-                rgb,
-                tta_enabled=bool(settings.inference_tta_enabled),
-            )
+            if multinail:
+                detector = self._resolve_nail_detector(rois)
+                raw_probability, preprocessing = self._infer_multinail(
+                    rgb,
+                    predictor,
+                    detector,
+                    rois=rois,
+                )
+            else:
+                self._nail_checker(rgb)
+                raw_probability = average_raw_probability_with_optional_tta(
+                    predictor,
+                    rgb,
+                    tta_enabled=bool(settings.inference_tta_enabled),
+                )
+                preprocessing = {
+                    "aggregation": "single",
+                    "detector": "legacy_whole",
+                    "tta_enabled": bool(settings.inference_tta_enabled),
+                }
         with observe_predict_phase("storage_upload"):
             path = self._images.upload_user_image(
                 access_token,
@@ -235,7 +357,6 @@ class PredictionService:
                 file_bytes=processed_bytes,
                 content_type=normalized_ct,
             )
-        preprocessing = {"tta_enabled": bool(settings.inference_tta_enabled)}
         try:
             return self._run_predict_core(
                 user,

@@ -15,7 +15,7 @@ ENV PYTHONUNBUFFERED=1 \
 
 # OpenMP for TensorFlow CPU wheels on Debian slim
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libgomp1 \
+    && apt-get install -y --no-install-recommends libgomp1 libglib2.0-0 curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Layer cache: dependencies before application code (TensorFlow ~645 MB in its own layer)
@@ -28,7 +28,10 @@ COPY backend/ /app/backend/
 COPY ml/__init__.py /app/ml/__init__.py
 COPY ml/preprocessing/ /app/ml/preprocessing/
 COPY ml/baseline/ /app/ml/baseline/
-RUN mkdir -p /app/ml/artifacts/models
+RUN mkdir -p /app/ml/artifacts/models \
+    && curl -fsSL \
+        "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task" \
+        -o /app/ml/artifacts/models/hand_landmarker.task
 COPY ml/artifacts/models/baseline_mobilenetv2_ghana_augmented_seed42.keras \
     ml/artifacts/models/baseline_mobilenetv2_ghana_augmented_seed123.keras \
     ml/artifacts/models/baseline_mobilenetv2_ghana_augmented_seed456.keras \

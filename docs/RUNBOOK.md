@@ -16,7 +16,10 @@ Guía operativa (no sustituye la memoria de tesis). **No es uso clínico:** crib
 
    ```bash
    make install
+   make download-hand-landmarker
    ```
+
+   `download-hand-landmarker` obtiene `ml/artifacts/models/hand_landmarker.task` (MediaPipe Tasks; requerido si `PREDICT_MULTINAIL_ENABLED=true`). En Docker el `Dockerfile` lo descarga en build.
 
 Levanta variables desde `.env` vía `backend/core/config.py` (`Settings`).
 
@@ -117,6 +120,7 @@ Los tests validan software y artefactos, no validez clínica.
 ## Paridad API vs offline
 
 - Tensor tras RGB validado: `ml.preprocessing.pipeline` → `backend/inference/keras_image_predictor.py`.
+- **Online:** `POST /predict` detecta 3 uñas (`backend/inference/nail_detection.py`, MediaPipe Hand Landmarker Tasks), infiere por uña y agrega con `max` (misma semántica que offline).
 - Offline: TFLite + metadatos (`ml/README.md`).
 - Cabecera de imagen / límites / decode previo a uña: `backend/inference/prediction_image_input.py`, alineado con el decode documentado en `ml/preprocessing/pipeline.py`. Umbrales y matemática de inferencia: código, no este runbook.
 
@@ -162,8 +166,15 @@ Métricas por fase de `POST /predict` en `/metrics`: `predict_phase_duration_sec
 | `INFERENCE_RISK_TIER_HIGH_LOWER` | Límite inferior del tier `high` (v2). |
 | `DISABLE_TF` | Omite carga TF en runtime cuando aplica (p. ej. tests). |
 | `METRICS_BEARER_TOKEN` | Protege `/metrics` fuera de entornos locales si está definido. |
-| `PREDICTION_IMAGE_*` | Límites de imagen. |
 | `RATE_LIMIT_*`, `TRUST_PROXY_HEADERS` | Rate limit y confianza en proxy. |
 | `PREDICTIONS_STORAGE_BUCKET` | Bucket de imágenes (debe coincidir con migraciones SQL; no cambiar sin nueva migración). |
+| `PREDICTION_IMAGE_MAX_BYTES` | Tope de subida (default **20 MB**). |
+| `PREDICTION_IMAGE_MAX_PIXELS` | Tope al decodificar (default **50 MP**; fotos iPhone). |
+| `PREDICTION_IMAGE_STORAGE_MAX_EDGE_PX` | Lado máx. del PNG guardado en Storage (default 1024); inferencia usa RGB completo. |
+| `PREDICT_MULTINAIL_ENABLED` | Si `true`, `POST /predict` detecta 3 uñas y agrega con `max`. |
+| `HAND_LANDMARKER_MODEL_PATH` | Ruta al `.task` de Hand Landmarker (defecto: `ml/artifacts/models/hand_landmarker.task`). |
+| `PREDICT_NAIL_REQUIRE_MEDIAPIPE` | Si `true` (default), sin detección real → **400** `no_fingernail_detected` (no riesgo falso). |
+| `PREDICT_NAIL_FALLBACK_MODE` | Default `reject`; `whole`/`vertical_thirds` solo con `PREDICT_NAIL_REQUIRE_MEDIAPIPE=false` (debug). |
+| `PREDICT_NAIL_*` | Confianza MediaPipe, mínimo de uñas, escala de recorte. |
 
 Lista ampliada en `.env.example`.

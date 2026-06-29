@@ -18,7 +18,7 @@ Setup: [`docs/RUNBOOK.md`](docs/RUNBOOK.md). Responsibility ↔ path matrix: [`d
 
 ## System Overview
 
-The system supports a mobile-oriented screening workflow in which an authenticated user submits a fingernail image and receives a calibrated risk prediction. The backend validates input images, executes model inference when a Keras artifact is configured, applies probability calibration and an operational decision threshold, and persists prediction metadata through Supabase.
+The system supports a mobile-oriented screening workflow in which an authenticated user photographs index, middle, and ring fingernails in a single frame. With connectivity, `POST /predict` runs MediaPipe-based nail detection, per-nail Keras ensemble inference, and max aggregation on the backend. The mobile app only captures and uploads the image.
 
 The machine learning layer provides training, evaluation, model export, offline inference, and explainability tooling. Offline execution is supported through TensorFlow Lite artifacts and metadata so that mobile or field deployments can run predictions without continuous network access.
 

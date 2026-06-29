@@ -994,3 +994,354 @@ def test_predict_with_image_multipart(monkeypatch: pytest.MonkeyPatch) -> None:
         assert "image_signed_url" not in data
     finally:
         app.dependency_overrides.clear()
+
+
+def test_predict_multinail_max_aggregation(monkeypatch: pytest.MonkeyPatch) -> None:
+    _patch_identity_calibration(monkeypatch)
+    monkeypatch.setattr(config_module.settings, "predict_multinail_enabled", True)
+    user = UserOut(
+        id="11111111-1111-1111-1111-111111111111",
+        email="p@example.com",
+        created_at=None,
+    )
+
+    def fake_context() -> tuple[UserOut, str]:
+        return (user, "aaa.bbb.ccc")
+
+    from backend.inference.image_predictor import SequenceImagePredictor
+    from backend.inference.nail_detection import FixedNailDetector
+
+    class FakeRepo:
+        def insert_for_user(self, _access_token: str, **kwargs) -> dict:
+            return {
+                "id": "22222222-2222-2222-2222-222222222222",
+                "risk": kwargs["risk"],
+                "score": kwargs["score"],
+                "model_version": kwargs["model_version"],
+                "age_months": kwargs.get("age_months"),
+                "birth_date": kwargs.get("birth_date"),
+                "notes": kwargs.get("notes"),
+                "image_storage_path": kwargs.get("image_storage_path"),
+                "inference_mode": "backend",
+                "preprocessing": kwargs.get("preprocessing"),
+                "created_at": "2026-05-01T10:00:00+00:00",
+                "effective_created_at": "2026-05-01T10:00:00+00:00",
+            }
+
+    def fake_prediction_service() -> PredictionService:
+        return PredictionService(
+            repo=FakeRepo(),
+            images=_FakeImgStore(),
+            image_predictor=SequenceImagePredictor([0.2, 0.8, 0.3]),
+            nail_checker=_skip_nail,
+            nail_detector=FixedNailDetector(count=3),
+        )
+
+    app.dependency_overrides[api_deps.get_predict_context] = fake_context
+    app.dependency_overrides[api_deps.get_prediction_service] = fake_prediction_service
+    try:
+        response = client.post(
+            "/predict",
+            headers={"Authorization": "Bearer aaa.bbb.ccc"},
+            files={"image": ("m.png", skin_patch_png(), "image/png")},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["score"] == pytest.approx(0.8)
+        assert data["raw_probability"] == pytest.approx(0.8)
+        prep = data["preprocessing"]
+        assert prep["aggregation"] == "max"
+        assert len(prep["nails"]) == 3
+        assert prep["winning_finger"] == "middle"
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_predict_multinail_insufficient_nails_returns_400(monkeypatch: pytest.MonkeyPatch) -> None:
+    _patch_identity_calibration(monkeypatch)
+    monkeypatch.setattr(config_module.settings, "predict_multinail_enabled", True)
+    user = UserOut(
+        id="11111111-1111-1111-1111-111111111111",
+        email="p@example.com",
+        created_at=None,
+    )
+
+    def fake_context() -> tuple[UserOut, str]:
+        return (user, "aaa.bbb.ccc")
+
+    from backend.inference.nail_detection import EmptyNailDetector
+
+    def fake_prediction_service() -> PredictionService:
+        return PredictionService(
+            repo=_ExplodingRepo(),
+            images=_FakeImgStore(),
+            image_predictor=StaticImagePredictor(0.5),
+            nail_checker=_skip_nail,
+            nail_detector=EmptyNailDetector(),
+        )
+
+    app.dependency_overrides[api_deps.get_predict_context] = fake_context
+    app.dependency_overrides[api_deps.get_prediction_service] = fake_prediction_service
+    try:
+        response = client.post(
+            "/predict",
+            headers={"Authorization": "Bearer aaa.bbb.ccc"},
+            files={"image": ("m.png", skin_patch_png(), "image/png")},
+        )
+        assert response.status_code == 400
+        assert response.json()["code"] == "no_fingernail_detected"
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_predict_invalid_rois_json_returns_422(monkeypatch: pytest.MonkeyPatch) -> None:
+    _patch_identity_calibration(monkeypatch)
+    monkeypatch.setattr(config_module.settings, "predict_multinail_enabled", True)
+    user = UserOut(
+        id="11111111-1111-1111-1111-111111111111",
+        email="p@example.com",
+        created_at=None,
+    )
+
+    def fake_context() -> tuple[UserOut, str]:
+        return (user, "aaa.bbb.ccc")
+
+    def fake_prediction_service() -> PredictionService:
+        return PredictionService(
+            repo=_ExplodingRepo(),
+            images=_FakeImgStore(),
+            image_predictor=StaticImagePredictor(0.5),
+            nail_checker=_skip_nail,
+        )
+
+    app.dependency_overrides[api_deps.get_predict_context] = fake_context
+    app.dependency_overrides[api_deps.get_prediction_service] = fake_prediction_service
+    try:
+        response = client.post(
+            "/predict",
+            headers={"Authorization": "Bearer aaa.bbb.ccc"},
+            data={"rois": "not-json"},
+            files={"image": ("m.png", skin_patch_png(), "image/png")},
+        )
+        assert response.status_code == 422
+        assert response.json()["code"] == "invalid_rois_json"
+    finally:
+        app.dependency_overrides.clear()
+
+
+@pytest.mark.parametrize("rois_value", ["", "string", "  STRING  "])
+def test_predict_rois_empty_or_placeholder_ok(
+    monkeypatch: pytest.MonkeyPatch,
+    rois_value: str,
+) -> None:
+    _patch_identity_calibration(monkeypatch)
+    monkeypatch.setattr(config_module.settings, "predict_multinail_enabled", True)
+    user = UserOut(
+        id="11111111-1111-1111-1111-111111111111",
+        email="p@example.com",
+        created_at=None,
+    )
+
+    def fake_context() -> tuple[UserOut, str]:
+        return (user, "aaa.bbb.ccc")
+
+    from backend.inference.image_predictor import SequenceImagePredictor
+    from backend.inference.nail_detection import FixedNailDetector
+
+    class FakeRepo:
+        def insert_for_user(self, _access_token: str, **kwargs) -> dict:
+            return {
+                "id": "22222222-2222-2222-2222-222222222222",
+                "risk": kwargs["risk"],
+                "score": kwargs["score"],
+                "model_version": kwargs["model_version"],
+                "age_months": kwargs.get("age_months"),
+                "birth_date": kwargs.get("birth_date"),
+                "notes": kwargs.get("notes"),
+                "image_storage_path": kwargs.get("image_storage_path"),
+                "inference_mode": "backend",
+                "preprocessing": kwargs.get("preprocessing"),
+                "created_at": "2026-05-01T10:00:00+00:00",
+                "effective_created_at": "2026-05-01T10:00:00+00:00",
+            }
+
+    def fake_prediction_service() -> PredictionService:
+        return PredictionService(
+            repo=FakeRepo(),
+            images=_FakeImgStore(),
+            image_predictor=SequenceImagePredictor([0.2, 0.8, 0.3]),
+            nail_checker=_skip_nail,
+            nail_detector=FixedNailDetector(count=3),
+        )
+
+    app.dependency_overrides[api_deps.get_predict_context] = fake_context
+    app.dependency_overrides[api_deps.get_prediction_service] = fake_prediction_service
+    try:
+        response = client.post(
+            "/predict",
+            headers={"Authorization": "Bearer aaa.bbb.ccc"},
+            data={"rois": rois_value},
+            files={"image": ("m.png", skin_patch_png(), "image/png")},
+        )
+        assert response.status_code == 200
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_predict_multinail_rejects_fallback_whole_when_require_mediapipe(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _patch_identity_calibration(monkeypatch)
+    monkeypatch.setattr(config_module.settings, "predict_multinail_enabled", True)
+    monkeypatch.setattr(config_module.settings, "predict_nail_require_mediapipe", True)
+    user = UserOut(
+        id="11111111-1111-1111-1111-111111111111",
+        email="p@example.com",
+        created_at=None,
+    )
+
+    def fake_context() -> tuple[UserOut, str]:
+        return (user, "aaa.bbb.ccc")
+
+    import backend.services.prediction_service as prediction_service_module
+    from backend.inference.nail_detection import PassthroughNailDetector
+
+    monkeypatch.setattr(
+        prediction_service_module,
+        "build_nail_detector",
+        lambda *, roi_overrides=None: PassthroughNailDetector(),
+    )
+
+    def fake_prediction_service() -> PredictionService:
+        return PredictionService(
+            repo=_ExplodingRepo(),
+            images=_FakeImgStore(),
+            image_predictor=StaticImagePredictor(0.5),
+            nail_checker=_skip_nail,
+        )
+
+    app.dependency_overrides[api_deps.get_predict_context] = fake_context
+    app.dependency_overrides[api_deps.get_prediction_service] = fake_prediction_service
+    try:
+        response = client.post(
+            "/predict",
+            headers={"Authorization": "Bearer aaa.bbb.ccc"},
+            files={"image": ("m.png", skin_patch_png(), "image/png")},
+        )
+        assert response.status_code == 400
+        body = response.json()
+        assert body["code"] == "no_fingernail_detected"
+        assert "Vuelve a capturar" in body["detail"]
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_predict_multinail_rejects_vertical_thirds_fallback_when_require_mediapipe(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _patch_identity_calibration(monkeypatch)
+    monkeypatch.setattr(config_module.settings, "predict_multinail_enabled", True)
+    monkeypatch.setattr(config_module.settings, "predict_nail_require_mediapipe", True)
+    user = UserOut(
+        id="11111111-1111-1111-1111-111111111111",
+        email="p@example.com",
+        created_at=None,
+    )
+
+    def fake_context() -> tuple[UserOut, str]:
+        return (user, "aaa.bbb.ccc")
+
+    import backend.services.prediction_service as prediction_service_module
+    from backend.inference.nail_detection import fallback_crops
+
+    class _VerticalThirdsDetector:
+        def detect(self, rgb_uint8: np.ndarray) -> list:
+            return fallback_crops(rgb_uint8, "vertical_thirds")
+
+    monkeypatch.setattr(
+        prediction_service_module,
+        "build_nail_detector",
+        lambda *, roi_overrides=None: _VerticalThirdsDetector(),
+    )
+
+    def fake_prediction_service() -> PredictionService:
+        return PredictionService(
+            repo=_ExplodingRepo(),
+            images=_FakeImgStore(),
+            image_predictor=StaticImagePredictor(0.5),
+            nail_checker=_skip_nail,
+        )
+
+    app.dependency_overrides[api_deps.get_predict_context] = fake_context
+    app.dependency_overrides[api_deps.get_prediction_service] = fake_prediction_service
+    try:
+        response = client.post(
+            "/predict",
+            headers={"Authorization": "Bearer aaa.bbb.ccc"},
+            files={"image": ("m.png", skin_patch_png(), "image/png")},
+        )
+        assert response.status_code == 400
+        assert response.json()["code"] == "no_fingernail_detected"
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_predict_multinail_roi_override_returns_200(monkeypatch: pytest.MonkeyPatch) -> None:
+    _patch_identity_calibration(monkeypatch)
+    monkeypatch.setattr(config_module.settings, "predict_multinail_enabled", True)
+    monkeypatch.setattr(config_module.settings, "predict_nail_require_mediapipe", True)
+    user = UserOut(
+        id="11111111-1111-1111-1111-111111111111",
+        email="p@example.com",
+        created_at=None,
+    )
+
+    def fake_context() -> tuple[UserOut, str]:
+        return (user, "aaa.bbb.ccc")
+
+    from backend.inference.image_predictor import SequenceImagePredictor
+
+    class FakeRepo:
+        def insert_for_user(self, _access_token: str, **kwargs) -> dict:
+            return {
+                "id": "22222222-2222-2222-2222-222222222222",
+                "risk": kwargs["risk"],
+                "score": kwargs["score"],
+                "model_version": kwargs["model_version"],
+                "age_months": kwargs.get("age_months"),
+                "birth_date": kwargs.get("birth_date"),
+                "notes": kwargs.get("notes"),
+                "image_storage_path": kwargs.get("image_storage_path"),
+                "inference_mode": "backend",
+                "preprocessing": kwargs.get("preprocessing"),
+                "created_at": "2026-05-01T10:00:00+00:00",
+                "effective_created_at": "2026-05-01T10:00:00+00:00",
+            }
+
+    def fake_prediction_service() -> PredictionService:
+        return PredictionService(
+            repo=FakeRepo(),
+            images=_FakeImgStore(),
+            image_predictor=SequenceImagePredictor([0.2, 0.8, 0.3]),
+            nail_checker=_skip_nail,
+        )
+
+    rois = (
+        '[{"finger":"index","x":0.05,"y":0.1,"w":0.25,"h":0.5},'
+        '{"finger":"middle","x":0.35,"y":0.1,"w":0.25,"h":0.5},'
+        '{"finger":"ring","x":0.65,"y":0.1,"w":0.25,"h":0.5}]'
+    )
+
+    app.dependency_overrides[api_deps.get_predict_context] = fake_context
+    app.dependency_overrides[api_deps.get_prediction_service] = fake_prediction_service
+    try:
+        response = client.post(
+            "/predict",
+            headers={"Authorization": "Bearer aaa.bbb.ccc"},
+            data={"rois": rois},
+            files={"image": ("m.png", skin_patch_png(), "image/png")},
+        )
+        assert response.status_code == 200
+        assert response.json()["preprocessing"]["detector"] == "roi_override"
+    finally:
+        app.dependency_overrides.clear()

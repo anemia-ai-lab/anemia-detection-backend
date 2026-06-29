@@ -16,6 +16,7 @@ from backend.core.http_error_codes import default_error_code
 from backend.core.logging_config import configure_logging
 from backend.core.prometheus_metrics import build_metrics_response, register_prometheus_middleware
 from backend.core.rate_limit import register_rate_limit_middleware
+from backend.inference.nail_detection import shutdown_hand_landmarker
 from backend.inference.runtime import (
     get_builtin_image_predictor,
     inference_service_status,
@@ -51,6 +52,7 @@ async def lifespan(_app: FastAPI):
     logger.info("inference_model_ready=%s", get_builtin_image_predictor() is not None)
     yield
     shutdown_inference_model()
+    shutdown_hand_landmarker()
     logger.info("application_shutdown")
 
 

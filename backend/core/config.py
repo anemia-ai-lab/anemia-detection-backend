@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -169,7 +170,7 @@ class Settings(BaseSettings):
     )
 
     prediction_image_max_bytes: int = Field(
-        default=5 * 1024 * 1024,
+        default=20 * 1024 * 1024,
         ge=1024,
         le=50 * 1024 * 1024,
         validation_alias="PREDICTION_IMAGE_MAX_BYTES",
@@ -181,14 +182,21 @@ class Settings(BaseSettings):
         ge=256,
         le=4096,
         validation_alias="PREDICTION_IMAGE_MAX_EDGE_PX",
-        description="Lado máximo en píxeles tras decodificar (antes de uña y CNN).",
+        description="Alias legacy de storage; ver PREDICTION_IMAGE_STORAGE_MAX_EDGE_PX.",
+    )
+    prediction_image_storage_max_edge_px: int = Field(
+        default=1024,
+        ge=256,
+        le=4096,
+        validation_alias="PREDICTION_IMAGE_STORAGE_MAX_EDGE_PX",
+        description="Lado máximo al codificar PNG para Supabase Storage (inferencia usa RGB completo).",
     )
     prediction_image_max_pixels: int = Field(
-        default=12_000_000,
+        default=50_000_000,
         ge=64,
         le=100_000_000,
         validation_alias="PREDICTION_IMAGE_MAX_PIXELS",
-        description="Límite duro de píxeles tras decodificar, antes de redimensionar.",
+        description="Límite duro de píxeles tras decodificar (antes de detect/infer).",
     )
 
     nail_presence_min_skin_ratio: float = Field(
@@ -197,6 +205,60 @@ class Settings(BaseSettings):
         le=0.5,
         validation_alias="NAIL_PRESENCE_MIN_SKIN_RATIO",
         description="Ratio mínimo de píxeles tipo piel (heurística previa a la CNN).",
+    )
+
+    predict_multinail_enabled: bool = Field(
+        default=True,
+        validation_alias="PREDICT_MULTINAIL_ENABLED",
+        description=(
+            "Si True, POST /predict detecta índice/medio/anular, infiere por uña y agrega con max."
+        ),
+    )
+    predict_nail_expected_count: int = Field(
+        default=3,
+        ge=1,
+        le=5,
+        validation_alias="PREDICT_NAIL_EXPECTED_COUNT",
+        description="Número de uñas esperadas (índice, medio, anular).",
+    )
+    predict_nail_min_count: int = Field(
+        default=1,
+        ge=1,
+        le=5,
+        validation_alias="PREDICT_NAIL_MIN_COUNT",
+        description="Mínimo de uñas válidas tras detección para completar la predicción.",
+    )
+    predict_nail_detect_min_confidence: float = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        validation_alias="PREDICT_NAIL_DETECT_MIN_CONFIDENCE",
+        description="Confianza mínima de MediaPipe Hands para aceptar landmarks.",
+    )
+    predict_nail_fallback_mode: Literal["whole", "vertical_thirds", "reject"] = Field(
+        default="reject",
+        validation_alias="PREDICT_NAIL_FALLBACK_MODE",
+        description="Si no se detecta mano: imagen completa, 3 franjas o rechazar (400).",
+    )
+    predict_nail_require_mediapipe: bool = Field(
+        default=True,
+        validation_alias="PREDICT_NAIL_REQUIRE_MEDIAPIPE",
+        description=(
+            "Si True, multinail solo infiere con mediapipe_hands o rois debug; "
+            "sin fallback silencioso."
+        ),
+    )
+    predict_nail_crop_scale: float = Field(
+        default=1.0,
+        ge=0.25,
+        le=3.0,
+        validation_alias="PREDICT_NAIL_CROP_SCALE",
+        description="Escala del recorte de uña relativa al ancho del dedo (tip→DIP).",
+    )
+    hand_landmarker_model_path: str = Field(
+        default="ml/artifacts/models/hand_landmarker.task",
+        validation_alias="HAND_LANDMARKER_MODEL_PATH",
+        description="Ruta al modelo Hand Landmarker (.task) para detección multinail.",
     )
 
     inference_model_path: str = Field(

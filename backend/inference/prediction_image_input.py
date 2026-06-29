@@ -13,7 +13,7 @@ from backend.core.prediction_image_limits import (
     prediction_image_max_bytes,
 )
 
-# Tras decodificar, se normaliza a PNG (uña, CNN y Storage).
+# Tras decodificar, Storage recibe PNG redimensionado; inferencia usa RGB completo.
 _OUTPUT_CONTENT_TYPE = "image/png"
 
 
@@ -109,6 +109,13 @@ def require_rgb_pixel_limit(rgb: np.ndarray, max_pixels: int) -> None:
         )
 
 
+def storage_max_edge_px() -> int:
+    edge = int(settings.prediction_image_storage_max_edge_px)
+    if edge > 0:
+        return edge
+    return int(settings.prediction_image_max_edge_px)
+
+
 def rgb_to_png_bytes(rgb: np.ndarray) -> bytes:
     import tensorflow as tf
 
@@ -116,12 +123,8 @@ def rgb_to_png_bytes(rgb: np.ndarray) -> bytes:
     return bytes(tf.image.encode_png(t).numpy())
 
 
-def prepare_prediction_image(content_type: str | None, raw: bytes) -> tuple[str, bytes, np.ndarray]:
-    """
-    Comprueba tamaño y MIME, decodifica, redimensiona y devuelve PNG + RGB para la uña.
-
-    Devuelve ``(content_type_png, png_bytes, rgb_uint8_resized)``.
-    """
+def validate_and_decode_prediction_image(content_type: str | None, raw: bytes) -> np.ndarray:
+    """Valida MIME/tamaño, decodifica y devuelve RGB uint8 a resolución completa (sin resize)."""
     max_b = prediction_image_max_bytes()
     if len(raw) > max_b:
         mb = max_b / (1024 * 1024)
@@ -140,6 +143,21 @@ def prepare_prediction_image(content_type: str | None, raw: bytes) -> tuple[str,
     require_pre_decode_pixel_limit(raw, settings.prediction_image_max_pixels)
     rgb = decode_rgb_uint8(raw)
     require_rgb_pixel_limit(rgb, settings.prediction_image_max_pixels)
-    rgb = resize_rgb_max_edge(rgb, settings.prediction_image_max_edge_px)
-    png_bytes = rgb_to_png_bytes(rgb)
-    return _OUTPUT_CONTENT_TYPE, png_bytes, rgb
+    return rgb
+
+
+def encode_image_for_storage(rgb: np.ndarray) -> tuple[str, bytes]:
+    """Redimensiona para Storage y devuelve PNG + content-type."""
+    resized = resize_rgb_max_edge(rgb, storage_max_edge_px())
+    return _OUTPUT_CONTENT_TYPE, rgb_to_png_bytes(resized)
+
+
+def prepare_prediction_image(content_type: str | None, raw: bytes) -> tuple[str, bytes, np.ndarray]:
+    """
+    Decodifica a RGB completo para inferencia y genera bytes reducidos para Storage.
+
+    Devuelve ``(content_type_png, png_bytes_for_storage, rgb_uint8_full)``.
+    """
+    rgb = validate_and_decode_prediction_image(content_type, raw)
+    content_type_out, png_bytes = encode_image_for_storage(rgb)
+    return content_type_out, png_bytes, rgb

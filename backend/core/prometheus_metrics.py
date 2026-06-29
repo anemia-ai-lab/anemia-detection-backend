@@ -53,7 +53,18 @@ PREDICT_PHASE_DURATION_SECONDS = Histogram(
     buckets=(0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0, float("inf")),
 )
 
+PREDICT_NAIL_DETECTION_FAILURES_TOTAL = Counter(
+    "predict_nail_detection_failures_total",
+    "POST /predict rechazado por detección de uñas insuficiente (multinail).",
+    ["reason"],
+)
+
 _PREDICT_PHASES = frozenset({"preprocess", "inference", "storage_upload", "db_insert"})
+
+
+def record_nail_detection_failure(reason: str) -> None:
+    """Incrementa contador cuando multinail rechaza por detección insuficiente."""
+    PREDICT_NAIL_DETECTION_FAILURES_TOTAL.labels(reason=reason).inc()
 
 
 @contextmanager

@@ -1,4 +1,4 @@
-.PHONY: install run dev lint format test smoke-prod cdk-synth docker-push-ecr ml-test ml-venv ml-install ml-tf-check ml-test-docker \
+.PHONY: install run dev lint format test smoke-prod cdk-synth docker-push-ecr download-hand-landmarker ml-test ml-venv ml-install ml-tf-check ml-test-docker \
 	db-push ml-train-demo ml-train ml-train-finetune ml-eval ml-eval-ghana \
 	ml-prepare-ghana ml-docker-eval-ghana ml-docker-train-finetune ml-docker-finetune-ghana \
 	ml-docker-train-ghana-scratch ml-docker-calibrate-ghana \
@@ -22,6 +22,9 @@ ML_TEST_IMAGE ?= anemia-ml-test
 install:
 	$(PYTHON) -m pip install -r requirements.txt
 
+download-hand-landmarker:
+	$(PYTHON) ml/scripts/download_hand_landmarker.py
+
 run:
 	$(PYTHON) -m uvicorn backend.main:app --reload
 
@@ -34,7 +37,7 @@ format:
 	$(TEST_PYTHON) -m ruff format .
 
 test:
-	env APP_ENV=test DISABLE_TF=1 INFERENCE_MODEL_PATH= $(TEST_PYTHON) -m pytest tests/
+	env APP_ENV=test DISABLE_TF=1 INFERENCE_MODEL_PATH= RATE_LIMIT_ENABLED=false $(TEST_PYTHON) -m pytest tests/
 
 smoke-prod:
 	$(PYTHON) scripts/smoke_prod.py

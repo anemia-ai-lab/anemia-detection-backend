@@ -1,12 +1,33 @@
-# Contrato de inferencia móvil (React Native + OpenCV + TFLite)
+# Contrato de inferencia móvil (React Native + TFLite offline)
 
-Documento para el cliente offline. El backend replica la misma lógica de calibración y tiers cuando recibe crops ya recortados.
+Documento para el cliente móvil. La app **solo captura** una foto con índice, medio y anular en el encuadre guía.
 
-## Captura
+## Modo online (`POST /predict`)
+
+Con conexión, la app envía **una sola imagen** (multipart `image`). El backend hace el 100%:
+
+1. **MediaPipe Hand Landmarker** (Tasks API) localiza índice, medio y anular.
+2. Recorta la uña de cada dedo (tip→DIP, OpenCV).
+3. Por uña: ensemble Keras (3 semillas) → calibración.
+4. Agrega `p_hand = max(p_cal)` y persiste una predicción (`inference_mode: backend`).
+
+Detalle por uña en `preprocessing.nails` de la respuesta. La app no recorta ni infiere en este modo.
+
+**Multipart:** solo el campo `image` es obligatorio. El campo opcional `rois` (JSON de ROIs normalizadas) es **solo debug/ops** en el backend; la app móvil **no debe enviarlo**.
+
+**Límites de subida (defaults):** hasta **20 MB** y **50 MP**; JPEG/PNG/WebP (no HEIC). El backend infiere sobre la imagen decodificada completa y guarda en Storage un PNG reducido (~1024 px de lado).
+
+**Sin detección de uñas:** HTTP **400**, `code`: `no_fingernail_detected`. La app debe mostrar “Vuelve a tomar la foto” (índice, medio, anular y palma visibles) y **no** mostrar riesgo.
+
+## Modo offline (TFLite en dispositivo)
+
+Documento histórico del pipeline en el teléfono cuando no hay red. El backend replica la misma lógica de calibración y tiers al sincronizar.
+
+## Captura (ambos modos)
 
 1. Pedir al usuario **anular, medio e índice** de la misma mano.
 2. Iluminación uniforme; evitar sombras fuertes sobre la uña.
-3. OpenCV detecta y recorta cada uña → tensor **224×224 RGB**.
+3. **Online:** enviar la foto completa al backend. **Offline:** OpenCV en el dispositivo recorta cada uña → tensor **224×224 RGB**.
 
 ## Por uña (3 dedos × pipeline)
 

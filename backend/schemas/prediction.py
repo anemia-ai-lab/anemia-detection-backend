@@ -10,6 +10,28 @@ from backend.core.risk_mapping import RiskLevel
 
 SYNC_METADATA_BATCH_MAX = 50
 
+FingerLabel = Literal["index", "middle", "ring", "hand"]
+
+
+class NailRoi(BaseModel):
+    """ROI normalizada [0,1] para override manual de recorte (debug/ops; no requerida por la app)."""
+
+    finger: FingerLabel | None = None
+    x: float = Field(ge=0.0, le=1.0)
+    y: float = Field(ge=0.0, le=1.0)
+    w: float = Field(gt=0.0, le=1.0)
+    h: float = Field(gt=0.0, le=1.0)
+
+
+# Forma documentada de ``PredictionResponse.preprocessing`` en POST /predict multinail:
+# {
+#   "aggregation": "max",
+#   "detector": "mediapipe_hands" | "roi_override" | "fallback_whole" | ...  (mediapipe_hands = Hand Landmarker Tasks)
+#   "crop": "tip_to_dip",
+#   "tta_enabled": false,
+#   "nails": [{"finger": "index", "raw": 0.2, "cal": 0.18, "bbox": [x,y,w,h]}, ...]
+# }
+
 
 class PredictionCreateBody(BaseModel):
     """Campos opcionales del formulario multipart de ``POST /predict`` (además de la imagen)."""
@@ -289,4 +311,10 @@ class PredictionResponse(BaseModel):
     inference_mode: Literal["backend", "tflite_offline"] = Field(
         default="backend",
         description="Dónde se ejecutó la inferencia (API backend u offline TFLite para sincronización).",
+    )
+    preprocessing: Optional[dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Metadatos del pipeline (p. ej. detección multinail, p_cal por uña, agregación max)."
+        ),
     )

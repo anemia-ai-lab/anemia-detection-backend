@@ -19,8 +19,8 @@ _PREDICT_RESPONSES: dict[int | str, dict[str, object]] = {
     400: {
         "model": ErrorResponse,
         "description": (
-            "Imagen ausente/vacía, no decodificable, sin uña detectada (heurística), "
-            "imagen demasiado pequeña u otros errores de imagen."
+            "Imagen ausente/vacía, no decodificable, sin uñas detectadas (MediaPipe), "
+            "imagen demasiado pequeña u otros errores de imagen. Reintentar captura."
         ),
     },
     413: {
@@ -59,14 +59,31 @@ _PREDICT_RESPONSES: dict[int | str, dict[str, object]] = {
     responses=_PREDICT_RESPONSES,
     tags=["predictions"],
     summary="Inferencia online",
-    description="Multipart: ``image`` (JPEG/PNG/WebP); ``birth_date`` y ``notes`` opcionales.",
+    description=(
+        "Multipart: ``image`` (foto con índice, medio y anular); ``birth_date`` y ``notes`` opcionales. "
+        "El backend detecta y recorta cada uña, infiere con ensemble y agrega con max. "
+        "Si no se detectan uñas (``code``: ``no_fingernail_detected``), la app debe pedir otra foto."
+    ),
 )
 async def predict(
     ctx: PredictContextDep,
     svc: PredictionServiceDep,
-    image: Annotated[UploadFile | None, File(description="JPEG, PNG o WebP; máx. 5 MB.")] = None,
+    image: Annotated[
+        UploadFile | None,
+        File(description="JPEG, PNG o WebP; hasta 20 MB y 50 MP (se reduce al guardar)."),
+    ] = None,
     birth_date: Annotated[str | None, Form()] = None,
     notes: Annotated[str | None, Form()] = None,
+    rois: Annotated[
+        str | None,
+        Form(
+            description=(
+                "Opcional (debug/ops): JSON de ROIs normalizadas. "
+                "Dejar vacío en uso normal; la app móvil no lo envía."
+            ),
+            json_schema_extra={"examples": [""]},
+        ),
+    ] = None,
 ) -> PredictionResponse:
     user, access_token = ctx
     return await svc.run_predict_from_upload(
@@ -75,6 +92,7 @@ async def predict(
         image=image,
         birth_date=birth_date,
         notes=notes,
+        rois=rois,
     )
 
 

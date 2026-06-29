@@ -3,6 +3,12 @@
 from __future__ import annotations
 
 import os
+from datetime import datetime, timezone
+
+import pytest
+from supabase_auth.types import AuthResponse, Session, User, UserResponse
+
+from backend.core import config as config_module
 
 # La suite del backend no debe inicializar TensorFlow/Keras (velocidad, determinismo, sin exit 134).
 # Opcional: ALLOW_BACKEND_TF=1 para cargar el .keras real durante tests (no recomendado en CI).
@@ -10,10 +16,19 @@ if os.environ.get("ALLOW_BACKEND_TF", "").strip().lower() not in ("1", "true", "
     os.environ["DISABLE_TF"] = "1"
     os.environ["INFERENCE_MODEL_PATH"] = ""
 os.environ.setdefault("RATE_LIMIT_ENABLED", "false")
+os.environ.setdefault("PREDICT_MULTINAIL_ENABLED", "false")
 
-from datetime import datetime, timezone
 
-from supabase_auth.types import AuthResponse, Session, User, UserResponse
+@pytest.fixture(autouse=True)
+def _disable_multinail_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    """La suite API usa modo legacy salvo tests que habiliten multinail explícitamente."""
+    monkeypatch.setattr(config_module.settings, "predict_multinail_enabled", False)
+
+
+@pytest.fixture(autouse=True)
+def _disable_rate_limit_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Evita contaminar el bucket en memoria entre tests de /predict."""
+    monkeypatch.setattr(config_module.settings, "rate_limit_enabled", False)
 
 
 def dt() -> datetime:

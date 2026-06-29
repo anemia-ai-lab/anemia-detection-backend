@@ -25,6 +25,9 @@ def _minimal_png() -> bytes:
 
 
 def test_predict_returns_429_when_rate_limit_exceeded(monkeypatch: pytest.MonkeyPatch) -> None:
+    reset = getattr(app.state, "rate_limit_reset_buckets", None)
+    if callable(reset):
+        reset()
     monkeypatch.setattr(config_module.settings, "rate_limit_enabled", True)
     monkeypatch.setattr(config_module.settings, "rate_limit_predict_requests", 2)
     monkeypatch.setattr(config_module.settings, "rate_limit_window_seconds", 60)

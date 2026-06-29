@@ -48,6 +48,11 @@ def register_rate_limit_middleware(app: FastAPI) -> None:
 
     buckets: defaultdict[tuple[str, str], _Bucket] = defaultdict(deque)
 
+    def reset_buckets_for_tests() -> None:
+        buckets.clear()
+
+    app.state.rate_limit_reset_buckets = reset_buckets_for_tests  # type: ignore[attr-defined]
+
     class _RateLimitMiddleware(BaseHTTPMiddleware):
         async def dispatch(
             self,
