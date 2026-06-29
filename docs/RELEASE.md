@@ -57,7 +57,7 @@ El script registra el usuario en el primer run si `login` devuelve 401.
 | 1 | `GET /health` | `status=ok`, `model_loaded=true`, `model_version=v2.0`, `supabase_ready=true` si el campo está presente |
 | 2 | `POST /auth/login` (o `register` + `login`) | 200 + JWT |
 | 3 | `GET /auth/me/profile` | 200 con JWT |
-| 4 | `POST /predict` (multipart `image` + `rois` smoke) | 200, `risk` en low/medium/high, `preprocessing.detector` = `roi_override` |
+| 4 | `POST /predict` (JPEG `scripts/fixtures/smoke_hand.jpg`, MediaPipe) | 200, `risk` válido, `preprocessing.detector=mediapipe_hands` |
 | 5 | `GET /predictions` | 200, incluye la predicción del paso 4 |
 | 6 | `GET /metrics` + `Authorization: Bearer $METRICS_BEARER_TOKEN` | 200 Prometheus |
 

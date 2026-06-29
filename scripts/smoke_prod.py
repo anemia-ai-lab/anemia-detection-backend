@@ -12,9 +12,12 @@ Salida: 0 si todos los pasos pasan; 1 en caso contrario.
 
 from __future__ import annotations
 
+import json
 import os
 import sys
+import time
 from io import BytesIO
+from pathlib import Path
 from urllib.parse import urlparse
 
 import httpx
@@ -23,15 +26,27 @@ DEFAULT_BASE_URL = ""
 VALID_RISKS = frozenset({"low", "medium", "high"})
 TIMEOUT_DEFAULT = httpx.Timeout(30.0, read=120.0)
 TIMEOUT_PREDICT = httpx.Timeout(30.0, read=180.0)
+_SMOKE_HAND_FIXTURE = Path(__file__).resolve().parent / "fixtures" / "smoke_hand.jpg"
+_DEBUG_LOG_PATH = Path(__file__).resolve().parents[1] / ".cursor" / "debug-6096ab.log"
 
-# ROIs normalizadas para smoke: el PNG 32×32 no tiene mano real; con
-# PREDICT_NAIL_REQUIRE_MEDIAPIPE=true MediaPipe rechazaría la captura.
-# Las ROIs activan roi_override (mismo camino que tests/test_predict.py).
-SMOKE_PREDICT_ROIS = (
-    '[{"finger":"index","x":0.05,"y":0.1,"w":0.25,"h":0.5},'
-    '{"finger":"middle","x":0.35,"y":0.1,"w":0.25,"h":0.5},'
-    '{"finger":"ring","x":0.65,"y":0.1,"w":0.25,"h":0.5}]'
-)
+
+def _agent_debug_log(hypothesis_id: str, location: str, message: str, data: dict) -> None:
+    # #region agent log
+    try:
+        payload = {
+            "sessionId": "6096ab",
+            "hypothesisId": hypothesis_id,
+            "location": location,
+            "message": message,
+            "data": data,
+            "timestamp": int(time.time() * 1000),
+        }
+        _DEBUG_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with _DEBUG_LOG_PATH.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(payload, ensure_ascii=False) + "\n")
+    except OSError:
+        pass
+    # #endregion
 
 
 def _env(name: str, *, required: bool = False, default: str = "") -> str:
@@ -69,13 +84,16 @@ def _base_url() -> str:
     return base
 
 
-def skin_patch_png() -> bytes:
-    """PNG 32×32 tono piel; crops vía SMOKE_PREDICT_ROIS (no MediaPipe en smoke)."""
-    from PIL import Image
-
-    buf = BytesIO()
-    Image.new("RGB", (32, 32), (220, 180, 140)).save(buf, format="PNG")
-    return buf.getvalue()
+def smoke_hand_jpeg() -> bytes:
+    """JPEG con mano real (índice/medio/anular) para MediaPipe en smoke prod."""
+    if not _SMOKE_HAND_FIXTURE.is_file():
+        print(
+            f"ERROR: falta fixture {_SMOKE_HAND_FIXTURE} "
+            "(imagen de mano para smoke /predict).",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    return _SMOKE_HAND_FIXTURE.read_bytes()
 
 
 def _fail(step: str, detail: str, *, status: int | None = None) -> None:
@@ -156,31 +174,60 @@ def check_profile(client: httpx.Client, base: str, token: str) -> None:
     _ok(step)
 
 
-def check_predict(client: httpx.Client, base: str, token: str, png: bytes) -> str:
+def check_predict(client: httpx.Client, base: str, token: str, image_bytes: bytes) -> str:
     step = "predict"
-    files = {"image": ("smoke.png", png, "image/png")}
-    data = {"rois": SMOKE_PREDICT_ROIS}
+    files = {"image": ("smoke_hand.jpg", image_bytes, "image/jpeg")}
     r = client.post(
         f"{base}/predict",
         headers={"Authorization": f"Bearer {token}"},
-        data=data,
         files=files,
         timeout=TIMEOUT_PREDICT,
     )
     if r.status_code != 200:
+        _agent_debug_log(
+            "A",
+            "smoke_prod.py:check_predict",
+            "predict_failed",
+            {
+                "status": r.status_code,
+                "body_preview": r.text[:500],
+                "image_bytes": len(image_bytes),
+                "fixture": str(_SMOKE_HAND_FIXTURE),
+            },
+        )
         _fail(step, r.text, status=r.status_code)
     body = r.json()
     prep = body.get("preprocessing") or {}
     detector = prep.get("detector")
-    if detector not in ("roi_override", "mediapipe_hands"):
-        _fail(step, f"detector={detector!r} (expected roi_override or mediapipe_hands)")
+    nails = prep.get("nails") or []
+    if detector != "mediapipe_hands":
+        _agent_debug_log(
+            "B",
+            "smoke_prod.py:check_predict",
+            "unexpected_detector",
+            {"detector": detector, "nail_count": len(nails)},
+        )
+        _fail(step, f"detector={detector!r} (expected mediapipe_hands)")
+    if len(nails) < 1:
+        _fail(step, f"nails={len(nails)} (expected >= 1)")
     risk = body.get("risk")
     if risk not in VALID_RISKS:
         _fail(step, f"risk={risk!r}")
     pred_id = body.get("id")
     if not pred_id:
         _fail(step, "respuesta sin id")
-    _ok(step, f"risk={risk} id={pred_id}")
+    _agent_debug_log(
+        "C",
+        "smoke_prod.py:check_predict",
+        "predict_ok",
+        {
+            "detector": detector,
+            "nail_count": len(nails),
+            "risk": risk,
+            "runId": "post-fix",
+        },
+    )
+    _ok(step, f"risk={risk} detector={detector} id={pred_id}")
     return str(pred_id)
 
 
@@ -228,12 +275,12 @@ def main() -> None:
 
     print(f"Smoke prod → {base}")
 
-    png = skin_patch_png()
+    image_bytes = smoke_hand_jpeg()
     with httpx.Client(timeout=TIMEOUT_DEFAULT) as client:
         check_health(client, base)
         token = obtain_access_token(client, base, email, password)
         check_profile(client, base, token)
-        pred_id = check_predict(client, base, token, png)
+        pred_id = check_predict(client, base, token, image_bytes)
         check_predictions_list(client, base, token, expect_id=pred_id)
         check_metrics(client, base, metrics_token)
 

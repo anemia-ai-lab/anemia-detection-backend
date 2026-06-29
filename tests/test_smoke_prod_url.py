@@ -33,11 +33,10 @@ def test_is_retired_render_url_no_false_positive_on_substring_in_path() -> None:
     assert not smoke.is_retired_render_url("http://evil.onrender.com.attacker.com")
 
 
-def test_smoke_predict_rois_is_valid_json_list() -> None:
-    import json
-
+def test_smoke_hand_fixture_exists_and_is_jpeg() -> None:
     smoke = _load_smoke_prod()
-    parsed = json.loads(smoke.SMOKE_PREDICT_ROIS)
-    assert isinstance(parsed, list)
-    assert len(parsed) == 3
-    assert {item["finger"] for item in parsed} == {"index", "middle", "ring"}
+    fixture = Path(__file__).resolve().parents[1] / "scripts" / "fixtures" / "smoke_hand.jpg"
+    assert fixture.is_file(), "scripts/fixtures/smoke_hand.jpg required for smoke prod"
+    raw = smoke.smoke_hand_jpeg()
+    assert raw[:2] == b"\xff\xd8"
+    assert len(raw) > 10_000
