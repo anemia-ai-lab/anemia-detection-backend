@@ -15,7 +15,13 @@ ENV PYTHONUNBUFFERED=1 \
 
 # OpenMP for TensorFlow CPU wheels on Debian slim
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libgomp1 libglib2.0-0 libgl1-mesa-glx curl \
+    && apt-get install -y --no-install-recommends \
+        libgomp1 \
+        libglib2.0-0 \
+        libgl1-mesa-glx \
+        libgles2-mesa \
+        libegl1-mesa \
+        curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Layer cache: dependencies before application code (TensorFlow ~645 MB in its own layer)

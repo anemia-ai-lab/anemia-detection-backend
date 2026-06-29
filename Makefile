@@ -1,4 +1,4 @@
-.PHONY: install run dev lint format test smoke-prod metrics-baseline cdk-synth docker-push-ecr download-hand-landmarker ml-test ml-venv ml-install ml-tf-check ml-test-docker \
+.PHONY: install run dev lint format test smoke-prod metrics-baseline cdk-synth docker-push-ecr download-hand-landmarker install-mediapipe-system-libs ml-test ml-venv ml-install ml-tf-check ml-test-docker \
 	db-push ml-train-demo ml-train ml-train-finetune ml-eval ml-eval-ghana \
 	ml-prepare-ghana ml-docker-eval-ghana ml-docker-train-finetune ml-docker-finetune-ghana \
 	ml-docker-train-ghana-scratch ml-docker-calibrate-ghana \
@@ -24,6 +24,9 @@ install:
 
 download-hand-landmarker:
 	$(PYTHON) ml/scripts/download_hand_landmarker.py
+
+install-mediapipe-system-libs:
+	bash scripts/install_mediapipe_system_libs.sh
 
 run:
 	$(PYTHON) -m uvicorn backend.main:app --reload
