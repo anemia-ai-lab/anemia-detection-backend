@@ -218,7 +218,7 @@ Producción actual: **1 tarea Fargate** (`desiredCount: 1`). Escala horizontal (
 | `PREDICTION_IMAGE_STORAGE_MAX_EDGE_PX` | Lado máx. del PNG guardado en Storage (default 1024); inferencia usa RGB completo. |
 | `PREDICT_MULTINAIL_ENABLED` | Si `true`, `POST /predict` detecta 3 uñas y agrega con `max`. |
 | `HAND_LANDMARKER_MODEL_PATH` | Ruta al `.task` de Hand Landmarker (defecto: `ml/artifacts/models/hand_landmarker.task`). |
-| Docker prod | El `Dockerfile` instala `libgl1-mesa-glx`, `libgles2-mesa`, `libegl1-mesa`, OpenCV headless antes de MediaPipe y descarga `hand_landmarker.task` en build. CI Linux: `make install-mediapipe-system-libs`. Tras cambios en Docker, **rebuild + redeploy ECS** antes de smoke prod. |
+| Docker prod | Debian bookworm: `libgl1-mesa-glx`, `libgles2-mesa`, `libegl1-mesa` en el `Dockerfile`. CI Ubuntu 24.04: `make install-mediapipe-system-libs` (usa `libgl1`, `libglx-mesa0`, `libgles2`, `libegl1`). Rebuild + redeploy ECS tras cambios en Docker. |
 | `PREDICT_NAIL_REQUIRE_MEDIAPIPE` | Si `true` (default), sin detección real → **400** `no_fingernail_detected` (no riesgo falso). |
 | `PREDICT_NAIL_FALLBACK_MODE` | Default `reject`; `whole`/`vertical_thirds` solo con `PREDICT_NAIL_REQUIRE_MEDIAPIPE=false` (debug). |
 | `PREDICT_NAIL_*` | Confianza MediaPipe, mínimo de uñas, escala de recorte. |
