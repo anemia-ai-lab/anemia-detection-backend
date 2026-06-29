@@ -31,3 +31,13 @@ def test_is_retired_render_url_allows_alb() -> None:
 def test_is_retired_render_url_no_false_positive_on_substring_in_path() -> None:
     smoke = _load_smoke_prod()
     assert not smoke.is_retired_render_url("http://evil.onrender.com.attacker.com")
+
+
+def test_smoke_predict_rois_is_valid_json_list() -> None:
+    import json
+
+    smoke = _load_smoke_prod()
+    parsed = json.loads(smoke.SMOKE_PREDICT_ROIS)
+    assert isinstance(parsed, list)
+    assert len(parsed) == 3
+    assert {item["finger"] for item in parsed} == {"index", "middle", "ring"}

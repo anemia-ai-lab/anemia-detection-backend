@@ -24,6 +24,15 @@ VALID_RISKS = frozenset({"low", "medium", "high"})
 TIMEOUT_DEFAULT = httpx.Timeout(30.0, read=120.0)
 TIMEOUT_PREDICT = httpx.Timeout(30.0, read=180.0)
 
+# ROIs normalizadas para smoke: el PNG 32×32 no tiene mano real; con
+# PREDICT_NAIL_REQUIRE_MEDIAPIPE=true MediaPipe rechazaría la captura.
+# Las ROIs activan roi_override (mismo camino que tests/test_predict.py).
+SMOKE_PREDICT_ROIS = (
+    '[{"finger":"index","x":0.05,"y":0.1,"w":0.25,"h":0.5},'
+    '{"finger":"middle","x":0.35,"y":0.1,"w":0.25,"h":0.5},'
+    '{"finger":"ring","x":0.65,"y":0.1,"w":0.25,"h":0.5}]'
+)
+
 
 def _env(name: str, *, required: bool = False, default: str = "") -> str:
     value = os.environ.get(name, default).strip()
@@ -61,7 +70,7 @@ def _base_url() -> str:
 
 
 def skin_patch_png() -> bytes:
-    """PNG 32×32 tono piel; pasa heurística de uña en backend/inference/nail_presence.py."""
+    """PNG 32×32 tono piel; crops vía SMOKE_PREDICT_ROIS (no MediaPipe en smoke)."""
     from PIL import Image
 
     buf = BytesIO()
@@ -150,19 +159,25 @@ def check_profile(client: httpx.Client, base: str, token: str) -> None:
 def check_predict(client: httpx.Client, base: str, token: str, png: bytes) -> str:
     step = "predict"
     files = {"image": ("smoke.png", png, "image/png")}
+    data = {"rois": SMOKE_PREDICT_ROIS}
     r = client.post(
         f"{base}/predict",
         headers={"Authorization": f"Bearer {token}"},
+        data=data,
         files=files,
         timeout=TIMEOUT_PREDICT,
     )
     if r.status_code != 200:
         _fail(step, r.text, status=r.status_code)
-    data = r.json()
-    risk = data.get("risk")
+    body = r.json()
+    prep = body.get("preprocessing") or {}
+    detector = prep.get("detector")
+    if detector not in ("roi_override", "mediapipe_hands"):
+        _fail(step, f"detector={detector!r} (expected roi_override or mediapipe_hands)")
+    risk = body.get("risk")
     if risk not in VALID_RISKS:
         _fail(step, f"risk={risk!r}")
-    pred_id = data.get("id")
+    pred_id = body.get("id")
     if not pred_id:
         _fail(step, "respuesta sin id")
     _ok(step, f"risk={risk} id={pred_id}")
