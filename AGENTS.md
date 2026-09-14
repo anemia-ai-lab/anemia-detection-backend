@@ -52,4 +52,4 @@ Supabase keys (security):
 
 Deployment:
 	•	Production (live): Fly.io always-on (`fly.toml`, 2 vCPU / 4 GB, no scale-to-zero). Guide: `docs/DEPLOYMENT_FLY.md`. Secrets via `fly secrets` (`SUPABASE_*`, `METRICS_BEARER_TOKEN`). CI: `.github/workflows/deploy-fly.yml`.
-	•	AWS ECS: IaC in `infra/` and `.github/workflows/deploy-aws.yml` kept as reference; the live stack was destroyed. Node **22** for CDK CLI (`.nvmrc`). Guide: `docs/DEPLOYMENT_AWS.md` · env: `aws.env.example`.
+	•	AWS ECS: IaC in `infra/` kept as reference; the live stack was destroyed. Node **22** for CDK CLI (`.nvmrc`). Guide: `docs/DEPLOYMENT_AWS.md` · env: `aws.env.example`.

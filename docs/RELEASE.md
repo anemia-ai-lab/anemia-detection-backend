@@ -44,7 +44,6 @@ make smoke-prod
 **GitHub Actions**
 
 - **Deploy Fly** ([`.github/workflows/deploy-fly.yml`](../.github/workflows/deploy-fly.yml)): push a `main` (rutas relevantes) o `workflow_dispatch`. Secret `FLY_API_TOKEN`.
-- **Deploy AWS** ([`.github/workflows/deploy-aws.yml`](../.github/workflows/deploy-aws.yml)): histórico; el stack ECS no está vivo.
 - **CI smoke programado** ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml), job `smoke-prod`): `schedule` (lun/jue 15:00 UTC) y `workflow_dispatch`
 - Secrets: `SMOKE_EMAIL`, `SMOKE_PASSWORD`, `METRICS_BEARER_TOKEN`
 - Variable para CI programado: `SMOKE_BASE_URL` (`https://<app>.fly.dev`, sin barra final)

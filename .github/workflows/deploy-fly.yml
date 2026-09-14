@@ -1,4 +1,4 @@
-# Deploy API to Fly.io (always-on). AWS ECS remains in-repo as historical IaC.
+# Deploy API to Fly.io (always-on). AWS ECS IaC in infra/ is historical only.
 name: Deploy Fly
 
 permissions:

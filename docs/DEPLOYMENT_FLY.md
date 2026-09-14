@@ -2,7 +2,7 @@
 
 Producción actual del API: **Fly.io**, región `sjc` (San José, cercana a Supabase `us-west-2`). Mismo [`Dockerfile`](../Dockerfile) que AWS (FastAPI + TensorFlow CPU + ensemble 3× `.keras`). **Supabase** sigue externo (Auth, Postgres, Storage).
 
-El stack ECS de [`docs/DEPLOYMENT_AWS.md`](DEPLOYMENT_AWS.md) se destruyó; el IaC en `infra/` y el workflow AWS se conservan como referencia, no como runtime vivo.
+El stack ECS de [`docs/DEPLOYMENT_AWS.md`](DEPLOYMENT_AWS.md) se destruyó; el IaC en `infra/` se conserva como referencia, no como runtime vivo.
 
 ## Por qué always-on (≥2 vCPU / 4 GB)
 
