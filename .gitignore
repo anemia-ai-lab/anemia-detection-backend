@@ -206,6 +206,9 @@ cython_debug/
 # Ruff stuff:
 .ruff_cache/
 
+# Local caches (matplotlib / train scratch)
+.tmp/
+
 # PyPI configuration file
 .pypirc
 
@@ -281,6 +284,8 @@ ml/artifacts/runs/*
 !ml/artifacts/runs/.gitkeep
 !ml/artifacts/runs/calibration_ensemble_ghana_v2.json
 !ml/artifacts/runs/calibration_ensemble_ghana_v2.md
+!ml/artifacts/runs/calibration_ensemble_ghana_dedup.json
+!ml/artifacts/runs/calibration_ensemble_ghana_dedup.md
 
 # AWS CDK
 infra/cdk.out/

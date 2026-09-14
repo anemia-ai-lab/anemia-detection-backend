@@ -39,13 +39,18 @@ def main() -> int:
     if T <= 0:
         print("temperature_T inválido o ausente en calibration", file=sys.stderr)
         return 1
+    method = str(cal.get("chosen_method") or cal.get("method") or "temperature")
     sel = cal.get("operational_threshold_selection") or {}
     thr_block = (data.get("test_calibrated") or {}).get("thresholds_used") or {}
     tau = float(sel.get("threshold") or thr_block.get("operational_threshold") or 0)
     tiers = cal.get("risk_tier_thresholds") or {}
     low_upper = float(tiers.get("low_upper", 0))
     high_lower = float(tiers.get("high_lower", tau))
+    print(f"INFERENCE_CALIBRATION_METHOD={'platt' if 'platt' in method else 'temperature'}")
     print(f"INFERENCE_CALIBRATION_TEMPERATURE={T}")
+    if "platt_a" in cal:
+        print(f"INFERENCE_CALIBRATION_PLATT_A={float(cal['platt_a'])}")
+        print(f"INFERENCE_CALIBRATION_PLATT_B={float(cal.get('platt_b', 0.0))}")
     print(f"INFERENCE_CALIBRATION_OPERATIONAL_THRESHOLD={high_lower}")
     print(f"INFERENCE_RISK_TIER_LOW_UPPER={low_upper}")
     print(f"INFERENCE_RISK_TIER_HIGH_LOWER={high_lower}")

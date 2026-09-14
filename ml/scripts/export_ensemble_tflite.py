@@ -38,14 +38,19 @@ def _load_calibration(path: Path) -> dict:
     tau = float(sel.get("threshold") or tiers.get("high_lower") or 0)
     if T <= 0 or not 0 <= tau <= 1:
         raise ValueError(f"Calibración inválida en {path}")
-    return {
+    method = str(cal.get("chosen_method") or cal.get("method") or "temperature")
+    out = {
         "temperature": T,
         "operational_threshold": tau,
         "risk_tier_thresholds": {
             "low_upper": float(tiers.get("low_upper", 0)),
             "high_lower": float(tiers.get("high_lower", tau)),
         },
+        "calibration_method": "platt" if "platt" in method else "temperature",
+        "platt_a": float(cal["platt_a"]) if "platt_a" in cal else 1.0,
+        "platt_b": float(cal["platt_b"]) if "platt_b" in cal else 0.0,
     }
+    return out
 
 
 def main() -> int:
@@ -84,15 +89,26 @@ def main() -> int:
         "model_version": "v2.0-ensemble",
         "ensemble_members": members,
         "ensemble_aggregation": "mean_raw_probability",
-        "per_hand_nail_aggregation": "max_calibrated_probability",
+        "per_hand_nail_aggregation": "median_calibrated_probability",
+        "nail_aggregation_even_n": "lower_central",
+        "min_nail_count": 2,
+        "crop": "tip_to_dip_rotated",
+        "crop_scale": 1.0,
         "temperature": cal["temperature"],
+        "calibration_method": cal["calibration_method"],
+        "platt_a": cal["platt_a"],
+        "platt_b": cal["platt_b"],
         "operational_threshold": cal["operational_threshold"],
         "risk_tier_thresholds": cal["risk_tier_thresholds"],
         "preprocessing": "mobilenet_v2.preprocess_input",
         "calibration_required": True,
         "notes": (
-            "Por uña: promediar raw_prob de los 3 TFLite, aplicar T, luego max entre anular/medio/índice "
-            "para tiers bajo/medio/alto."
+            "Por uña: promediar raw_prob de los 3 TFLite, aplicar calibración (T o Platt), "
+            "luego mediana conservadora (n par = mínimo; n=3 = valor central) entre "
+            "anular/medio/índice. Requiere ≥2 uñas. Etapa 1+2: reduce amplificación del "
+            "sesgo; no cierra el domain gap (fine-tuning con fotos reales = Etapa 3). "
+            "Crop tip_to_dip_rotated (centro 0.35 hacia DIP, eje vertical). "
+            "crop_scale default 1.0 hasta smoke de fotos reales vs 0.75."
         ),
     }
     meta_path.write_text(json.dumps(ensemble_meta, indent=2), encoding="utf-8")

@@ -1,0 +1,130 @@
+{
+  "run_id": "calibration_ensemble_20260911T160037Z",
+  "timestamp_utc": "2026-09-11T16:00:37.744286+00:00",
+  "ensemble": {
+    "member_paths": [
+      "/Users/teus/Documents/Github/anemia-detection-backend/ml/artifacts/models/baseline_mobilenetv2_ghana_augmented_seed42.keras",
+      "/Users/teus/Documents/Github/anemia-detection-backend/ml/artifacts/models/baseline_mobilenetv2_ghana_augmented_seed123.keras",
+      "/Users/teus/Documents/Github/anemia-detection-backend/ml/artifacts/models/baseline_mobilenetv2_ghana_augmented_seed456.keras"
+    ],
+    "aggregation": "mean_raw_probability",
+    "n_members": 3
+  },
+  "train_dir": "/Users/teus/Documents/Github/anemia-detection-backend/ml/data/ghana/train",
+  "test_dir": "/Users/teus/Documents/Github/anemia-detection-backend/ml/data/ghana/test",
+  "calibration": {
+    "method": "platt_scaling_on_ensemble_mean_raw",
+    "chosen_method": "platt",
+    "temperature_T": 1.2333337504154993,
+    "platt_a": 1.2959465431061004,
+    "platt_b": 0.8750000000000007,
+    "isotonic_ablation": {
+      "n_knots": 674,
+      "fit_diagnostics": {
+        "n_knots": 674,
+        "y_min": 0.0,
+        "y_max": 1.0
+      }
+    },
+    "comparison_on_test": {
+      "temperature": {
+        "expected_calibration_error": 0.15588062021664975,
+        "brier_score": 0.2409457455174549,
+        "mean_nll": 0.6776474949501946
+      },
+      "platt": {
+        "expected_calibration_error": 0.0879168265323008,
+        "brier_score": 0.2232079175456483,
+        "mean_nll": 0.648844795152517
+      },
+      "isotonic": {
+        "expected_calibration_error": 0.1109658444841851,
+        "brier_score": 0.2262806178038473,
+        "mean_nll": 0.8113248337705318
+      }
+    },
+    "validation_split": 0.2,
+    "seed_used_for_val_split": 42,
+    "n_validation_samples": 832,
+    "validation_class_counts": {
+      "0": 445,
+      "1": 387
+    },
+    "fit_diagnostics": {
+      "temperature": {
+        "mean_nll_validation_before_T": 0.5704131349002561,
+        "mean_nll_validation_after_T": 0.5661134450684527,
+        "temperature_grid_t_min": 0.05,
+        "temperature_grid_t_max": 50.0,
+        "grid_points": 160,
+        "refine_points": 96
+      },
+      "platt": {
+        "mean_nll_validation_before_platt": 0.5704131349002561,
+        "mean_nll_validation_after_platt": 0.5244540010419503,
+        "a_grid_abs_min": 0.05,
+        "a_grid_abs_max": 20.0,
+        "b_grid_min": -8.0,
+        "b_grid_max": 8.0
+      }
+    },
+    "operational_threshold_selection": {
+      "threshold": 0.6071948325507105,
+      "source": "roc_youden_max_j_on_validation_calibrated"
+    },
+    "risk_tier_thresholds": {
+      "low_upper": 0.5161156076681039,
+      "high_lower": 0.6071948325507105,
+      "youden_j_on_validation": 0.4502743663443951,
+      "low_upper_source": "p90_negatives_calibrated_validation_clamped_below_high_lower",
+      "high_lower_source": "roc_youden_max_j_on_validation_calibrated"
+    }
+  },
+  "test_calibrated": {
+    "loss": 0.648844795152517,
+    "auc": 0.7093086838722229,
+    "auc_note": "AUC de Keras (ROC); independiente del umbral de decisi\u00f3n.",
+    "clinical_interpretation": {
+      "why_threshold_0_5_not_default": "Con datos cl\u00ednicos **desbalanceados** (pocos positivos frente a negativos), fijar 0.5 sobre la salida sigmoide suele **no** coincidir con un punto razonable de la curva ROC: puede inflar la exactitud global mientras **deja sin detectar** demasiados positivos reales. El coste de un falso negativo (pasar anemia por alto) y el de un falso positivo no son sim\u00e9tricos, por lo que el corte 0.5 no debe tomarse como decisi\u00f3n operativa por defecto.",
+      "why_prioritize_recall": "En un contexto de **cribado** orientado a detectar anemia, se prioriza la **sensibilidad (recall)** sobre la mera precisi\u00f3n global: captar la mayor\u00eda de casos positivos reduce riesgo cl\u00ednico; los falsos positivos suelen poder aclararse con hemograma u otras pruebas. El \u00edndice de Youden en ROC equilibra TPR y FPR y ofrece un umbral de trabajo m\u00e1s informativo que 0.5 bajo desbalance.",
+      "operational_threshold_use": "El **umbral operacional** (por defecto el de m\u00e1ximo \u00edndice de Youden en el conjunto de evaluaci\u00f3n) es el que se documenta como referencia para **interpretaci\u00f3n cl\u00ednica y predicciones** en este informe; el umbral 0.5 se mantiene solo como **referencia te\u00f3rica** habitual en modelos binarios."
+    },
+    "thresholds_used": {
+      "theoretical_default_threshold": 0.5,
+      "theoretical_role": "Referencia est\u00e1ndar (probabilidad \u2265 0.5); solo para comparaci\u00f3n bibliogr\u00e1fica, no como umbral operacional en este estudio.",
+      "operational_threshold": 0.6071948325507105,
+      "operational_threshold_source": "roc_youden_on_validation_calibrated_applied_to_test",
+      "youden_j_at_operational_threshold": 0.329279312966633,
+      "operational_for_predictions_note": "El **umbral operacional** (por defecto el de m\u00e1ximo \u00edndice de Youden en el conjunto de evaluaci\u00f3n) es el que se documenta como referencia para **interpretaci\u00f3n cl\u00ednica y predicciones** en este informe; el umbral 0.5 se mantiene solo como **referencia te\u00f3rica** habitual en modelos binarios.",
+      "fixed_decision_threshold": 0.5,
+      "roc_youden_optimal_threshold": 0.6071948325507105,
+      "youden_j_max": 0.329279312966633
+    },
+    "at_operational_threshold": {
+      "threshold": 0.6071948325507105,
+      "precision": 0.7055393586005831,
+      "recall": 0.42907801418439717,
+      "accuracy": 0.6266548984995587,
+      "youden_j": 0.329279312966633,
+      "source": "roc_youden_on_validation_calibrated_applied_to_test",
+      "is_primary_reporting_metrics": true
+    },
+    "at_threshold_0_5": {
+      "threshold": 0.5,
+      "accuracy": 0.6451897616946161,
+      "precision": 0.6528301886792452,
+      "recall": 0.6134751773049646,
+      "role": "reference_only_theoretical_sigmoid_midpoint"
+    },
+    "at_youden_optimal": {
+      "optimal_threshold": 0.6071948325507105,
+      "youden_j": 0.329279312966633,
+      "accuracy": 0.6266548984995587,
+      "precision": 0.7055393586005831,
+      "recall": 0.42907801418439717
+    },
+    "brier_score": 0.2232079175456483,
+    "expected_calibration_error": 0.0879168265323008,
+    "ece_bins": 15
+  }
+}

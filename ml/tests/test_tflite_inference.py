@@ -25,6 +25,7 @@ def test_metadata_parse(tflite_paths: tuple[Path, Path]) -> None:
     m = TFLiteExportMetadata.from_json_dict(data)
     assert m.model_version == "v2.0"
     assert m.temperature > 0
+    assert m.calibration_method in {"temperature", "platt"}
 
 
 def test_metadata_rejects_bad_flags(tmp_path: Path) -> None:

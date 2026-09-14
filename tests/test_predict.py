@@ -65,8 +65,11 @@ def _replace_tensorflow_image_ops_with_pillow(monkeypatch: pytest.MonkeyPatch) -
 
 
 def _patch_identity_calibration(monkeypatch: pytest.MonkeyPatch) -> None:
-    """En tests, ``T=1`` y umbrales 0.5/0.5 reproducen comportamiento binario simple."""
+    """En tests, T=1 / Platt identidad y umbrales 0.5 reproducen comportamiento binario simple."""
+    monkeypatch.setattr(config_module.settings, "inference_calibration_method", "temperature")
     monkeypatch.setattr(config_module.settings, "inference_calibration_temperature", 1.0)
+    monkeypatch.setattr(config_module.settings, "inference_calibration_platt_a", 1.0)
+    monkeypatch.setattr(config_module.settings, "inference_calibration_platt_b", 0.0)
     monkeypatch.setattr(
         config_module.settings,
         "inference_calibration_operational_threshold",
@@ -487,7 +490,10 @@ def test_predict_rejects_pre_decode_pixel_dimensions_too_large(
 
 
 def test_predict_risk_medium_between_tiers(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(config_module.settings, "inference_calibration_method", "temperature")
     monkeypatch.setattr(config_module.settings, "inference_calibration_temperature", 1.0)
+    monkeypatch.setattr(config_module.settings, "inference_calibration_platt_a", 1.0)
+    monkeypatch.setattr(config_module.settings, "inference_calibration_platt_b", 0.0)
     monkeypatch.setattr(config_module.settings, "inference_risk_tier_low_upper", 0.3)
     monkeypatch.setattr(config_module.settings, "inference_risk_tier_high_lower", 0.6)
     monkeypatch.setattr(
@@ -541,7 +547,10 @@ def test_predict_risk_medium_between_tiers(monkeypatch: pytest.MonkeyPatch) -> N
 
 def test_predict_risk_high_when_score_meets_threshold(monkeypatch: pytest.MonkeyPatch) -> None:
     """Mock score 0.42 → high si τ_alto <= 0.42 (con T=1, score raw = calibrado)."""
+    monkeypatch.setattr(config_module.settings, "inference_calibration_method", "temperature")
     monkeypatch.setattr(config_module.settings, "inference_calibration_temperature", 1.0)
+    monkeypatch.setattr(config_module.settings, "inference_calibration_platt_a", 1.0)
+    monkeypatch.setattr(config_module.settings, "inference_calibration_platt_b", 0.0)
     monkeypatch.setattr(config_module.settings, "inference_risk_tier_low_upper", 0.1)
     monkeypatch.setattr(config_module.settings, "inference_risk_tier_high_lower", 0.41)
     monkeypatch.setattr(
@@ -996,9 +1005,73 @@ def test_predict_with_image_multipart(monkeypatch: pytest.MonkeyPatch) -> None:
         app.dependency_overrides.clear()
 
 
+def test_predict_multinail_median_aggregation_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    _patch_identity_calibration(monkeypatch)
+    monkeypatch.setattr(config_module.settings, "predict_multinail_enabled", True)
+    monkeypatch.setattr(config_module.settings, "predict_nail_aggregation", "median")
+    monkeypatch.setattr(config_module.settings, "predict_nail_min_count", 2)
+    user = UserOut(
+        id="11111111-1111-1111-1111-111111111111",
+        email="p@example.com",
+        created_at=None,
+    )
+
+    def fake_context() -> tuple[UserOut, str]:
+        return (user, "aaa.bbb.ccc")
+
+    from backend.inference.image_predictor import SequenceImagePredictor
+    from backend.inference.nail_detection import FixedNailDetector
+
+    class FakeRepo:
+        def insert_for_user(self, _access_token: str, **kwargs) -> dict:
+            return {
+                "id": "22222222-2222-2222-2222-222222222222",
+                "risk": kwargs["risk"],
+                "score": kwargs["score"],
+                "model_version": kwargs["model_version"],
+                "age_months": kwargs.get("age_months"),
+                "birth_date": kwargs.get("birth_date"),
+                "notes": kwargs.get("notes"),
+                "image_storage_path": kwargs.get("image_storage_path"),
+                "inference_mode": "backend",
+                "preprocessing": kwargs.get("preprocessing"),
+                "created_at": "2026-05-01T10:00:00+00:00",
+                "effective_created_at": "2026-05-01T10:00:00+00:00",
+            }
+
+    def fake_prediction_service() -> PredictionService:
+        return PredictionService(
+            repo=FakeRepo(),
+            images=_FakeImgStore(),
+            image_predictor=SequenceImagePredictor([0.2, 0.8, 0.3]),
+            nail_checker=_skip_nail,
+            nail_detector=FixedNailDetector(count=3),
+        )
+
+    app.dependency_overrides[api_deps.get_predict_context] = fake_context
+    app.dependency_overrides[api_deps.get_prediction_service] = fake_prediction_service
+    try:
+        response = client.post(
+            "/predict",
+            headers={"Authorization": "Bearer aaa.bbb.ccc"},
+            files={"image": ("m.png", skin_patch_png(), "image/png")},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["score"] == pytest.approx(0.3)
+        assert data["raw_probability"] == pytest.approx(0.3)
+        prep = data["preprocessing"]
+        assert prep["aggregation"] == "median"
+        assert len(prep["nails"]) == 3
+        assert prep["winning_finger"] == "ring"
+    finally:
+        app.dependency_overrides.clear()
+
+
 def test_predict_multinail_max_aggregation(monkeypatch: pytest.MonkeyPatch) -> None:
     _patch_identity_calibration(monkeypatch)
     monkeypatch.setattr(config_module.settings, "predict_multinail_enabled", True)
+    monkeypatch.setattr(config_module.settings, "predict_nail_aggregation", "max")
     user = UserOut(
         id="11111111-1111-1111-1111-111111111111",
         email="p@example.com",
@@ -1053,6 +1126,46 @@ def test_predict_multinail_max_aggregation(monkeypatch: pytest.MonkeyPatch) -> N
         assert prep["aggregation"] == "max"
         assert len(prep["nails"]) == 3
         assert prep["winning_finger"] == "middle"
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_predict_multinail_one_nail_below_min_count_returns_400(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _patch_identity_calibration(monkeypatch)
+    monkeypatch.setattr(config_module.settings, "predict_multinail_enabled", True)
+    monkeypatch.setattr(config_module.settings, "predict_nail_min_count", 2)
+    user = UserOut(
+        id="11111111-1111-1111-1111-111111111111",
+        email="p@example.com",
+        created_at=None,
+    )
+
+    def fake_context() -> tuple[UserOut, str]:
+        return (user, "aaa.bbb.ccc")
+
+    from backend.inference.nail_detection import FixedNailDetector
+
+    def fake_prediction_service() -> PredictionService:
+        return PredictionService(
+            repo=_ExplodingRepo(),
+            images=_FakeImgStore(),
+            image_predictor=StaticImagePredictor(0.5),
+            nail_checker=_skip_nail,
+            nail_detector=FixedNailDetector(count=1),
+        )
+
+    app.dependency_overrides[api_deps.get_predict_context] = fake_context
+    app.dependency_overrides[api_deps.get_prediction_service] = fake_prediction_service
+    try:
+        response = client.post(
+            "/predict",
+            headers={"Authorization": "Bearer aaa.bbb.ccc"},
+            files={"image": ("m.png", skin_patch_png(), "image/png")},
+        )
+        assert response.status_code == 400
+        assert response.json()["code"] == "no_fingernail_detected"
     finally:
         app.dependency_overrides.clear()
 

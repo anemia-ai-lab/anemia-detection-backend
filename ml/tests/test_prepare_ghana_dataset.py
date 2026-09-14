@@ -70,3 +70,29 @@ def test_split_subjects_reproducible(ghana) -> None:
     b = ghana.split_subjects(keys, test_size=0.2, seed=42)
     assert a == b
     assert sum(1 for v in a.values() if v == "test") >= 1
+
+
+def test_dedup_keeps_canonical_of_identical_bytes(ghana, tmp_path: Path) -> None:
+    payload = b"\x89PNG\r\n" + b"same-bytes" * 8
+    a = tmp_path / "Anemic-FN-004.png"
+    b = tmp_path / "Anemic-FN-004 (2).png"
+    a.write_bytes(payload)
+    b.write_bytes(payload)
+    e1 = ghana.GhanaEntry(path=a, label="positive", subject_key="ghana_fn_positive_4")
+    e2 = ghana.GhanaEntry(path=b, label="positive", subject_key="ghana_fn_positive_4")
+    kept, omitted = ghana.dedup_entries_by_content_hash([e1, e2])
+    assert omitted == 1
+    assert len(kept) == 1
+    assert kept[0].path.name == "Anemic-FN-004.png"
+
+
+def test_dedup_keeps_distinct_hashes(ghana, tmp_path: Path) -> None:
+    a = tmp_path / "Anemic-FN-001.png"
+    b = tmp_path / "Anemic-FN-002.png"
+    a.write_bytes(b"\x89PNG\r\n" + b"one")
+    b.write_bytes(b"\x89PNG\r\n" + b"two")
+    e1 = ghana.GhanaEntry(path=a, label="positive", subject_key="ghana_fn_positive_1")
+    e2 = ghana.GhanaEntry(path=b, label="positive", subject_key="ghana_fn_positive_2")
+    kept, omitted = ghana.dedup_entries_by_content_hash([e1, e2])
+    assert omitted == 0
+    assert {e.path.name for e in kept} == {"Anemic-FN-001.png", "Anemic-FN-002.png"}

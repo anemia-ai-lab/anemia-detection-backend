@@ -25,10 +25,12 @@ class NailRoi(BaseModel):
 
 # Forma documentada de ``PredictionResponse.preprocessing`` en POST /predict multinail:
 # {
-#   "aggregation": "max",
+#   "aggregation": "median" | "max" | "majority_2_of_3",
 #   "detector": "mediapipe_hands" | "roi_override" | "fallback_whole" | ...  (mediapipe_hands = Hand Landmarker Tasks)
-#   "crop": "tip_to_dip",
+#   "crop": "tip_to_dip_rotated",
+#   "crop_scale": 1.0,
 #   "tta_enabled": false,
+#   "winning_finger": "index" | "middle" | "ring",
 #   "nails": [{"finger": "index", "raw": 0.2, "cal": 0.18, "bbox": [x,y,w,h]}, ...]
 # }
 
@@ -315,6 +317,6 @@ class PredictionResponse(BaseModel):
     preprocessing: Optional[dict[str, Any]] = Field(
         default=None,
         description=(
-            "Metadatos del pipeline (p. ej. detección multinail, p_cal por uña, agregación max)."
+            "Metadatos del pipeline (p. ej. detección multinail, p_cal por uña, agregación median/max)."
         ),
     )

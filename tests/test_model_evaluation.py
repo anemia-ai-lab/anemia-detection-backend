@@ -15,19 +15,19 @@ def test_model_evaluation_returns_config_metrics() -> None:
     assert response.headers.get("cache-control") == "public, max-age=3600"
     data = response.json()
     assert data["model_version"] == "v2.0"
-    assert data["auc"] == pytest.approx(0.681532)
-    assert data["precision_operational"] == pytest.approx(0.634888)
-    assert data["recall_operational"] == pytest.approx(0.716247)
-    assert data["accuracy_operational"] == pytest.approx(0.648555)
-    assert data["operational_threshold"] == pytest.approx(0.3815443834698594)
-    assert data["temperature"] == pytest.approx(1.405026093389256)
-    assert data["brier_score"] == pytest.approx(0.236869)
-    assert data["expected_calibration_error"] == pytest.approx(0.119065)
+    assert data["auc"] == pytest.approx(0.639933)
+    assert data["precision_operational"] == pytest.approx(0.65)
+    assert data["recall_operational"] == pytest.approx(0.62201)
+    assert data["accuracy_operational"] == pytest.approx(0.621827)
+    assert data["operational_threshold"] == pytest.approx(0.5780355600619943)
+    assert data["temperature"] == pytest.approx(0.9443417710165931)
+    assert data["brier_score"] == pytest.approx(0.236664)
+    assert data["expected_calibration_error"] == pytest.approx(0.065715)
     assert data["oversampling_used"] is False
     assert data["class_weight_used"] is False
     assert data["fine_tuning_used"] is False
     assert data["dataset_version"] == "calibration_ensemble_ghana_v2"
-    assert data["evaluated_at"].startswith("2026-06-01T06:41:19")
+    assert data["evaluated_at"].startswith("2026-09-14T14:43:34")
 
 
 def test_model_evaluation_reflects_settings_override(monkeypatch: pytest.MonkeyPatch) -> None:

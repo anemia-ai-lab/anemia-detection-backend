@@ -102,6 +102,10 @@ docker run --rm -v "$(pwd):/workspace" -w /workspace/ml -e PYTHONPATH=/workspace
 
 **No afirmar:** que v2 supera v1 en AUC, ni validación clínica en cohorte peruana.
 
+## Retrain unique-hash (2026-09-14)
+
+Los `.keras` oficiales se reentrenaron en Ghana **1997 PNG únicos** (SHA-256). Calibración: Platt (ECE 0.066 vs T 0.085). AUC test **0.640** (`calibration_ensemble_ghana_v2.json`). La tabla de arriba (0,682 / T=1,405 / τ=0,382) describe el ensemble **junio 2026 con clones**; no es la producción actual.
+
 ## Pendientes (post v2)
 
 | Ítem | Estado |

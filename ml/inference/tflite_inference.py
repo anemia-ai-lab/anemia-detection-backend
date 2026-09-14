@@ -19,7 +19,7 @@ import numpy as np
 
 from backend.core.risk_mapping import RiskLevel, anemia_risk_label, risk_from_probability
 from backend.inference.probability_calibration import (
-    apply_temperature_calibration,
+    apply_probability_calibration,
     binary_prediction_from_threshold,
 )
 from ml.preprocessing.pipeline import (
@@ -46,6 +46,9 @@ class TFLiteExportMetadata:
     risk_tier_high_lower: float
     raw_output_is_sigmoid_probability: bool
     temperature_scaling_applied_inside_graph: bool
+    calibration_method: str
+    platt_a: float
+    platt_b: float
 
     @classmethod
     def from_json_dict(cls, data: dict[str, Any]) -> TFLiteExportMetadata:
@@ -58,6 +61,10 @@ class TFLiteExportMetadata:
             tiers = data.get("risk_tier_thresholds") or {}
             low_upper = float(tiers.get("low_upper", th * 0.5))
             high_lower = float(tiers.get("high_lower", th))
+            method_raw = str(data.get("calibration_method") or "temperature")
+            method = "platt" if "platt" in method_raw else "temperature"
+            platt_a = float(data.get("platt_a", 1.0))
+            platt_b = float(data.get("platt_b", 0.0))
         except (KeyError, TypeError, ValueError) as exc:
             raise TFLiteMetadataError("JSON de metadatos incompleto o tipos inválidos") from exc
         if not raw_sig:
@@ -74,6 +81,9 @@ class TFLiteExportMetadata:
             risk_tier_high_lower=high_lower,
             raw_output_is_sigmoid_probability=raw_sig,
             temperature_scaling_applied_inside_graph=temp_inside,
+            calibration_method=method,
+            platt_a=platt_a,
+            platt_b=platt_b,
         )
 
 
@@ -209,7 +219,13 @@ class TFLiteInferenceEngine:
             raw_p = float(np.asarray(y).squeeze())
             raw_p = max(0.0, min(1.0, raw_p))
 
-            cal = apply_temperature_calibration(raw_p, self._meta.temperature)
+            cal = apply_probability_calibration(
+                raw_p,
+                method=self._meta.calibration_method,
+                temperature=self._meta.temperature,
+                platt_a=self._meta.platt_a,
+                platt_b=self._meta.platt_b,
+            )
             th = float(self._meta.operational_threshold)
             low_upper = float(self._meta.risk_tier_low_upper)
             high_lower = float(self._meta.risk_tier_high_lower)

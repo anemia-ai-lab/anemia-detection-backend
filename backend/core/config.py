@@ -17,11 +17,13 @@ def repo_root() -> Path:
 MODEL_VERSION = "v2.0"
 RISK_THRESHOLD = 0.5
 
-# Calibración alineada con el experimento de tesis (*temperature scaling* en validación).
-INFERENCE_CALIBRATION_TEMPERATURE_DEFAULT = 1.405026093389256
-INFERENCE_CALIBRATION_OPERATIONAL_THRESHOLD_DEFAULT = 0.3815443834698594
-INFERENCE_RISK_TIER_LOW_UPPER_DEFAULT = 0.3243127259493805
-INFERENCE_RISK_TIER_HIGH_LOWER_DEFAULT = 0.3815443834698594
+# Calibración alineada con ensemble unique-hash (Platt; T se conserva para rollback).
+INFERENCE_CALIBRATION_TEMPERATURE_DEFAULT = 0.9443417710165931
+INFERENCE_CALIBRATION_OPERATIONAL_THRESHOLD_DEFAULT = 0.5780355600619943
+INFERENCE_RISK_TIER_LOW_UPPER_DEFAULT = 0.49133022605269516
+INFERENCE_RISK_TIER_HIGH_LOWER_DEFAULT = 0.5780355600619943
+INFERENCE_CALIBRATION_PLATT_A_DEFAULT = 1.4673747627390392
+INFERENCE_CALIBRATION_PLATT_B_DEFAULT = 0.6250000000000003
 
 
 def looks_like_placeholder(value: str) -> bool:
@@ -149,11 +151,29 @@ class Settings(BaseSettings):
         ),
     )
 
+    inference_calibration_method: Literal["temperature", "platt"] = Field(
+        default="platt",
+        validation_alias="INFERENCE_CALIBRATION_METHOD",
+        description=(
+            "Calibración post-hoc en inferencia: temperature scaling (T) o Platt (a, b). "
+            "Default tras retrain unique-hash: Platt (menor ECE test vs T)."
+        ),
+    )
     inference_calibration_temperature: float = Field(
         default=INFERENCE_CALIBRATION_TEMPERATURE_DEFAULT,
         gt=0.0,
         validation_alias="INFERENCE_CALIBRATION_TEMPERATURE",
         description="Parámetro T de *temperature scaling* aplicado solo en inferencia (logit/T).",
+    )
+    inference_calibration_platt_a: float = Field(
+        default=INFERENCE_CALIBRATION_PLATT_A_DEFAULT,
+        validation_alias="INFERENCE_CALIBRATION_PLATT_A",
+        description="Pendiente Platt: sigmoid(a * logit(p) + b). Identidad: a=1.",
+    )
+    inference_calibration_platt_b: float = Field(
+        default=INFERENCE_CALIBRATION_PLATT_B_DEFAULT,
+        validation_alias="INFERENCE_CALIBRATION_PLATT_B",
+        description="Sesgo Platt: sigmoid(a * logit(p) + b). Identidad: b=0.",
     )
 
     inference_calibration_operational_threshold: float = Field(
@@ -240,7 +260,8 @@ class Settings(BaseSettings):
         default=True,
         validation_alias="PREDICT_MULTINAIL_ENABLED",
         description=(
-            "Si True, POST /predict detecta índice/medio/anular, infiere por uña y agrega con max."
+            "Si True, POST /predict detecta índice/medio/anular, infiere por uña y "
+            "agrega con PREDICT_NAIL_AGGREGATION (default median conservadora)."
         ),
     )
     predict_nail_expected_count: int = Field(
@@ -251,11 +272,22 @@ class Settings(BaseSettings):
         description="Número de uñas esperadas (índice, medio, anular).",
     )
     predict_nail_min_count: int = Field(
-        default=1,
+        default=2,
         ge=1,
         le=5,
         validation_alias="PREDICT_NAIL_MIN_COUNT",
-        description="Mínimo de uñas válidas tras detección para completar la predicción.",
+        description=(
+            "Mínimo de uñas válidas tras detección. Default 2: con 1 uña median≡max "
+            "y no se mitiga el sesgo positivo."
+        ),
+    )
+    predict_nail_aggregation: Literal["median", "max", "majority_2_of_3"] = Field(
+        default="median",
+        validation_alias="PREDICT_NAIL_AGGREGATION",
+        description=(
+            "Agregación de p_cal por mano: median (lower-even; n=2=min), max (rollback), "
+            "majority_2_of_3 (2.º más alto). Ver backend.inference.nail_aggregation."
+        ),
     )
     predict_nail_detect_min_confidence: float = Field(
         default=0.5,
@@ -282,7 +314,11 @@ class Settings(BaseSettings):
         ge=0.25,
         le=3.0,
         validation_alias="PREDICT_NAIL_CROP_SCALE",
-        description="Escala del recorte de uña relativa al ancho del dedo (tip→DIP).",
+        description=(
+            "Escala del recorte rotado tip→DIP (lado = finger_len * 1.6 * scale; "
+            "centro 0.35 hacia el DIP). Default 1.0: 0.75 es candidato; no se fija "
+            "sin smoke de fotos reales (FP)."
+        ),
     )
     hand_landmarker_model_path: str = Field(
         default="ml/artifacts/models/hand_landmarker.task",

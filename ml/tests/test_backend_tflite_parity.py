@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import numpy as np
 import pytest
 
@@ -11,7 +13,7 @@ import tensorflow as tf
 
 from backend.inference.keras_image_predictor import KerasImagePredictor
 from backend.inference.probability_calibration import (
-    apply_temperature_calibration,
+    apply_probability_calibration,
     binary_prediction_from_threshold,
 )
 from ml.inference.tflite_inference import TFLiteInferenceEngine
@@ -45,7 +47,14 @@ def test_raw_and_calibrated_parity(
         "exportar, o preprocesado distinto (mismo ``PreprocessingConfig`` en ambos caminos)."
     )
 
-    cal_k = apply_temperature_calibration(raw_k, r.temperature)
+    meta_data = json.loads(meta.read_text(encoding="utf-8"))
+    cal_k = apply_probability_calibration(
+        raw_k,
+        method=str(meta_data.get("calibration_method") or "temperature"),
+        temperature=float(meta_data["temperature"]),
+        platt_a=float(meta_data.get("platt_a", 1.0)),
+        platt_b=float(meta_data.get("platt_b", 0.0)),
+    )
     cal_delta = abs(r.calibrated_probability - cal_k)
     assert cal_delta < 1e-5, (
         "Paridad calibrada: misma temperatura y fórmula que el backend; |Δ| debe ser < 1e-5. "

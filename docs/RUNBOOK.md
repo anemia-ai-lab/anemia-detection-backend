@@ -113,14 +113,14 @@ Los tests validan software y artefactos, no validez clínica.
 
 **Local** (con `.env` válido y `make run`): `GET /health`, `GET /docs`, `POST /auth/register|login`, `POST /predict` (JWT + multipart; 200 con inferencia real solo si el modelo está cargado). No commitear secretos.
 
-**Producción (automático):** `make smoke-prod` contra AWS ALB (`scripts/smoke_prod.py`). Requiere `SMOKE_BASE_URL`, `SMOKE_EMAIL`, `SMOKE_PASSWORD`, `METRICS_BEARER_TOKEN`. CI: job `smoke-prod` en [`.github/workflows/ci.yml`](../.github/workflows/ci.yml). Detalle: [`docs/RELEASE.md`](RELEASE.md).
+**Producción (automático):** `make smoke-prod` contra Fly (`scripts/smoke_prod.py`). Requiere `SMOKE_BASE_URL` (`https://<app>.fly.dev`), `SMOKE_EMAIL`, `SMOKE_PASSWORD`, `METRICS_BEARER_TOKEN`. CI: job `smoke-prod` en [`.github/workflows/ci.yml`](../.github/workflows/ci.yml). Detalle: [`docs/RELEASE.md`](RELEASE.md) · [`docs/DEPLOYMENT_FLY.md`](DEPLOYMENT_FLY.md).
 
-**AWS (env):** secretos en Secrets Manager; task env según [`aws.env.example`](../aws.env.example). Guía completa: [`docs/DEPLOYMENT_AWS.md`](DEPLOYMENT_AWS.md).
+**Fly (env):** secretos con `fly secrets`; no-secretos en [`fly.toml`](../fly.toml). AWS ECS es histórico: [`docs/DEPLOYMENT_AWS.md`](DEPLOYMENT_AWS.md).
 
 ## Paridad API vs offline
 
 - Tensor tras RGB validado: `ml.preprocessing.pipeline` → `backend/inference/keras_image_predictor.py`.
-- **Online:** `POST /predict` detecta 3 uñas (`backend/inference/nail_detection.py`, MediaPipe Hand Landmarker Tasks), infiere por uña y agrega con `max` (misma semántica que offline).
+- **Online:** `POST /predict` detecta 3 uñas (`backend/inference/nail_detection.py`, MediaPipe Hand Landmarker Tasks), infiere por uña y agrega con `median` lower-even (misma semántica que offline; `max` queda como rollback).
 - Offline: TFLite + metadatos (`ml/README.md`).
 - Cabecera de imagen / límites / decode previo a uña: `backend/inference/prediction_image_input.py`, alineado con el decode documentado en `ml/preprocessing/pipeline.py`. Umbrales y matemática de inferencia: código, no este runbook.
 

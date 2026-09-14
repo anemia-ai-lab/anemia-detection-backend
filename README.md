@@ -18,7 +18,7 @@ Setup: [`docs/RUNBOOK.md`](docs/RUNBOOK.md). Responsibility ↔ path matrix: [`d
 
 ## System Overview
 
-The system supports a mobile-oriented screening workflow in which an authenticated user photographs index, middle, and ring fingernails in a single frame. With connectivity, `POST /predict` runs MediaPipe-based nail detection, per-nail Keras ensemble inference, and max aggregation on the backend. The mobile app only captures and uploads the image.
+The system supports a mobile-oriented screening workflow in which an authenticated user photographs index, middle, and ring fingernails in a single frame. With connectivity, `POST /predict` runs MediaPipe-based nail detection, per-nail Keras ensemble inference, and conservative median aggregation (at least two nails) on the backend. The mobile app only captures and uploads the image.
 
 The machine learning layer provides training, evaluation, model export, offline inference, and explainability tooling. Offline execution is supported through TensorFlow Lite artifacts and metadata so that mobile or field deployments can run predictions without continuous network access.
 
@@ -39,14 +39,15 @@ The backend uses Keras for server-side inference. Offline capability is provided
 
 ## Deployment
 
-Production: **AWS ECS Fargate** (us-west-2) via **CDK Python** — Node 22 (`.nvmrc`), see [`docs/DEPLOYMENT_AWS.md`](docs/DEPLOYMENT_AWS.md).
+Production: **Fly.io** always-on (2 vCPU / 4 GB, San José) — [`docs/DEPLOYMENT_FLY.md`](docs/DEPLOYMENT_FLY.md). AWS ECS IaC remains in [`infra/`](infra/) ([`docs/DEPLOYMENT_AWS.md`](docs/DEPLOYMENT_AWS.md)); the live AWS stack is not running.
 
 ## Documentation
 
 | Document | Purpose |
 |----------|---------|
 | [`docs/RUNBOOK.md`](docs/RUNBOOK.md) | Local setup, tests, smoke, troubleshooting |
-| [`docs/DEPLOYMENT_AWS.md`](docs/DEPLOYMENT_AWS.md) | Production ECS Fargate deployment |
+| [`docs/DEPLOYMENT_FLY.md`](docs/DEPLOYMENT_FLY.md) | Production Fly.io (always-on) |
+| [`docs/DEPLOYMENT_AWS.md`](docs/DEPLOYMENT_AWS.md) | Historical ECS Fargate / CDK |
 | [`docs/RELEASE.md`](docs/RELEASE.md) | Release v1.0.0 and production smoke checklist |
 | [`docs/TRACEABILITY.md`](docs/TRACEABILITY.md) | Thesis ↔ repository traceability matrix |
 | [`docs/V1_VS_V2.md`](docs/V1_VS_V2.md) | Pediatric model v1 vs v2 comparison |

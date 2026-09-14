@@ -2,7 +2,9 @@
 """
 Prepara el dataset Ghana (ROI uña, Mendeley) para entrenamiento/eval: resize 224×224 en train/test.
 
-Raw típico: ``ml/data_raw/ghana/*.png`` (4260 con augmentación; ~507 sujetos en modo original-only).
+Raw típico: ``ml/data_raw/ghana/*.png`` (4260 con augmentación; ~507 sujetos en modo
+original-only). Con ``--include-augmented`` se aplica dedup por SHA-256 de contenido
+para no entrenar clones exactos.
 
 Ejemplo::
 
@@ -14,6 +16,7 @@ Ejemplo::
 from __future__ import annotations
 
 import argparse
+import hashlib
 import random
 import re
 import sys
@@ -118,6 +121,46 @@ def select_files_for_subjects(
         else:
             out.extend(items)
     return out
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        while True:
+            chunk = handle.read(1024 * 1024)
+            if not chunk:
+                break
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def dedup_entries_by_content_hash(entries: list[GhanaEntry]) -> tuple[list[GhanaEntry], int]:
+    """
+    Colapsa clones exactos (mismos bytes) de forma global.
+
+    Se queda el PNG canónico (stem FN-{id}.png / nombre más corto). Devuelve
+    ``(conservados, omitidos)``.
+    """
+    by_hash: dict[str, list[GhanaEntry]] = defaultdict(list)
+    for entry in entries:
+        by_hash[sha256_file(entry.path)].append(entry)
+
+    kept: list[GhanaEntry] = []
+    omitted = 0
+    for group in by_hash.values():
+        if len(group) == 1:
+            kept.append(group[0])
+            continue
+        omitted += len(group) - 1
+        winner_path = pick_canonical_file([e.path for e in group])
+        winner = next(e for e in group if e.path == winner_path)
+        kept.append(winner)
+        dropped = [e.path.name for e in group if e.path != winner_path]
+        print(
+            f"Aviso: hash duplicado, se conserva {winner.path.name}; omitidos: {', '.join(dropped)}"
+        )
+    kept.sort(key=lambda e: (e.subject_key, e.path.name))
+    return kept, omitted
 
 
 def split_subjects(
@@ -227,6 +270,7 @@ def main() -> None:
 
     by_subj = group_by_subject(all_entries)
     selected = select_files_for_subjects(by_subj, original_only=original_only)
+    selected, n_dupes = dedup_entries_by_content_hash(selected)
     split_map = split_subjects(
         sorted({e.subject_key for e in selected}),
         test_size=args.test_size,
@@ -262,8 +306,9 @@ def main() -> None:
     print("--- Resumen Ghana ---")
     print(f"PNG reconocidos (raw): {len(all_entries)}")
     print(f"Familias raw: {dict(family_counts)}")
-    print(f"Sujetos únicos: {len(by_subj)}")
+    print(f"Sujetos únicos (raw): {len(by_subj)}")
     print(f"Modo: {'original-only' if original_only else 'include-augmented'}")
+    print(f"Únicos por SHA-256: {len(selected)} (duplicados omitidos: {n_dupes})")
     print(f"Sujetos en split: train={train_subj}, test={test_subj}")
     print(f"Archivos escritos: {saved} (positive={n_pos}, negative={n_neg})")
     print(f"Salida: {_repo_relative(output_dir)}")

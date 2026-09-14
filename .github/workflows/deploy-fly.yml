@@ -1,0 +1,55 @@
+# Deploy API to Fly.io (always-on). AWS ECS remains in-repo as historical IaC.
+name: Deploy Fly
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-fly-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "backend/**"
+      - "ml/**"
+      - "Dockerfile"
+      - "requirements.txt"
+      - "fly.toml"
+      - ".github/workflows/deploy-fly.yml"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      SUPABASE_URL: https://example.supabase.co
+      SUPABASE_KEY: test-anon-key-not-real
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install MediaPipe system libraries (Linux)
+        run: make install-mediapipe-system-libs
+
+      - name: Install backend dependencies (API tests, no TensorFlow load)
+        run: python -m pip install -r requirements.txt
+
+      - name: Lint and test API
+        run: |
+          make download-hand-landmarker
+          make lint && make test
+
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy to Fly.io
+        run: flyctl deploy --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

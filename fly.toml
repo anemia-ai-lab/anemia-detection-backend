@@ -1,0 +1,54 @@
+# Fly.io — API always-on (TensorFlow + ensemble 3× Keras).
+# Guía: docs/DEPLOYMENT_FLY.md
+# No scale-to-zero: el cold start de TF + 3 .keras es inaceptable para POST /predict.
+app = "anemia-detection-api"
+primary_region = "sjc"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[deploy]
+  wait_timeout = "10m"
+
+[env]
+  APP_ENV = "production"
+  DEBUG = "false"
+  TRUST_PROXY_HEADERS = "true"
+  PORT = "8000"
+  INFERENCE_MODEL_PATH = "ml/artifacts/models/baseline_mobilenetv2_ghana_augmented_seed42.keras"
+  INFERENCE_MODEL_PATHS = "ml/artifacts/models/baseline_mobilenetv2_ghana_augmented_seed42.keras,ml/artifacts/models/baseline_mobilenetv2_ghana_augmented_seed123.keras,ml/artifacts/models/baseline_mobilenetv2_ghana_augmented_seed456.keras"
+  PREDICT_MULTINAIL_ENABLED = "true"
+  PREDICT_NAIL_CROP_SCALE = "1.0"
+  INFERENCE_CALIBRATION_METHOD = "platt"
+  INFERENCE_CALIBRATION_TEMPERATURE = "0.9443417710165931"
+  INFERENCE_CALIBRATION_PLATT_A = "1.4673747627390392"
+  INFERENCE_CALIBRATION_PLATT_B = "0.6250000000000003"
+  INFERENCE_CALIBRATION_OPERATIONAL_THRESHOLD = "0.5780355600619943"
+  INFERENCE_RISK_TIER_LOW_UPPER = "0.49133022605269516"
+  INFERENCE_RISK_TIER_HIGH_LOWER = "0.5780355600619943"
+  RATE_LIMIT_ENABLED = "true"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 8
+    hard_limit = 15
+
+  [[http_service.checks]]
+    grace_period = "180s"
+    interval = "15s"
+    timeout = "10s"
+    method = "GET"
+    path = "/health"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 2
+  memory = "4096mb"

@@ -18,7 +18,7 @@ Mapeo breve de responsabilidades a rutas en el repo (defensa / auditoría).
 | Config y límites | `backend/core/config.py`, `.env.example` |
 | Tests API vs ML | `tests/`, `ml/tests/`, `Makefile` |
 | C4 y diagramas código | `docs/architecture/` (`workspace.dsl`, `docs/architecture/code/*.puml`) |
-| Runbook y README | `docs/RUNBOOK.md`, `README.md` |
+| Runbook, release y despliegue | `docs/RUNBOOK.md`, `docs/RELEASE.md`, `docs/DEPLOYMENT_FLY.md`, `fly.toml` |
 
 ## Carpetas
 
@@ -31,7 +31,7 @@ Mapeo breve de responsabilidades a rutas en el repo (defensa / auditoría).
 | `ml/` | Train/eval/export, `ml/preprocessing/pipeline.py`. |
 | `supabase/migrations/` | DDL y RLS. |
 | `tests/` | Suite `make test` sin TF obligatorio. |
-| `Makefile` | `test`, `lint`, `ml-test`, `ml-test-docker`, `run`, `db-push`. |
+| `fly.toml` | App Fly.io always-on (2 vCPU / 4 GB). |
 
 ## Paridad runtime / offline
 
@@ -48,7 +48,7 @@ Mapeo breve de responsabilidades a rutas en el repo (defensa / auditoría).
 El modelo v2 está calibrado en cohorte **Ghana pediátrica**. Antes de uso clínico ampliado en Perú:
 
 - [ ] Dataset etiquetado con hemoglobina en cohorte local
-- [ ] Re-calibración de tiers (`low_upper`, `high_lower`) y `temperature`
+- [ ] Re-calibración de tiers (`low_upper`, `high_lower`) y calibración (T o Platt)
 - [ ] Informe de métricas (AUC, sensibilidad operacional, ECE) vs Ghana
 - [ ] Actualizar `MODEL_VERSION` y metadatos TFLite móvil
 

@@ -1,6 +1,8 @@
-# Despliegue AWS (ECS Fargate + CDK Python)
+# Despliegue AWS (ECS Fargate + CDK Python) — histórico
 
-Producción del API en **us-west-2** (Oregon, alineado con Supabase): contenedor Docker (FastAPI + TensorFlow + ensemble 3× `.keras`) detrás de un **Application Load Balancer**. **Supabase** sigue externo (Auth, Postgres, Storage).
+**El stack ECS vivo se destruyó.** La producción actual es Fly.io: [`docs/DEPLOYMENT_FLY.md`](DEPLOYMENT_FLY.md). Este documento y `infra/` se conservan como IaC de referencia.
+
+Producción *previa* del API en **us-west-2** (Oregon, alineado con Supabase): contenedor Docker (FastAPI + TensorFlow + ensemble 3× `.keras`) detrás de un **Application Load Balancer**. **Supabase** sigue externo (Auth, Postgres, Storage).
 
 ## Arquitectura
 

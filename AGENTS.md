@@ -50,9 +50,6 @@ Supabase keys (security):
 	•	`RISK_THRESHOLD` is legacy; `POST /predict` uses `INFERENCE_CALIBRATION_OPERATIONAL_THRESHOLD` on calibrated probabilities.
 	•	`APP_ENV=production` requires `SUPABASE_*`, `METRICS_BEARER_TOKEN`, and forbids `DEBUG=true`.
 
-AWS deployment:
-	•	Production: ECS Fargate + ALB in `us-west-2`, IaC in `infra/` (CDK Python).
-	•	Node **22** for CDK CLI (`.nvmrc` at repo root; CI uses the same file).
-	•	Guide: `docs/DEPLOYMENT_AWS.md` · env reference: `aws.env.example`.
-	•	Secrets: AWS Secrets Manager `anemia-api/prod` (not in git).
-	•	CI deploy: `.github/workflows/deploy-aws.yml` (push a `main` en rutas relevantes + manual `workflow_dispatch`).
+Deployment:
+	•	Production (live): Fly.io always-on (`fly.toml`, 2 vCPU / 4 GB, no scale-to-zero). Guide: `docs/DEPLOYMENT_FLY.md`. Secrets via `fly secrets` (`SUPABASE_*`, `METRICS_BEARER_TOKEN`). CI: `.github/workflows/deploy-fly.yml`.
+	•	AWS ECS: IaC in `infra/` and `.github/workflows/deploy-aws.yml` kept as reference; the live stack was destroyed. Node **22** for CDK CLI (`.nvmrc`). Guide: `docs/DEPLOYMENT_AWS.md` · env: `aws.env.example`.

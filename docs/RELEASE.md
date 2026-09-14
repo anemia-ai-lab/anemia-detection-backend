@@ -15,7 +15,7 @@
 
 - **Cribado e investigación** — no diagnóstico clínico ni recomendación terapéutica.
 - Dataset proxy **Ghana pediátrico**; sin validación en cohorte peruana.
-- Rate limit **in-memory** (adecuado para demo/piloto con 1 réplica ECS).
+- Rate limit **in-memory** (adecuado para demo/piloto con **1** máquina Fly).
 - App móvil es cliente externo; contrato offline en [`ml/docs/MOBILE_INFERENCE.md`](../ml/docs/MOBILE_INFERENCE.md).
 
 ## Artefactos móvil (en repo)
@@ -23,30 +23,31 @@
 - `ml/artifacts/models/baseline_mobilenetv2_ghana_augmented_seed{42,123,456}.tflite`
 - `ml/artifacts/models/baseline_mobilenetv2_ghana_ensemble.metadata.json`
 
-## Producción (AWS ECS)
+## Producción (Fly.io)
 
-Variables y despliegue: [`docs/DEPLOYMENT_AWS.md`](DEPLOYMENT_AWS.md).
+Variables y despliegue: [`docs/DEPLOYMENT_FLY.md`](DEPLOYMENT_FLY.md). IaC AWS histórico: [`docs/DEPLOYMENT_AWS.md`](DEPLOYMENT_AWS.md).
 
 ## Smoke producción
 
-Base URL prod: variable `SMOKE_BASE_URL` (DNS del ALB AWS, p. ej. `http://anemia-api-xxx.us-west-2.elb.amazonaws.com`).
+Base URL prod: variable `SMOKE_BASE_URL` (`https://<app>.fly.dev`, sin barra final).
 
 ### Automático
 
 ```bash
 export SMOKE_EMAIL=smoke@example.com
 export SMOKE_PASSWORD=minimum8chars
-export METRICS_BEARER_TOKEN=<mismo que Secrets Manager>
-export SMOKE_BASE_URL=http://<LoadBalancerDNS>
+export METRICS_BEARER_TOKEN=<mismo que fly secrets>
+export SMOKE_BASE_URL=https://<app>.fly.dev
 make smoke-prod
 ```
 
 **GitHub Actions**
 
-- **Deploy AWS** ([`.github/workflows/deploy-aws.yml`](../.github/workflows/deploy-aws.yml)): push a `main` (rutas relevantes) o `workflow_dispatch`. Smoke post-deploy usa el DNS del ALB desde CloudFormation (no `SMOKE_BASE_URL` del repo).
+- **Deploy Fly** ([`.github/workflows/deploy-fly.yml`](../.github/workflows/deploy-fly.yml)): push a `main` (rutas relevantes) o `workflow_dispatch`. Secret `FLY_API_TOKEN`.
+- **Deploy AWS** ([`.github/workflows/deploy-aws.yml`](../.github/workflows/deploy-aws.yml)): histórico; el stack ECS no está vivo.
 - **CI smoke programado** ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml), job `smoke-prod`): `schedule` (lun/jue 15:00 UTC) y `workflow_dispatch`
 - Secrets: `SMOKE_EMAIL`, `SMOKE_PASSWORD`, `METRICS_BEARER_TOKEN`
-- Variable para CI programado: `SMOKE_BASE_URL` (DNS del ALB, sin barra final)
+- Variable para CI programado: `SMOKE_BASE_URL` (`https://<app>.fly.dev`, sin barra final)
 
 El script registra el usuario en el primer run si `login` devuelve 401.
 
@@ -67,4 +68,4 @@ El script registra el usuario en el primer run si `login` devuelve 401.
 - [ ] `make lint && make test && make ml-test-docker` verde
 - [ ] `docker build -f Dockerfile .` exitoso (3× `.keras` en imagen)
 - [ ] `supabase db push` — remoto al día
-- [ ] Secretos en AWS Secrets Manager según [`docs/DEPLOYMENT_AWS.md`](DEPLOYMENT_AWS.md)
+- [ ] Secretos en Fly (`fly secrets set`) según [`docs/DEPLOYMENT_FLY.md`](DEPLOYMENT_FLY.md)

@@ -8,9 +8,11 @@ import pytest
 from backend.inference.nail_detection import (
     EmptyNailDetector,
     FixedNailDetector,
+    crop_from_landmark_pair,
     crop_from_normalized_roi,
     fallback_crops,
     landmarks_to_crops,
+    legacy_axis_aligned_tip_bbox,
     normalize_rois_input,
     parse_roi_overrides,
 )
@@ -98,6 +100,49 @@ def test_landmarks_to_crops_synthetic_three_fingers() -> None:
     )
     assert len(crops) == 3
     assert [c.finger for c in crops] == ["index", "middle", "ring"]
+    for crop in crops:
+        assert crop.rgb.shape[0] == crop.rgb.shape[1]
+
+
+def test_crop_from_landmark_pair_rotated_differs_from_axis_aligned_tip() -> None:
+    rgb = np.full((400, 400, 3), 180, dtype=np.uint8)
+    tip = (280.0, 120.0)
+    dip = (260.0, 180.0)
+    crop = crop_from_landmark_pair(
+        rgb,
+        finger="index",
+        tip_xy=tip,
+        dip_xy=dip,
+        crop_scale=1.0,
+    )
+    assert crop is not None
+    assert crop.rgb.shape[0] == crop.rgb.shape[1]
+    legacy = legacy_axis_aligned_tip_bbox(400, 400, tip, dip, 1.0)
+    assert crop.bbox != legacy
+    # Centro hacia el lecho (no en la yema): el AABB no coincide con el cuadrado del tip.
+    bbox_cx = crop.bbox[0] + crop.bbox[2] / 2.0
+    bbox_cy = crop.bbox[1] + crop.bbox[3] / 2.0
+    bed_x = tip[0] - 0.35 * (tip[0] - dip[0])
+    bed_y = tip[1] - 0.35 * (tip[1] - dip[1])
+    dist_bed = (bbox_cx - bed_x) ** 2 + (bbox_cy - bed_y) ** 2
+    dist_tip = (bbox_cx - tip[0]) ** 2 + (bbox_cy - tip[1]) ** 2
+    assert dist_bed < dist_tip
+
+
+def test_crop_scale_075_bbox_strictly_smaller_than_1() -> None:
+    rgb = np.full((400, 400, 3), 180, dtype=np.uint8)
+    landmarks = _synthetic_hand_landmarks()
+    crops_full = landmarks_to_crops(
+        rgb, landmarks, min_confidence=0.5, crop_scale=1.0
+    )
+    crops_tight = landmarks_to_crops(
+        rgb, landmarks, min_confidence=0.5, crop_scale=0.75
+    )
+    assert len(crops_full) == len(crops_tight) == 3
+    for full, tight in zip(crops_full, crops_tight, strict=True):
+        area_full = int(full.bbox[2]) * int(full.bbox[3])
+        area_tight = int(tight.bbox[2]) * int(tight.bbox[3])
+        assert area_tight < area_full
 
 
 def test_fixed_nail_detector_three_crops() -> None:

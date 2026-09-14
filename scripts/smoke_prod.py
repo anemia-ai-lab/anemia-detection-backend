@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Smoke E2E contra el API desplegado (AWS ALB u otro host).
+Smoke E2E contra el API desplegado (Fly.io u otro host).
 
 Requiere variables de entorno:
   SMOKE_BASE_URL          — base sin barra final (obligatorio)
@@ -227,7 +227,7 @@ def _offline_sync_metadata_payload(client_id: str) -> dict:
                 "score": 0.12,
                 "raw_probability": 0.15,
                 "calibrated_probability": 0.12,
-                "threshold_used": 0.3815443834698594,
+                "threshold_used": 0.5780355600619943,
                 "prediction": 0,
                 "model_version": "v2.0",
                 "inference_mode": "tflite_offline",

@@ -20,6 +20,7 @@ from backend.inference.nail_detection import (
     get_cached_hand_landmarker_status,
     shutdown_hand_landmarker,
 )
+from backend.inference.probability_calibration import calibration_is_enabled
 from backend.inference.runtime import (
     get_builtin_image_predictor,
     inference_service_status,
@@ -172,7 +173,12 @@ async def client_http_error_handler(
 )
 def health() -> HealthOut:
     svc_status, model_loaded = inference_service_status()
-    calibration_enabled = abs(float(settings.inference_calibration_temperature) - 1.0) > 1e-12
+    calibration_enabled = calibration_is_enabled(
+        method=str(settings.inference_calibration_method),
+        temperature=float(settings.inference_calibration_temperature),
+        platt_a=float(settings.inference_calibration_platt_a),
+        platt_b=float(settings.inference_calibration_platt_b),
+    )
     raw_path = settings.inference_model_path.strip()
     lm_ready: bool | None = None
     lm_error: str | None = None

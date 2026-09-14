@@ -50,8 +50,8 @@ DEFAULT_TFLITE_NAME = "baseline_mobilenetv2_ghana_augmented_seed42.tflite"
 DEFAULT_METADATA_NAME = "baseline_mobilenetv2_ghana_augmented_seed42.metadata.json"
 
 MODEL_VERSION = "v2.0"
-TEMPERATURE = 1.405026093389256
-OPERATIONAL_THRESHOLD = 0.3815443834698594
+TEMPERATURE = 0.9443417710165931
+OPERATIONAL_THRESHOLD = 0.5780355600619943
 PREPROCESSING = "mobilenet_v2.preprocess_input"
 
 EXPECTED_BATCH = 1
@@ -114,7 +114,7 @@ def _parse_args() -> argparse.Namespace:
     return p.parse_args()
 
 
-def _load_calibration_constants(path: Path) -> tuple[float, float, dict[str, float]]:
+def _load_calibration_constants(path: Path) -> dict[str, object]:
     data = json.loads(path.read_text(encoding="utf-8"))
     cal = data.get("calibration") or {}
     T = float(cal.get("temperature_T", 0))
@@ -126,11 +126,18 @@ def _load_calibration_constants(path: Path) -> tuple[float, float, dict[str, flo
     if not 0.0 <= tau <= 1.0:
         raise ValueError(f"operational_threshold inválido en {path}")
     tiers = cal.get("risk_tier_thresholds") or {}
-    risk_tiers = {
-        "low_upper": float(tiers.get("low_upper", tau * 0.5)),
-        "high_lower": float(tiers.get("high_lower", tau)),
+    method = str(cal.get("chosen_method") or cal.get("method") or "temperature")
+    return {
+        "temperature": T,
+        "operational_threshold": tau,
+        "risk_tier_thresholds": {
+            "low_upper": float(tiers.get("low_upper", tau * 0.5)),
+            "high_lower": float(tiers.get("high_lower", tau)),
+        },
+        "calibration_method": "platt" if "platt" in method else "temperature",
+        "platt_a": float(cal["platt_a"]) if "platt_a" in cal else 1.0,
+        "platt_b": float(cal["platt_b"]) if "platt_b" in cal else 0.0,
     }
-    return T, tau, risk_tiers
 
 
 def _resolved_models_root() -> Path:
@@ -250,14 +257,31 @@ def _build_metadata(
     temperature: float,
     operational_threshold: float,
     risk_tier_thresholds: dict[str, float] | None = None,
+    calibration_method: str = "temperature",
+    platt_a: float = 1.0,
+    platt_b: float = 0.0,
 ) -> dict[str, object]:
     tiers = risk_tier_thresholds or {}
     low_upper = float(tiers.get("low_upper", operational_threshold * 0.5))
     high_lower = float(tiers.get("high_lower", operational_threshold))
+    method = "platt" if "platt" in calibration_method else "temperature"
+    cal_step = (
+        "Apply Platt (a, b) to raw_prob (same formula as backend)"
+        if method == "platt"
+        else "Apply temperature scaling to raw_prob using `temperature` (same formula as backend)"
+    )
+    notes = (
+        "Salida .tflite = probabilidad sigmoide sin calibrar (como raw_probability del API). "
+        "Aplicar calibración (T o Platt) fuera del grafo. Usar operational_threshold sobre la "
+        "probabilidad ya calibrada, no sobre la salida cruda."
+    )
     meta: dict[str, object] = {
         "model_version": MODEL_VERSION,
         "input_size": f"{IMG_SIZE[0]}x{IMG_SIZE[1]}",
         "temperature": temperature,
+        "calibration_method": method,
+        "platt_a": float(platt_a),
+        "platt_b": float(platt_b),
         "operational_threshold": operational_threshold,
         "risk_tier_thresholds": {
             "low_upper": low_upper,
@@ -273,14 +297,10 @@ def _build_metadata(
             "Decode/float32 RGB tensor shaped [1,224,224,3]",
             PREPROCESSING,
             "Run TFLite inference → scalar raw_prob ∈ [0,1]",
-            "Apply temperature scaling to raw_prob using `temperature` (same formula as backend)",
+            cal_step,
             "Compare calibrated probability to `operational_threshold` for binary prediction",
         ],
-        "notes": (
-            "Salida .tflite = probabilidad sigmoide sin calibrar (como raw_probability del API). "
-            "Aplicar temperature fuera del grafo. Usar operational_threshold sobre la "
-            "probabilidad ya calibrada, no sobre la salida cruda."
-        ),
+        "notes": notes,
     }
     return meta
 
@@ -362,14 +382,24 @@ def main() -> int:
     temperature = TEMPERATURE
     operational_threshold = OPERATIONAL_THRESHOLD
     risk_tier_thresholds: dict[str, float] | None = None
+    calibration_method = "temperature"
+    platt_a = 1.0
+    platt_b = 0.0
     if args.calibration_json is not None:
         try:
-            temperature, operational_threshold, risk_tier_thresholds = _load_calibration_constants(
-                args.calibration_json.resolve(),
-            )
+            loaded = _load_calibration_constants(args.calibration_json.resolve())
+            temperature = float(loaded["temperature"])
+            operational_threshold = float(loaded["operational_threshold"])
+            tiers_raw = loaded["risk_tier_thresholds"]
+            if not isinstance(tiers_raw, dict):
+                raise ValueError("risk_tier_thresholds inválido")
+            risk_tier_thresholds = {str(k): float(v) for k, v in tiers_raw.items()}
+            calibration_method = str(loaded["calibration_method"])
+            platt_a = float(loaded["platt_a"])
+            platt_b = float(loaded["platt_b"])
             print(
-                f"Calibración desde {args.calibration_json}: T={temperature}, "
-                f"τ={operational_threshold}, tiers={risk_tier_thresholds}",
+                f"Calibración desde {args.calibration_json}: method={calibration_method} "
+                f"T={temperature}, τ={operational_threshold}, tiers={risk_tier_thresholds}",
             )
         except (OSError, ValueError, json.JSONDecodeError) as e:
             print(f"Error leyendo --calibration-json: {e}", file=sys.stderr)
@@ -379,6 +409,9 @@ def main() -> int:
         temperature=temperature,
         operational_threshold=operational_threshold,
         risk_tier_thresholds=risk_tier_thresholds,
+        calibration_method=calibration_method,
+        platt_a=platt_a,
+        platt_b=platt_b,
     )
 
     try:

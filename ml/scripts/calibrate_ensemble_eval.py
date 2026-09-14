@@ -19,14 +19,21 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+import numpy as np
+
 _ML_ROOT = Path(__file__).resolve().parent.parent
 if str(_ML_ROOT) not in sys.path:
     sys.path.insert(0, str(_ML_ROOT))
 
 from baseline.calibration import (  # noqa: E402
+    apply_named_calibration,
     apply_temperature_scaling,
     auc_roc_keras,
+    brier_score_binary,
     enrich_binary_eval_with_calibration_metrics,
+    expected_calibration_error_binary,
+    fit_isotonic_regression_on_probabilities,
+    fit_platt_scaling_on_probabilities,
     fit_temperature_scaling_on_probabilities,
     mean_binary_cross_entropy,
 )
@@ -88,13 +95,42 @@ def main() -> None:
     )
     y_val, p_val = ensemble_raw_probabilities(models, val_ds)
     T, fit_diag = fit_temperature_scaling_on_probabilities(y_val, p_val)
-    p_val_cal = apply_temperature_scaling(p_val, T)
-    risk_tiers = risk_tier_thresholds_from_validation(y_val, p_val_cal)
-    tau_high = float(risk_tiers["high_lower"])
+    platt_a, platt_b, platt_diag = fit_platt_scaling_on_probabilities(y_val, p_val)
+    iso_x, iso_y, iso_diag = fit_isotonic_regression_on_probabilities(y_val, p_val)
 
     test_ds = load_test_dataset(test_dir)
     y_test, p_test = ensemble_raw_probabilities(models, test_ds)
-    p_cal = apply_temperature_scaling(p_test, T)
+
+    method_probs: dict[str, np.ndarray] = {
+        "temperature": apply_temperature_scaling(p_test, T),
+        "platt": apply_named_calibration(p_test, "platt", platt_a=platt_a, platt_b=platt_b),
+        "isotonic": apply_named_calibration(
+            p_test, "isotonic", isotonic_x=iso_x, isotonic_y=iso_y
+        ),
+    }
+    comparison: dict[str, dict[str, float]] = {}
+    for name, p_m in method_probs.items():
+        comparison[name] = {
+            "expected_calibration_error": float(
+                expected_calibration_error_binary(y_test, p_m, n_bins=int(args.ece_bins))
+            ),
+            "brier_score": float(brier_score_binary(y_test, p_m)),
+            "mean_nll": float(mean_binary_cross_entropy(y_test, p_m)),
+        }
+
+    # Producción: menor ECE en test entre temperature y Platt (isotonic es ablación).
+    chosen = min(("temperature", "platt"), key=lambda k: comparison[k]["expected_calibration_error"])
+    p_val_cal = apply_named_calibration(
+        p_val,
+        chosen,
+        temperature=T,
+        platt_a=platt_a,
+        platt_b=platt_b,
+    )
+    risk_tiers = risk_tier_thresholds_from_validation(y_val, p_val_cal)
+    tau_high = float(risk_tiers["high_lower"])
+
+    p_cal = method_probs[chosen]
     loss_cal = mean_binary_cross_entropy(y_test, p_cal)
     auc_cal = auc_roc_keras(y_test, p_cal)
 
@@ -124,13 +160,28 @@ def main() -> None:
         "train_dir": str(train_dir),
         "test_dir": str(test_dir),
         "calibration": {
-            "method": "temperature_scaling_on_ensemble_mean_raw",
+            "method": (
+                "platt_scaling_on_ensemble_mean_raw"
+                if chosen == "platt"
+                else "temperature_scaling_on_ensemble_mean_raw"
+            ),
+            "chosen_method": chosen,
             "temperature_T": float(T),
+            "platt_a": float(platt_a),
+            "platt_b": float(platt_b),
+            "isotonic_ablation": {
+                "n_knots": int(iso_x.size),
+                "fit_diagnostics": iso_diag,
+            },
+            "comparison_on_test": comparison,
             "validation_split": float(args.validation_split),
             "seed_used_for_val_split": int(args.seed),
             "n_validation_samples": int(y_val.size),
             "validation_class_counts": {str(k): int(v) for k, v in val_counts.items()},
-            "fit_diagnostics": fit_diag,
+            "fit_diagnostics": {
+                "temperature": fit_diag,
+                "platt": platt_diag,
+            },
             "operational_threshold_selection": {
                 "threshold": tau_high,
                 "source": risk_tiers["high_lower_source"],
@@ -153,7 +204,13 @@ def main() -> None:
         f"# Calibración ensemble — `{run_id}`",
         "",
         f"- Miembros: {len(model_paths)}",
+        f"- Método elegido (menor ECE test, T vs Platt): **{chosen}**",
         f"- T: **{T:.6f}**",
+        f"- Platt a,b: **{platt_a:.6f}**, **{platt_b:.6f}**",
+        f"- ECE test T / Platt / isotonic: "
+        f"{comparison['temperature']['expected_calibration_error']:.4f} / "
+        f"{comparison['platt']['expected_calibration_error']:.4f} / "
+        f"{comparison['isotonic']['expected_calibration_error']:.4f}",
         f"- τ alto (high_lower): **{tau_high:.6f}**",
         f"- τ bajo (low_upper): **{risk_tiers['low_upper']:.6f}**",
         f"- AUC test calibrado: **{cali.get('auc')}**",
@@ -161,6 +218,7 @@ def main() -> None:
     ]
     write_text(out_md, "\n".join(lines))
     print(f"T={T}")
+    print(f"chosen={chosen} platt_a={platt_a} platt_b={platt_b}")
     print(f"risk tiers: low_upper={risk_tiers['low_upper']}, high_lower={risk_tiers['high_lower']}")
     print(f"JSON: {out_json}")
 

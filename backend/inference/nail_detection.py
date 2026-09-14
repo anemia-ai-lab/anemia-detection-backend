@@ -1,18 +1,21 @@
 """
 Detección y recorte de uñas (índice, medio, anular) para POST /predict.
 
-MediaPipe Hand Landmarker (Tasks API) localiza landmarks; OpenCV recorta ROIs axis-aligned.
+MediaPipe Hand Landmarker (Tasks API) localiza landmarks; OpenCV recorta la uña
+rotada al eje tip→DIP (centro hacia el lecho, no en la yema).
 """
 
 from __future__ import annotations
 
 import json
 import logging
+import math
 import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal, Protocol, runtime_checkable
 
+import cv2
 import numpy as np
 
 from backend.core.config import repo_root, settings
@@ -25,6 +28,11 @@ CropSource = Literal["mediapipe", "fallback", "roi"]
 FallbackMode = Literal["whole", "vertical_thirds", "reject"]
 
 _SWAGGER_EMPTY_PLACEHOLDERS = frozenset({"string", "null", "undefined", "none"})
+
+# Fracción del vector tip−DIP hacia el DIP: el lecho ungueal, no la yema.
+_NAIL_BED_OFFSET = 0.35
+# Etiqueta de preprocessing.crop (paridad online/offline).
+CROP_PREPROCESS_LABEL = "tip_to_dip_rotated"
 
 # MediaPipe hand landmark indices (21 points); misma topología que Hands legacy.
 _FINGER_LANDMARKS: tuple[tuple[FingerLabel, int, int], ...] = (
@@ -146,6 +154,53 @@ def crop_from_normalized_roi(
     return _crop_axis_aligned(rgb, px, py, pw, ph, finger=finger, source="roi")
 
 
+def _rotated_square_aabb(
+    cx: float,
+    cy: float,
+    half: float,
+    angle_deg: float,
+    iw: int,
+    ih: int,
+) -> tuple[int, int, int, int]:
+    """AABB en la imagen original del cuadrado axis-aligned tras rotar ``angle_deg`` alrededor de (cx, cy)."""
+    rad = math.radians(angle_deg)
+    alpha = math.cos(rad)
+    beta = math.sin(rad)
+    xs: list[float] = []
+    ys: list[float] = []
+    for lx, ly in ((-half, -half), (half, -half), (half, half), (-half, half)):
+        # Inversa de cv2.getRotationMatrix2D (ángulo positivo = CCW).
+        xs.append(alpha * lx - beta * ly + cx)
+        ys.append(beta * lx + alpha * ly + cy)
+    x0 = _clamp_int(min(xs), 0, iw - 1)
+    y0 = _clamp_int(min(ys), 0, ih - 1)
+    x1 = _clamp_int(max(xs), x0 + 8, iw)
+    y1 = _clamp_int(max(ys), y0 + 8, ih)
+    return (x0, y0, x1 - x0, y1 - y0)
+
+
+def legacy_axis_aligned_tip_bbox(
+    iw: int,
+    ih: int,
+    tip_xy: tuple[float, float],
+    dip_xy: tuple[float, float],
+    crop_scale: float,
+) -> tuple[int, int, int, int]:
+    """Bbox legado: cuadrado axis-aligned centrado en el tip (tests / comparación)."""
+    tx, ty = tip_xy
+    dx, dy = dip_xy
+    finger_len = float(math.hypot(tx - dx, ty - dy))
+    if finger_len < 1e-3:
+        finger_len = min(ih, iw) * 0.05
+    side = max(16.0, finger_len * 1.6 * crop_scale)
+    half = side / 2.0
+    x = _clamp_int(tx - half, 0, iw - 1)
+    y = _clamp_int(ty - half, 0, ih - 1)
+    x2 = _clamp_int(tx + half, x + 8, iw)
+    y2 = _clamp_int(ty + half, y + 8, ih)
+    return (x, y, x2 - x, y2 - y)
+
+
 def crop_from_landmark_pair(
     rgb: np.ndarray,
     *,
@@ -154,23 +209,53 @@ def crop_from_landmark_pair(
     dip_xy: tuple[float, float],
     crop_scale: float,
 ) -> NailCrop | None:
-    """Deriva un recorte cuadrado alrededor de la punta usando tip→DIP como eje del dedo."""
+    """Recorte cuadrado rotado al eje tip→DIP, con centro hacia el lecho ungueal.
+
+    ``center = tip - 0.35 * (tip - DIP)``. Se rota para que DIP→tip quede vertical
+    (punta hacia −Y). ``side = finger_len * 1.6 * crop_scale`` (default scale 1.0).
+    El ``bbox`` es el AABB del cuadrado en coordenadas de la imagen original.
+    """
     ih, iw = int(rgb.shape[0]), int(rgb.shape[1])
-    tx, ty = tip_xy
-    dx, dy = dip_xy
+    tx, ty = float(tip_xy[0]), float(tip_xy[1])
+    dx, dy = float(dip_xy[0]), float(dip_xy[1])
     vec_x = tx - dx
     vec_y = ty - dy
-    finger_len = float(np.hypot(vec_x, vec_y))
-    if finger_len < 1e-3:
-        finger_len = min(ih, iw) * 0.05
+    axis_len = float(math.hypot(vec_x, vec_y))
+    finger_len = axis_len if axis_len >= 1e-3 else min(ih, iw) * 0.05
     side = max(16.0, finger_len * 1.6 * crop_scale)
-    half = side / 2.0
-    cx, cy = tx, ty
-    x = _clamp_int(cx - half, 0, iw - 1)
-    y = _clamp_int(cy - half, 0, ih - 1)
-    x2 = _clamp_int(cx + half, x + 8, iw)
-    y2 = _clamp_int(cy + half, y + 8, ih)
-    return _crop_axis_aligned(rgb, x, y, x2 - x, y2 - y, finger=finger)
+    out_size = max(16, int(round(side)))
+    half = out_size / 2.0
+
+    if axis_len < 1e-3:
+        return _crop_axis_aligned(
+            rgb,
+            _clamp_int(tx - half, 0, iw - 1),
+            _clamp_int(ty - half, 0, ih - 1),
+            out_size,
+            out_size,
+            finger=finger,
+        )
+
+    cx = tx - _NAIL_BED_OFFSET * vec_x
+    cy = ty - _NAIL_BED_OFFSET * vec_y
+    current = math.atan2(vec_y, vec_x)
+    desired = -math.pi / 2.0
+    angle_deg = math.degrees(desired - current)
+
+    matrix = cv2.getRotationMatrix2D((cx, cy), angle_deg, 1.0)
+    matrix[0, 2] += half - cx
+    matrix[1, 2] += half - cy
+    patch = cv2.warpAffine(
+        rgb,
+        matrix,
+        (out_size, out_size),
+        flags=cv2.INTER_LINEAR,
+        borderMode=cv2.BORDER_REPLICATE,
+    )
+    if patch.size == 0 or patch.shape[0] < 8 or patch.shape[1] < 8:
+        return None
+    bbox = _rotated_square_aabb(cx, cy, half, angle_deg, iw, ih)
+    return NailCrop(finger=finger, rgb=patch, bbox=bbox, source="mediapipe")
 
 
 def _landmark_score(landmark: Any) -> float:

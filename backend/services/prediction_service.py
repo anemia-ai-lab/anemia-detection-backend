@@ -21,7 +21,9 @@ from backend.core.prometheus_metrics import (
 from backend.core.risk_mapping import anemia_risk_label, risk_from_probability
 from backend.core.upload_io import UploadExceedsMaxBytesError, read_upload_file_with_byte_limit
 from backend.inference.image_predictor import ImagePredictor
+from backend.inference.nail_aggregation import select_aggregated_nail_index
 from backend.inference.nail_detection import (
+    CROP_PREPROCESS_LABEL,
     NailCrop,
     NailDetector,
     build_nail_detector,
@@ -30,7 +32,7 @@ from backend.inference.nail_detection import (
 from backend.inference.nail_presence import require_fingernail_presence
 from backend.inference.prediction_image_input import prepare_prediction_image
 from backend.inference.probability_calibration import (
-    apply_temperature_calibration,
+    apply_probability_calibration,
     binary_prediction_from_threshold,
 )
 from backend.inference.runtime import get_builtin_image_predictor
@@ -272,7 +274,10 @@ class PredictionService:
                 )
 
         tta_enabled = bool(settings.inference_tta_enabled)
+        cal_method = str(settings.inference_calibration_method)
         temperature = float(settings.inference_calibration_temperature)
+        platt_a = float(settings.inference_calibration_platt_a)
+        platt_b = float(settings.inference_calibration_platt_b)
         scored: list[tuple[NailCrop, float, float]] = []
 
         for crop in crops:
@@ -286,7 +291,13 @@ class PredictionService:
                 crop.rgb,
                 tta_enabled=tta_enabled,
             )
-            calibrated = apply_temperature_calibration(raw, temperature)
+            calibrated = apply_probability_calibration(
+                raw,
+                method=cal_method,
+                temperature=temperature,
+                platt_a=platt_a,
+                platt_b=platt_b,
+            )
             scored.append((crop, raw, calibrated))
 
         min_count = int(settings.predict_nail_min_count)
@@ -297,7 +308,13 @@ class PredictionService:
                 code="no_fingernail_detected",
             )
 
-        winner_crop, winner_raw, winner_cal = max(scored, key=lambda item: item[2])
+        aggregation = str(settings.predict_nail_aggregation)
+        pick = select_aggregated_nail_index(
+            [item[2] for item in scored],
+            fingers=[item[0].finger for item in scored],
+            mode=aggregation,
+        )
+        winner_crop, winner_raw, winner_cal = scored[pick]
         nails_meta = [
             {
                 "finger": crop.finger,
@@ -308,9 +325,10 @@ class PredictionService:
             for crop, raw, cal in scored
         ]
         preprocessing = {
-            "aggregation": "max",
+            "aggregation": aggregation,
             "detector": self._detector_label(crops, rois=rois, multinail_enabled=True),
-            "crop": "tip_to_dip",
+            "crop": CROP_PREPROCESS_LABEL,
+            "crop_scale": float(settings.predict_nail_crop_scale),
             "tta_enabled": tta_enabled,
             "winning_finger": winner_crop.finger,
             "nails": nails_meta,
@@ -389,7 +407,13 @@ class PredictionService:
         low_upper = float(settings.inference_risk_tier_low_upper)
         high_lower = float(settings.inference_risk_tier_high_lower)
         threshold_used = high_lower
-        calibrated_probability = apply_temperature_calibration(raw_probability, temperature)
+        calibrated_probability = apply_probability_calibration(
+            raw_probability,
+            method=str(settings.inference_calibration_method),
+            temperature=temperature,
+            platt_a=float(settings.inference_calibration_platt_a),
+            platt_b=float(settings.inference_calibration_platt_b),
+        )
         risk = risk_from_probability(
             calibrated_probability,
             low_upper=low_upper,
